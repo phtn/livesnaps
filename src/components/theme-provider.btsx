@@ -1,0 +1,39 @@
+import { createContext, use, useEffect, useState } from 'octane'
+import type { OctaneNode } from 'octane'
+import { applyTheme, getPreferredTheme, saveTheme } from '@/lib/theme'
+import type { Theme } from '@/lib/theme'
+
+module
+  export interface ThemeContextValue {
+    theme: Theme
+    setTheme: (theme: Theme) => void
+    toggleTheme: () => void
+  }
+
+  interface ThemeProviderProps {
+    children?: OctaneNode
+  }
+
+  const ThemeContext = createContext<ThemeContextValue | null>(null)
+
+  export function useTheme(): ThemeContextValue {
+    const context = use(ThemeContext)
+    if (context === null) throw new Error('useTheme must be used within ThemeProvider.')
+    return context
+  }
+
+props { children }: ThemeProviderProps
+
+setup
+  const [theme, setThemeState] = useState<Theme>(getPreferredTheme)
+  const setTheme = (nextTheme: Theme) => {
+    setThemeState(nextTheme)
+    saveTheme(nextTheme)
+  }
+  const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
+  const value: ThemeContextValue = { theme, setTheme, toggleTheme }
+
+  useEffect(() => applyTheme(theme), [theme])
+
+ThemeContext.Provider(value={value})
+  | #{children}

@@ -1,0 +1,6 @@
+footer(className='pt-0')
+  a(href='https://beast-docs.vercel.app/'
+    ~ target='_blank'
+    ~ rel='noopener noreferrer'
+    ~ className='hidden mt-1 px-1 py-0.5 ml-3 underline underline-offset-4 decoration-dotted')
+    span(className='font-mono text-xs tracking-wider') BEAST DOCS

@@ -1,0 +1,27 @@
+{
+  "name": "base",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsrx-tsc --noEmit",
+    "check": "bun run typecheck && bun run build"
+  },
+  "dependencies": {
+    "beast-tsrx": "latest",
+    "clsx": "^2.1.1",
+    "octane": "0.1.46",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@tsrx/typescript-plugin": "0.3.118",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16",
+    "tailwindcss": "^4.1.8",
+    "@tailwindcss/vite": "^4.1.8"
+  }
+}

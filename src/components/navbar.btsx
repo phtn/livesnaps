@@ -1,0 +1,59 @@
+module
+
+  type PanelId = 'language' | 'integration' | 'skills'
+  type PanelSide = 'left' | 'right'
+
+  interface Panel {
+    id: PanelId
+    label: string
+    left: LeftPanel
+    right: RightPanel
+    copyableNotes?: boolean
+  }
+  const panels: Panel[] = [
+    {
+      id: 'skills',
+      label: 'Skills',
+      copyableNotes: true,
+      left: {
+        docsPath: '/docs/skills',
+        eyebrow: 'Beast Core',
+        title: 'Beast Skills',
+        description: 'The Beast skill gives coding agents a repeatable workflow to establish scope, scaffold or locate a project, author BTSX, diagnose compiler output, and verify the build.',
+        tags: ['scaffold', 'diagnose', 'verify'],
+        note: 'npx skills add https://github.com/phtn/beast-skill --skill beast'
+      },
+      right: {
+        eyebrow: 'Migrate to beast',
+        title: 'React to Beast',
+        description: 'Audit routes, state, styling, and behavior; port the application to BTSX while preserving the user-visible experience and recording migration evidence.',
+        note: 'npx skills add https://github.com/phtn/react-to-beast --skill react-to-beast',
+        status: 'migration ready',
+        action: {
+          label: 'Explore React migration',
+          docsPath: '/docs/react-to-beast'
+        }
+      }
+    }
+  ]
+props { panels: Panel[]; activeId: string; }
+
+setup
+  const [activeId, setActiveId] = useState<PanelId>('language');
+  const [copiedSide, setCopiedSide] = useState<PanelSide | null>(null);
+  const active = panels.find((panel) => panel.id === activeId) ?? panels[0];
+  const copyNote = async (side: PanelSide, note: string) => { await navigator.clipboard.writeText(note); setCopiedSide(side); window.setTimeout(() => setCopiedSide(null), 1600); };
+
+nav(className='hidden _inline-flex w-full shrink-0 items-center rounded-full border border-black/[0.025] bg-[#f0f0ee] p-1 md:w-auto' aria-label="Product workflow" role="tablist")
+  each panel in panels key panel.id
+    button(
+      ~ type="button"
+      ~ id={`tab-${panel.id}`}
+      ~ role="tab"
+      ~ aria-controls="workflow-panel"
+      ~ aria-selected={activeId === panel.id}
+      ~ className={activeId === panel.id ? 'inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-white/95 px-2.5 py-3 text-xs font-semibold text-[#242422] shadow-[0_1px_4px_rgba(26,26,24,0.14)] outline-none transition focus-visible:ring-3 focus-visible:ring-orange-200 sm:px-2 sm:text-sm md:min-w-32'
+        ~ : 'inline-flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-transparent px-2.5 py-3 text-xs font-semibold text-[#595956] outline-none transition hover:text-[#111] focus-visible:ring-3 focus-visible:ring-orange-200 sm:px-2 sm:text-sm md:min-w-32'}
+      ~ onClick={() => { setActiveId(panel.id); setCopiedSide(null); }}
+      ~ )
+      | #{panel.label}

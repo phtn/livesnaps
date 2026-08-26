@@ -1,0 +1,155 @@
+import { Icon } from '@/lib/icons'
+
+module
+  interface Props {
+    docsUrl: string
+  }
+
+  interface Game {
+    title: string
+    genre: string
+    score: string
+    tone: string
+    glyph: string
+    badge?: string
+  }
+
+  const latestGames: Game[] = [
+    { title: 'Astra Vale', genre: 'Open-world RPG', score: '4.8', tone: 'storm', glyph: 'AV', badge: 'Updated' },
+    { title: 'Petal Drift', genre: 'Adventure', score: '4.7', tone: 'petal', glyph: 'PD' },
+    { title: 'Orbit League', genre: 'Sports · Arcade', score: '4.6', tone: 'orbit', glyph: 'OL' },
+    { title: 'Neon Ronin', genre: 'Action', score: '4.9', tone: 'ronin', glyph: 'NR', badge: 'New' },
+    { title: 'Luma Grove', genre: 'Cozy simulation', score: '4.8', tone: 'grove', glyph: 'LG' },
+  ]
+
+  const editorPicks: Game[] = [
+    { title: 'Sable Crown', genre: 'Tactical RPG', score: '4.9', tone: 'crown', glyph: 'SC', badge: 'Choice' },
+    { title: 'Morrow Tide', genre: 'Narrative adventure', score: '4.8', tone: 'tide', glyph: 'MT' },
+    { title: 'Paper Kingdom', genre: 'Strategy', score: '4.7', tone: 'paper', glyph: 'PK' },
+  ]
+
+component StoreMark
+  span(className='store-mark' aria-hidden={true})
+    span(className='store-mark__orbit')
+    span(className='store-mark__star') ✦
+
+component GameCard
+  props { game }: { game: Game }
+  article(className='game-card')
+    button(type='button' className='game-card__art' aria-label={'Open ' + game.title})
+      span(className={'game-cover game-cover--' + game.tone})
+        span(className='game-cover__shine')
+        span(className='game-cover__monogram') #{game.glyph}
+      if game.badge
+        span(className='game-card__badge') #{game.badge}
+      span(className='game-card__open' aria-hidden={true}) ↗
+    h3 #{game.title}
+    div(className='game-card__meta')
+      span #{game.genre}
+      span
+        span(className='relative z-1 font-black game-card__score [-webkit-text-stroke:0.5px_#14141b90] drop-shadow-xs') #{game.score}
+        span(className='relative text-base -ml-1.5 text-transparent bg-clip-text bg-linear-to-l from-yellow-200 via-yellow-300 via-20% to-transparent') ★
+
+component SectionHeading
+  props { eyebrow, title }: { eyebrow?: string; title: string }
+  header(className='section-heading')
+    div
+      if eyebrow
+        p #{eyebrow}
+      h2 #{title}
+    button(type='button' className='section-heading__link')
+      span See all
+      Icon(name='arrow-right' size={18} className='section-heading__icon')
+
+props { docsUrl }: Props
+
+// ENTRY
+div(className='storefront')
+  header(className='topbar')
+    a(className='brand' href='#top' aria-label='Galaxy Store home')
+      StoreMark
+      span Galaxy Store
+    nav(className='desktop-links' aria-label='Primary navigation')
+      a(className='desktop-links__active' href='#discover') Discover
+      a(href='#games') Games
+      a(href='#editors') Editors’ picks
+    div(className='topbar__actions')
+      button(type='button' className='search-button' aria-label='Search the store')
+        Icon(name='search' size={21} className='search-button__icon')
+      a(className='account-button' href={docsUrl})
+        span(className='account-button__dot')
+        span About
+
+  main(id='top' className='store-main')
+    section(id='discover' className='hero' aria-labelledby='hero-title')
+      div(className='hero__visual')
+        img(src='/images/echoes-hero.webp' alt='A silver-haired warrior standing in the ruins of a dark citadel')
+        div(className='hero__image-shade' aria-hidden={true})
+        div(className='hero__number' aria-hidden={true}) 01 / 04
+      div(className='hero__content')
+        div(className='hero__eyebrow')
+          span(className='hero__eyebrow-mark')
+          span Editors’ choice
+        h1(id='hero-title') Echoes of Aether
+        p(className='hero__dek') Answer the call of a kingdom fading between memory and myth.
+        div(className='hero__facts')
+          span Beast Studios
+          span(className='hero__fact-separator')
+          span 3 Expansion Packs
+        div(className='hero__actions')
+          button(type='button' className='install-button')
+            span Get it now
+            div(className='block text-xl text-accent')
+              p $88
+          button(type='button' className='download-demo' aria-label='Download Demo')
+            span(aria-hidden={true}) Try Demo
+        div(className='hero__pagination' aria-label='Featured game 1 of 4')
+          span(className='hero__page hero__page--active')
+          span(className='hero__page')
+          span(className='hero__page')
+          span(className='hero__page')
+
+    nav(className='category-nav' aria-label='Store categories')
+      button(type='button' className='category-nav__spark' aria-label='What’s new')
+        span(className='bolt' aria-hidden={true}) ϟ
+        span(className='notification-dot')
+      span(className='category-nav__divider' aria-hidden={true})
+      button(type='button' className='category-nav__item category-nav__item--active') Featured
+      button(type='button' className='category-nav__item') Pre-register
+      button(type='button' className='category-nav__item') Top charts
+      button(type='button' className='category-nav__item') Exclusives
+
+    section(id='games' className='content-section')
+      SectionHeading(eyebrow='Fresh worlds, familiar favorites' title='Latest game updates')
+      div(className='game-rail')
+        each game in latestGames key game.title
+          GameCard(game={game})
+
+    section(className='feature-strip' aria-labelledby='week-title')
+      div(className='feature-strip__art' aria-hidden={true})
+        span(className='feature-strip__moon')
+        span(className='feature-strip__mountain feature-strip__mountain--one')
+        span(className='feature-strip__mountain feature-strip__mountain--two')
+      div(className='feature-strip__copy')
+        p(className='text-taupe-800! ml-3!') Weekend quest
+        h2(id='week-title' className='tracking-tight! text-center') Play beyond the ordinary hero.
+        span(className='text-center') Earn double rewards during kill event.
+      button(type='button' className='feature-strip__button place-self-center') Explore event
+
+    section(id='editors' className='content-section content-section--last')
+      SectionHeading(eyebrow='Handpicked for you' title='Worth your time')
+      div(className='editor-grid')
+        each game in editorPicks key game.title
+          GameCard(game={game})
+
+  footer(className='store-footer')
+    div
+      a(className='brand brand--footer' href='#top')
+        StoreMark
+        span Galaxy Store
+      p New worlds, chosen well.
+    div(className='store-footer__links')
+      a(href='#discover') Discover
+      a(href='#games') Games
+      a(href={docsUrl}) About
+    p(className='store-footer__note') Curated for your next great escape.
