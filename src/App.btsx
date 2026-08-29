@@ -69,8 +69,8 @@ div(className='storefront')
     a(className='brand' href='#top' aria-label='Galaxy Store home')
       StoreMark
       span Galaxy Store
-    nav(className='desktop-links' aria-label='Primary navigation')
-      a(className='desktop-links__active' href='#discover') Discover
+    nav(className='site-nav' aria-label='Primary navigation')
+      a(className='' href='#discover') Discover
       a(href='#games') Games
       a(href='#editors') Editors’ picks
     div(className='topbar__actions')
@@ -90,7 +90,7 @@ div(className='storefront')
         div(className='hero__eyebrow')
           span(className='hero__eyebrow-mark')
           span Editors’ choice
-        h1(id='hero-title') Echoes of Aether
+        h1(id='hero-title') Pound Daddy
         p(className='hero__dek') Answer the call of a kingdom fading between memory and myth.
         div(className='hero__facts')
           span Beast Studios
@@ -152,4 +152,5 @@ div(className='storefront')
       a(href='#discover') Discover
       a(href='#games') Games
       a(href={docsUrl}) About
-    p(className='store-footer__note') Curated for your next great escape.
+    div(className='t-matrix' variant='scan')
+    // p(className='store-footer__note') Curated for your next great escape.
