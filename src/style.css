@@ -87,17 +87,13 @@ a:focus-visible {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   font-size: clamp(1.45rem, 3vw, 2rem);
   font-weight: 600;
   letter-spacing: -0.055em;
 }
-
 .store-mark {
   position: relative;
-  display: none;
-  width: 26px;
-  height: 26px;
 }
 .store-mark__orbit {
   position: absolute;
@@ -989,7 +985,7 @@ a:focus-visible {
 .footer-links a {
   position: relative;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: 0.84rem;
   font-weight: 650;
 }
 .site-nav a:hover,
