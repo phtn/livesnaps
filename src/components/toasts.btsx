@@ -1,0 +1,23 @@
+import { useEffect, useState } from 'octane'
+import { cn } from '@/lib/utils'
+import { dismissToast, getToasts, subscribeToToasts } from '@/lib/toast'
+
+module
+  const kindClasses = {
+    info: 'text-white',
+    success: 'text-emerald-300',
+    warning: 'text-amber-300',
+    error: 'text-red-300',
+    loading: 'text-yellow-200'
+  }
+
+setup
+  const [toasts, setToasts] = useState(getToasts)
+  const visibleToasts = toasts.filter((item) => !item.dismissed)
+  useEffect(() => subscribeToToasts(() => setToasts([...getToasts()])), [])
+
+div(className='pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-1 px-4' aria-live='polite' aria-atomic='false')
+  each item in visibleToasts key item.id
+    div(role={item.kind === 'error' ? 'alert' : 'status'} className={cn('pointer-events-auto flex min-h-8 items-center gap-3 rounded-md bg-black px-2.5 py-1 text-xs tracking-[-0.025em] shadow-lg transition-opacity', kindClasses[item.kind])})
+      span #{item.message}
+      button(type='button' className='text-white/60 hover:text-white' aria-label='Dismiss notification' onClick={() => dismissToast(item.id)}) ×

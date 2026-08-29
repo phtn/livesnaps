@@ -1,0 +1,16 @@
+{
+  "name": "LiveSnapsNow",
+  "short_name": "LiveSnapsNow",
+  "description": "Verify your vehicle with five simple snaps.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070707",
+  "theme_color": "#070707",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

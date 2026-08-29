@@ -11,9 +11,19 @@
     "check": "bun run typecheck && bun run build"
   },
   "dependencies": {
+    "@octanejs/base-ui": "^0.1.47",
+    "@octanejs/gsap": "^0.0.18",
+    "@octanejs/rsbuild-plugin": "^0.1.44",
     "beast-tsrx": "0.2.9",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.45.0",
+    "fflate": "^0.8.3",
+    "firebase": "^12.18.0",
+    "firebase-admin": "^14.3.0",
+    "gsap": "^3.15.0",
     "octane": "0.1.49",
+    "react-hot-toast": "^2.6.0",
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {

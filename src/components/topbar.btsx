@@ -1,18 +1,51 @@
-import ThemeToggle from "./theme-toggle.btsx";
+import ThemeToggle from './theme-toggle.btsx'
 import { Icon } from '@/lib/icons'
+import { getCurrentUser, signInWithGoogle, subscribeToAuthState } from '@/lib/firebase'
+import UserMenu from './user-menu.btsx'
+import type { User } from 'firebase/auth'
+import { useEffect, useState } from 'octane'
+
 
 component StoreMark
   span(className='hidden size-5 opacity-50 sm:flex sm:size-6 md:size-7' aria-hidden={true})
-    img(src='/beast.svg' className='size-full')
+    img(src='/logo.svg' className='size-full')
 
+setup
+  const [user, setUser] = useState<User | null>(getCurrentUser)
+  const [isSigningIn, setIsSigningIn] = useState(false)
+  const [signInError, setSignInError] = useState<string | null>(null)
+  const inSession = user !== null
+
+  useEffect(() => subscribeToAuthState(() => setUser(getCurrentUser())), [])
+
+  const handleSignIn = async () => {
+    if (isSigningIn) return
+
+    setSignInError(null)
+    setIsSigningIn(true)
+    try {
+      const result = await signInWithGoogle()
+      setUser(result.user)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to sign in right now.'
+      setSignInError(message)
+      console.error('Error signing in with Google:', error)
+    } finally {
+      setIsSigningIn(false)
+    }
+  }
 header(className='relative z-10 mx-auto flex h-16 w-full max-w-[1520px] items-center justify-between px-[4vw] min-[700px]:h-[108px] min-[700px]:px-[34px] lg:px-[54px] min-[1360px]:px-[70px]')
-  a(className='inline-flex items-center gap-2 text-[clamp(1.4rem,3vw,1.8rem)] font-semibold text-foreground/90 tracking-tight' href='#top' aria-label='App home')
+  a(className='inline-flex items-center gap-2 text-[clamp(1.2rem,3vw,1.6rem)] font-medium text-foreground/90 tracking-tight' href='/' aria-label='App home')
     StoreMark
     span LiveSnapsNow
   nav(className='hidden items-center gap-[clamp(22px,3vw,42px)] md:flex' aria-label='Primary navigation')
-    a(className='relative text-[0.84rem] font-semibold text-[#9c9a96] transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-[#f6f4ef] hover:after:origin-left hover:after:scale-x-100' href='#discover') Submits
-    a(className='relative text-[0.84rem] font-semibold text-[#9c9a96] transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-[#f6f4ef] hover:after:origin-left hover:after:scale-x-100' href='#games') How it works
+    a(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' href='#discover') My Snaps
   div(className='flex items-center gap-[4vw]')
     ThemeToggle
-    button(className='items-center rounded-full hover:bg-muted')
-      Icon(name='person')
+    if inSession
+      UserMenu(user={user} hasAdminClaim={false} hasSnapAdminAccess={false})
+    else
+      button(type='button' disabled={isSigningIn} onClick={handleSignIn} aria-busy={isSigningIn} aria-label='Sign in with Google' className='inline-flex size-9 items-center justify-center rounded-full text-foreground transition hover:bg-muted disabled:cursor-wait disabled:opacity-60')
+        Icon(name='person')
+  if signInError
+    p(className='absolute right-4 top-full max-w-xs text-xs text-destructive') #{signInError}

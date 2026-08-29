@@ -1,0 +1,18 @@
+import { cn, getInitials } from '@/lib/utils'
+
+module
+  export interface AvatarProps {
+    imageUrl?: string | null
+    alt?: string
+    fallback?: string | null
+    size?: 'default' | 'sm' | 'lg'
+    className?: string
+  }
+
+props { imageUrl, alt = 'User', fallback, size = 'default', className }: AvatarProps
+
+div(className={cn('group relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border/30 bg-muted text-sm text-muted-foreground', size === 'sm' ? 'size-6 text-xs' : size === 'lg' ? 'size-10' : 'size-8', className)} data-slot='avatar' data-size={size})
+  if imageUrl
+    img(className='aspect-square size-full rounded-full object-cover' src={imageUrl} alt={alt})
+  else
+    span(className='flex size-full items-center justify-center rounded-full') #{fallback ?? getInitials(alt)}

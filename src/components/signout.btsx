@@ -1,0 +1,35 @@
+import { signOutCurrentUser } from '@/lib/firebase'
+import { useState } from 'octane'
+
+module
+  export interface SignOutProps {
+    label?: string
+    withLabel?: boolean
+    className?: string
+  }
+
+props { label, withLabel = false, className }: SignOutProps
+
+setup
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const [signOutError, setSignOutError] = useState<string | null>(null)
+  const handleSignOut = async () => {
+    setSignOutError(null)
+    setIsSigningOut(true)
+    try {
+      await signOutCurrentUser()
+      window.location.assign('/')
+    } catch (error) {
+      setSignOutError(error instanceof Error ? error.message : 'Unable to sign out right now.')
+      setIsSigningOut(false)
+    }
+  }
+
+div(className='flex w-full flex-col')
+  button(type='button' disabled={isSigningOut} className={className ?? 'flex w-full items-center justify-center rounded-none transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60'} onClick={handleSignOut} aria-busy={isSigningOut})
+    if withLabel
+      span(className='px-4 text-base font-medium tracking-tight text-foreground') #{label ?? 'sign out'}
+    else
+      span(className='sr-only') #{label ?? 'Sign out'}
+  if signOutError
+    p(className='max-w-sm font-mono text-[10px] uppercase tracking-[0.24em] text-[#ff7d33]') #{signOutError}

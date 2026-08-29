@@ -1,0 +1,83 @@
+import { useEffect, useState } from 'octane'
+import Badge from '@/components/ui/badge.btsx'
+import { Icon } from '@/lib/icons'
+import { getMySubmissions } from '@/lib/convex-client'
+import { getSnapSubmissionPath } from '@/lib/snaps/routes'
+import { cn } from '@/lib/utils'
+import { getCurrentUser, subscribeToAuthState } from '@/lib/firebase'
+import type { FunctionReturnType } from 'convex/server'
+import { api } from '../../convex/_generated/api'
+
+module
+  type ProofSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
+  type ProofSubmissionStatus = ProofSubmission['status']
+  export interface SubmitListProps { className?: string }
+  const dateFormatter = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
+  const statusPresentation: Record<ProofSubmissionStatus, { badge: string; icon: string; iconFrame: string }> = {
+    active: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-blue-600 dark:text-blue-300' },
+    abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
+    cancelled: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'cancel', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
+    completed: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'check-circle-fill', iconFrame: 'bg-beach/10 text-beach dark:text-lime-200' },
+    invalidated: { badge: 'border-red-500/25 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
+    pending: { badge: 'border-amber-500/25 bg-amber-500/8 text-amber-700 dark:text-amber-300', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
+  }
+  const vehicleLabel = (submission: ProofSubmission) => [submission.year, submission.make, submission.model].filter(Boolean).join(' ') || 'Vehicle details: N/A'
+
+component SubmissionRow
+  props { submission }: { submission: ProofSubmission }
+  setup
+    const presentation = statusPresentation[submission.status]
+    const timestamp = new Date(submission.startedAt)
+  li
+    a(href={getSnapSubmissionPath(submission._id)} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
+      span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', presentation.iconFrame)})
+        Icon(name={presentation.icon as any} className='size-5')
+      div(className='min-w-0 flex-1')
+        div(className='flex min-w-0 items-center gap-2')
+          p(className='truncate font-poly text-sm font-medium uppercase tracking-tight') #{submission.plateNumber.trim() || 'No Plate'}
+          Badge(variant='outline' className={cn('capitalize font-normal', presentation.badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
+        p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
+      time(dateTime={timestamp.toISOString()} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{dateFormatter.format(timestamp)}
+      Icon(name='arrow-right' className='size-4 shrink-0 text-muted-foreground transition-transform group-hover/submission:translate-x-0.5')
+
+component EmptyState
+  props { isAuthenticated }: { isAuthenticated: boolean }
+  div(className='flex min-h-24 items-center gap-3 px-4 py-5 text-sm text-muted-foreground')
+    span(className='grid size-9 shrink-0 place-items-center rounded-full bg-muted/70')
+      Icon(name={isAuthenticated ? 'camera-plus' : 'safe-shield'} className='size-4')
+    p #{isAuthenticated ? 'Your latest submissions will appear here.' : 'Sign in to view your submissions.'}
+
+props { className }: SubmitListProps
+
+setup
+  const [user, setUser] = useState(getCurrentUser)
+  const [submissions, setSubmissions] = useState<ProofSubmission[] | undefined>(undefined)
+  const [isLoading, setIsLoading] = useState(true)
+  const isAuthenticated = user !== null
+  useEffect(() => subscribeToAuthState(() => setUser(getCurrentUser())), [])
+  useEffect(() => {
+    let cancelled = false
+    setIsLoading(isAuthenticated)
+    if (!isAuthenticated) { setSubmissions([]); setIsLoading(false); return () => { cancelled = true } }
+    void getMySubmissions().then((next) => { if (!cancelled) { setSubmissions(next); setIsLoading(false) } }).catch(() => { if (!cancelled) { setSubmissions([]); setIsLoading(false) } })
+    return () => { cancelled = true }
+  }, [isAuthenticated])
+
+section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})
+  div(className='mb-3 flex items-end justify-between gap-4 px-1')
+    div
+      p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Recent activity
+      h2(id='latest-proof-submissions-title' className='mt-1 font-poly text-lg font-medium')
+        div(className='flex items-center space-x-3')
+          span My Submissions
+          if isLoading
+            Icon(name='velocity' className='-mt-1.5 size-8 opacity-50')
+  div(className='overflow-hidden rounded-lg border-[0.5px] bg-card/60 shadow-xs')
+    if isLoading
+      div(className='relative h-16 animate-pulse bg-mist-100 dark:bg-mist-400/10')
+    elseif submissions && submissions.length > 0
+      ul(className='divide-y divide-border/60')
+        each submission in submissions key submission._id
+          SubmissionRow(submission={submission})
+    else
+      EmptyState(isAuthenticated={isAuthenticated})

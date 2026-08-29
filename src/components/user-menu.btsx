@@ -1,0 +1,79 @@
+import { Icon, type IconName } from '@/lib/icons'
+import { resolveAccountProfileImageUrl } from '@/lib/r2/prefixes'
+import { buildAdminHandoffUrl } from '@/lib/routing/admin-subdomain'
+import { buildSnapAdminHandoffUrl } from '@/lib/routing/snap-admin-subdomain'
+import { cn, getInitials } from '@/lib/utils'
+import type { User } from 'firebase/auth'
+import { useState } from 'octane'
+import Avatar from './ui/avatar.btsx'
+import SignOut from './signout.btsx'
+
+module
+  export interface UserMenuProps {
+    user: User | null
+    hasAdminClaim: boolean
+    hasSnapAdminAccess: boolean
+  }
+
+  interface MenuItemProps {
+    path: string
+    label: string
+    icon: IconName
+  }
+
+component MenuItem
+  props { item, onNavigate }: { item: MenuItemProps; onNavigate: (path: string) => void }
+  button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground' onClick={() => onNavigate(item.path)})
+    Icon(name={item.icon} className='size-5')
+    span(className='text-base font-medium tracking-tight') #{item.label}
+
+props { user, hasAdminClaim, hasSnapAdminAccess }: UserMenuProps
+
+setup
+  const [isNavigatingToAdmin, setIsNavigatingToAdmin] = useState(false)
+  const [isNavigatingToSnapAdmin, setIsNavigatingToSnapAdmin] = useState(false)
+  const profileImageUrl = user?.photoURL ? resolveAccountProfileImageUrl(user.photoURL) : null
+  const navigate = (path: string) => window.location.assign(path)
+  const handleAdminNavigation = async () => {
+    if (!user || isNavigatingToAdmin) return
+    setIsNavigatingToAdmin(true)
+    try {
+      const idToken = await user.getIdToken(true)
+      window.location.assign(buildAdminHandoffUrl(new URL(window.location.href), idToken).toString())
+    } catch (error) {
+      console.error('Failed to navigate to the admin app.', error)
+      setIsNavigatingToAdmin(false)
+    }
+  }
+  const handleSnapAdminNavigation = async () => {
+    if (!user || isNavigatingToSnapAdmin) return
+    setIsNavigatingToSnapAdmin(true)
+    try {
+      const idToken = await user.getIdToken(true)
+      window.location.assign(buildSnapAdminHandoffUrl(new URL(window.location.href), idToken).toString())
+    } catch (error) {
+      console.error('Failed to navigate to the Snap Admin app.', error)
+      setIsNavigatingToSnapAdmin(false)
+    }
+  }
+
+details(className='relative inline-block')
+  summary(className='cursor-pointer list-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden' aria-label='Open user menu')
+    div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-sand/10 dark:hover:bg-sand/80 md:size-12')
+      Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
+  div(className='absolute right-0 top-full z-50 mt-2 min-w-48 rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5')
+    MenuItem(item={{ path: '/a', label: 'account', icon: 'user' }} onNavigate={navigate})
+    MenuItem(item={{ path: '/submits', label: 'submits', icon: 'folder' }} onNavigate={navigate})
+    if hasAdminClaim
+      fragment
+        MenuItem(item={{ path: '/r', label: 're-up', icon: 're-up.ph' }} onNavigate={navigate})
+        MenuItem(item={{ path: '/c', label: 'fields', icon: 'mechanics' }} onNavigate={navigate})
+        button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+          Icon(name='horse-head' className='size-5 shrink-0')
+          span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
+    if hasSnapAdminAccess
+      button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleSnapAdminNavigation} disabled={isNavigatingToSnapAdmin})
+        Icon(name='rook' className='size-5 shrink-0')
+        span(className='text-base font-medium tracking-tight') #{isNavigatingToSnapAdmin ? 'opening snaps admin' : 'snaps admin'}
+    div(className='-mx-1 my-1 h-px bg-border/50' role='separator')
+    SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-xl transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

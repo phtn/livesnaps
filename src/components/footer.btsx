@@ -1,10 +1,11 @@
 import Icon from "../lib/icons/icon.btsx";
-footer(className="border-t border-border/30 mt-auto w-full")
+footer(className="border-t border-border/30 w-full mt-auto")
   div(className="w-full px-6 py-6 flex items-center justify-between gap-4 font-mono text-muted-foreground text-[11px] uppercase")
     div(className="flex items-center gap-3")
       div
         div(className="font-mono text-xs text-border") ©#{new Date().getFullYear()} LiveSnapsNow
     div(className="flex items-center gap-4")
-      a(href="https://beast-docs.vercel.app" target="_blank" rel="noreferrer" className="hover:text-foreground transition") DOCS
-      a(href="https://github.com/phtn/beast" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 pl-4 border-l border-input")
+      a(href="https://beast-docs.vercel.app" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Privacy
+      a(href="https://beast-docs.vercel.app" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Terms
+      a(href="https://github.com/phtn/beast" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 pl-4")
         Icon(name="github" className="text-muted-foreground")

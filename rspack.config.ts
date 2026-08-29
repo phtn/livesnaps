@@ -1,16 +1,54 @@
 import rspack from '@rspack/core'
 import { beastOctane } from 'beast-tsrx/rspack'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const root = path.dirname(fileURLToPath(import.meta.url))
 
+const publicEnvNames = [
+  'PUBLIC_FIREBASE_API_KEY',
+  'PUBLIC_FIREBASE_AUTH_DOMAIN',
+  'PUBLIC_FIREBASE_PROJECT_ID',
+  'PUBLIC_FIREBASE_STORAGE_BUCKET',
+  'PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
+  'PUBLIC_FIREBASE_APP_ID',
+  'PUBLIC_FIREBASE_MEASUREMENT_ID',
+  'PUBLIC_CONVEX_URL'
+] as const
+
+const readEnvFile = (filename: string) => {
+  if (!fs.existsSync(filename)) return {}
+
+  return Object.fromEntries(
+    fs
+      .readFileSync(filename, 'utf8')
+      .split(/\r?\n/)
+      .flatMap((line) => {
+        const match = line.match(/^\s*(?:export\s+)?([A-Z][A-Z0-9_]*)\s*=\s*(.*)\s*$/)
+        if (!match) return []
+        const value = match[2].replace(/^(['"])(.*)\1$/, '$2')
+        return [[match[1], value]]
+      })
+  ) as Record<string, string>
+}
+
+const fileEnv = { ...readEnvFile(path.join(root, '.env')), ...readEnvFile(path.join(root, '.env.local')) }
+const publicEnv = Object.fromEntries(
+  publicEnvNames.map((name) => [name, process.env[name] ?? fileEnv[name] ?? undefined])
+)
+
 export default {
   context: root,
   entry: './src/main.ts',
   output: {
     clean: true
+  },
+  optimization: {
+    splitChunks: {
+      chunks: 'all'
+    }
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.btsx'],
@@ -32,12 +70,19 @@ export default {
     ]
   },
   plugins: [
+    new rspack.DefinePlugin(
+      Object.fromEntries(publicEnvNames.map((name) => [`import.meta.env.${name}`, JSON.stringify(publicEnv[name])]))
+    ),
     beastOctane(),
     new rspack.CopyRspackPlugin({
-      patterns: [{ from: 'public', to: '.' }]
+      patterns: [
+        { from: 'public', to: '.' },
+        { from: 'favicon.ico', to: 'favicon.ico' }
+      ]
     }),
     new rspack.HtmlRspackPlugin({
-      template: './index.html'
+      template: './index.html',
+      chunks: ['main']
     })
   ],
   devServer: {

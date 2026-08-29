@@ -1,0 +1,119 @@
+import gsap from 'gsap'
+import { useGSAP } from '@octanejs/gsap'
+import { useMemo, useRef } from 'octane'
+import type { OctaneNode } from 'octane'
+import { cn } from '@/lib/utils'
+
+module
+  export interface CursorAnimationConfig {
+    initial?: gsap.TweenVars
+    animate?: gsap.TweenVars
+  }
+  export interface TypewriterProps {
+    text: string | string[]
+    speed?: number
+    initialDelay?: number
+    waitTime?: number
+    deleteSpeed?: number
+    loop?: boolean
+    className?: string
+    showCursor?: boolean
+    hideCursorOnType?: boolean
+    cursorChar?: OctaneNode
+    cursorAnimationVariants?: CursorAnimationConfig
+    cursorClassName?: string
+    as?: 'div' | 'span' | 'p' | 'section'
+  }
+  const DEFAULT_CURSOR_ANIMATION: Required<CursorAnimationConfig> = {
+    initial: { opacity: 0 },
+    animate: { opacity: 1, duration: 0.01, repeat: -1, repeatDelay: 0.4, yoyo: true, ease: 'none' }
+  }
+
+props { text, speed = 50, initialDelay = 0, waitTime = 2000, deleteSpeed = 30, loop = true, className, showCursor = true, hideCursorOnType = false, cursorChar = '_', cursorClassName = 'ml-1', cursorAnimationVariants = DEFAULT_CURSOR_ANIMATION, as = 'div' }: TypewriterProps
+
+setup
+  const textRef = useRef<HTMLSpanElement | null>(null)
+  const cursorRef = useRef<HTMLSpanElement | null>(null)
+  const texts = useMemo(() => {
+    const values = Array.isArray(text) ? text : [text]
+    return values.length > 0 ? values : ['']
+  }, [text])
+  useGSAP(() => {
+    const textNode = textRef.current
+    if (!textNode) return
+    const cursorNode = cursorRef.current
+    const proxy = { value: 0 }
+    const shouldCycleTexts = texts.length > 1
+    const setDisplayText = (value: string) => { textNode.textContent = value }
+    const setCursorTypingState = (isTyping: boolean, blinkTween?: gsap.core.Tween) => {
+      if (!cursorNode || !hideCursorOnType) return
+      if (isTyping) {
+        blinkTween?.pause(0)
+        gsap.set(cursorNode, { autoAlpha: 0 })
+        return
+      }
+      gsap.set(cursorNode, { autoAlpha: 1 })
+      blinkTween?.restart()
+    }
+    const blinkTween = cursorNode && showCursor
+      ? gsap.fromTo(cursorNode, { ...DEFAULT_CURSOR_ANIMATION.initial, ...cursorAnimationVariants.initial }, { ...DEFAULT_CURSOR_ANIMATION.animate, ...cursorAnimationVariants.animate })
+      : undefined
+    setDisplayText('')
+    setCursorTypingState(texts[0].length > 0, blinkTween)
+    const timeline = gsap.timeline({ delay: initialDelay / 1000, repeat: loop && shouldCycleTexts ? -1 : 0 })
+    texts.forEach((currentText) => {
+      timeline.call(() => {
+        proxy.value = 0
+        setDisplayText('')
+        setCursorTypingState(currentText.length > 0, blinkTween)
+      })
+      if (currentText.length > 0) {
+        timeline.to(proxy, {
+          value: currentText.length,
+          duration: (currentText.length * speed) / 1000,
+          ease: 'none',
+          snap: { value: 1 },
+          onUpdate: () => setDisplayText(currentText.slice(0, Math.round(proxy.value))),
+          onComplete: () => setDisplayText(currentText)
+        })
+      }
+      timeline.call(() => setCursorTypingState(false, blinkTween))
+      if (!shouldCycleTexts) return
+      if (waitTime > 0) timeline.to({}, { duration: waitTime / 1000 })
+      timeline.call(() => setCursorTypingState(currentText.length > 0, blinkTween))
+      if (currentText.length > 0) {
+        timeline.to(proxy, {
+          value: 0,
+          duration: (currentText.length * deleteSpeed) / 1000,
+          ease: 'none',
+          snap: { value: 1 },
+          onUpdate: () => setDisplayText(currentText.slice(0, Math.round(proxy.value))),
+          onComplete: () => setDisplayText('')
+        })
+      } else {
+        timeline.call(() => setDisplayText(''))
+      }
+    })
+    if (hideCursorOnType && shouldCycleTexts && !loop) timeline.call(() => setCursorTypingState(false, blinkTween))
+  }, { dependencies: [cursorAnimationVariants, deleteSpeed, hideCursorOnType, initialDelay, loop, showCursor, speed, texts, waitTime] })
+
+if as === 'span'
+  span(className={cn('inline whitespace-pre-wrap', className)})
+    span(ref={textRef})
+    if showCursor
+      span(ref={cursorRef} className={cursorClassName}) | #{cursorChar}
+elseif as === 'p'
+  p(className={cn('inline whitespace-pre-wrap', className)})
+    span(ref={textRef})
+    if showCursor
+      span(ref={cursorRef} className={cursorClassName}) | #{cursorChar}
+elseif as === 'section'
+  section(className={cn('inline whitespace-pre-wrap', className)})
+    span(ref={textRef})
+    if showCursor
+      span(ref={cursorRef} className={cursorClassName}) | #{cursorChar}
+else
+  div(className={cn('inline whitespace-pre-wrap', className)})
+    span(ref={textRef})
+    if showCursor
+      span(ref={cursorRef} className={cursorClassName}) | #{cursorChar}
