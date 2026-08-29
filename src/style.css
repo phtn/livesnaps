@@ -69,7 +69,7 @@ a:focus-visible {
 .storefront {
   min-height: 100vh;
   overflow: hidden;
-  background: radial-gradient(circle at 84% 3%, rgba(96, 81, 69, 0.17), transparent 25rem), var(--canvas);
+  /*background: radial-gradient(circle at 84% 3%, rgba(96, 81, 69, 0.17), transparent 25rem), var(--canvas);*/
 }
 
 .topbar {
@@ -273,7 +273,7 @@ a:focus-visible {
 }
 .hero__actions {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 .install-button,
 .download-demo {
@@ -813,14 +813,14 @@ a:focus-visible {
     font-size: clamp(3.5rem, 5.6vw, 6.4rem);
   }
   .hero__dek {
-    margin-top: 24px;
+    margin-top: 20px;
     font-size: 1.08rem;
   }
   .hero__facts {
-    margin-bottom: 32px;
+    margin-top: 32px;
   }
   .install-button {
-    max-width: 280px;
+    max-width: 100%;
   }
   .hero__pagination {
     display: flex;

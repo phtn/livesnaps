@@ -29,7 +29,7 @@ module
   ]
 
 component StoreMark
-  span(className='store-mark size-5 sm:size-6 md:size-7 opacity-50' aria-hidden={true})
+  span(className='store-mark hidden size-5 sm:flex sm:size-6 md:size-7 opacity-50' aria-hidden={true})
     img(src='/beast.svg')
 
 component GameCard
@@ -65,16 +65,13 @@ props { docsUrl }: Props
 // ENTRY
 div(className='storefront')
   header(className='topbar')
-    a(className='brand' href='#top' aria-label='Store home')
+    a(className='brand' href='#top' aria-label='App home')
       StoreMark
-      span Celestial
+      span LiveSnapsNow
     nav(className='site-nav hidden! md:flex!' aria-label='Primary navigation')
-      a(className='' href='#discover') Discover
-      a(href='#games') Games
-      a(href='#editors') Editors’ picks
+      a(className='' href='#discover') Submits
+      a(href='#games') How it works
     div(className='topbar__actions')
-      button(className='search-button' aria-label='Search the store')
-        Icon(name='search' size={16} className='search-button__icon')
       button(className='search-button' aria-label='Search the store')
         Icon(name='theme' size={16} className='search-button__icon')
       button(className='search-button' href={docsUrl})
@@ -90,19 +87,15 @@ div(className='storefront')
         div(className='hero__eyebrow')
           span(className='hero__eyebrow-mark')
           span Editors’ choice
-        h1(id='hero-title') Pound Daddy
-        p(className='hero__dek') Answer the call of a kingdom fading between memory and myth.
+        h1(id='hero-title') Get Verified.
+        p(className='hero__dek') Step 1: Take 5 snaps of your vehicle.
+        div(className='hero__actions')
+          button(type='button' className='install-button')
+            span Get Started
         div(className='hero__facts')
           span Beast Studios
           span(className='hero__fact-separator')
           span 3 Expansion Packs
-        div(className='hero__actions')
-          button(type='button' className='install-button')
-            span Get it now
-            div(className='block text-xl text-accent')
-              p $88
-          button(type='button' className='download-demo' aria-label='Download Demo')
-            span(aria-hidden={true}) Try Demo
         div(className='hero__pagination' aria-label='Featured game 1 of 4')
           span(className='hero__page hero__page--active')
           span(className='hero__page')
@@ -112,29 +105,11 @@ div(className='storefront')
     nav(className='category-nav' aria-label='Store categories')
       button(type='button' className='category-nav__spark' aria-label='What’s new')
         span(className='bolt' aria-hidden={true}) ϟ
-        span(className='notification-dot')
       span(className='category-nav__divider' aria-hidden={true})
-      button(type='button' className='category-nav__item category-nav__item--active') Featured
-      button(type='button' className='category-nav__item') Pre-register
-      button(type='button' className='category-nav__item') Top charts
-      button(type='button' className='category-nav__item') Exclusives
+      button(type='button' className='category-nav__item category-nav__item--active') All
+      button(type='button' className='category-nav__item') Verified
+      button(type='button' className='category-nav__item') Active
 
-    section(id='games' className='content-section')
-      SectionHeading(eyebrow='Fresh worlds, familiar favorites' title='Latest game updates')
-      div(className='game-rail')
-        each game in latestGames key game.title
-          GameCard(game={game})
-
-    section(className='feature-strip' aria-labelledby='week-title')
-      div(className='feature-strip__art' aria-hidden={true})
-        span(className='feature-strip__moon')
-        span(className='feature-strip__mountain feature-strip__mountain--one')
-        span(className='feature-strip__mountain feature-strip__mountain--two')
-      div(className='feature-strip__copy')
-        p(className='text-taupe-800! ml-3!') Weekend quest
-        h2(id='week-title' className='tracking-tight! text-center') Play beyond the ordinary hero.
-        span(className='text-center') Earn double rewards during kill event.
-      button(type='button' className='feature-strip__button place-self-center') Explore event
 
     section(id='editors' className='content-section content-section--last')
       SectionHeading(eyebrow='Handpicked for you' title='Worth your time')
@@ -142,12 +117,23 @@ div(className='storefront')
         each game in editorPicks key game.title
           GameCard(game={game})
 
+    // section(className='feature-strip' aria-labelledby='week-title')
+    //   div(className='feature-strip__art' aria-hidden={true})
+    //     span(className='feature-strip__moon')
+    //     span(className='feature-strip__mountain feature-strip__mountain--one')
+    //     span(className='feature-strip__mountain feature-strip__mountain--two')
+    //   div(className='feature-strip__copy')
+    //     p(className='text-taupe-800! ml-3!') Weekend quest
+    //     h2(id='week-title' className='tracking-tight! text-center') Play beyond the ordinary hero.
+    //     span(className='text-center') Earn double rewards during kill event.
+    //   button(type='button' className='feature-strip__button place-self-center') Explore event
+
+
   footer(className='store-footer')
     div
       a(className='brand brand--footer' href='#top')
         StoreMark
-        span Galaxy Store
-      p New worlds, chosen well.
+        span LiveSnapsNow
     div(className='store-footer__links')
       a(href='#discover') Discover
       a(href='#games') Games
