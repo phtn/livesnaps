@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "rspack dev --mode development",
+    "build": "rspack build --mode production",
+    "preview": "rspack dev --mode production",
     "typecheck": "tsrx-tsc --noEmit",
     "check": "bun run typecheck && bun run build"
   },
@@ -17,11 +17,16 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
-    "@types/node": "^26.4.0",
+    "@octanejs/rspack-plugin": "0.1.44",
+    "@rspack/cli": "^2.2.1",
+    "@rspack/core": "^2.2.1",
+    "@rspack/dev-server": "^2.2.1",
+    "@tailwindcss/postcss": "^4.3.3",
     "@tsrx/typescript-plugin": "0.3.128",
-    "typescript": "^7.0.2",
-    "vite": "^8.0.16",
+    "@types/node": "^26.4.0",
+    "postcss": "^8.5.26",
+    "postcss-loader": "^8.2.1",
     "tailwindcss": "^4.1.8",
-    "@tailwindcss/vite": "^4.1.8"
+    "typescript": "^7.0.2"
   }
 }
