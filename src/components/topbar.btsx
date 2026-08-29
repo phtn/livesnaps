@@ -7,7 +7,7 @@ import { useEffect, useState } from 'octane'
 
 
 component StoreMark
-  span(className='hidden size-5 opacity-50 sm:flex sm:size-6 md:size-7' aria-hidden={true})
+  span(className='hidden size-5 sm:flex sm:size-6 md:size-7' aria-hidden={true})
     img(src='/logo.svg' className='size-full')
 
 setup

@@ -1,13 +1,14 @@
-import { createElement, useEffect, useState } from 'octane'
-import Footer from './components/footer.btsx'
-import List from './components/list.btsx'
-import ThemeToggle from './components/theme-toggle.btsx'
-import Toasts from './components/toasts.btsx'
-import Topbar from './components/topbar.btsx'
+import { lazy, Suspense } from 'octane'
 import type Game from './components/list.btsx'
+import { Icon } from '@/lib/icons'
+
 
 module
   interface Props { docsUrl: string }
+  const LazyTop = lazy(() => import('./components/topbar.btsx'))
+  const LazyHero = lazy(() => import('./components/hero.btsx'))
+  const LazyFooter = lazy(() => import('./components/footer.btsx'))
+  const LazyToast = lazy(() => import('./components/toasts.btsx'))
   const editorPicks: Game[] = [
     { title: 'Sable Crown', genre: 'Tactical RPG', score: '4.9', tone: 'crown', glyph: 'SC', badge: 'Choice' },
     { title: 'Morrow Tide', genre: 'Narrative adventure', score: '4.8', tone: 'tide', glyph: 'MT' },
@@ -17,27 +18,15 @@ module
 
 props { docsUrl }: Props
 
-setup
-  const [heroComponent, setHeroComponent] = useState<any>(null)
-  const heroNode = heroComponent ? createElement(heroComponent, { error: null, isAuthenticated: false, isAuthLoading: false, isDebugMode: false, isStarting: false, onGetStarted: () => {} }) : null
-  useEffect(() => {
-    void import('./components/hero.btsx').then(({ default: nextHero }) => setHeroComponent(() => nextHero))
-  }, [])
+component Fallback
+  div(className='flex items-center justify-center gap-x-6 h-100')
+    Icon(name='spinner-ferris')
+    span Loading...
 
 div(className='min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')
-  Topbar
+  LazyTop
   main(id='top' className='mx-auto w-full max-w-[1520px] h-screen')
-    if heroComponent
-      | #{heroNode}
-    else
-      div(className='h-114 px-4 pt-6 md:h-180 md:px-20 lg:px-28 xl:px-32 2xl:px-36')
-    // nav(className='my-5 mb-[42px] hidden _flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] min-[700px]:mt-7 min-[700px]:px-[34px] lg:my-8 lg:mb-[74px] lg:justify-center lg:px-[54px]' aria-label='Store categories')
-    //   button(type='button' className='h-[52px] w-[46px] shrink-0 border-0 bg-transparent p-0 text-[2.15rem] font-extralight leading-none active:scale-[0.97]' aria-label='What’s new') ϟ
-    //   span(className='mx-1 h-[27px] w-px shrink-0 bg-white/12')
-    //   button(type='button' className='min-h-12 shrink-0 rounded-full border-0 bg-[#2b2b2d] px-5 text-[0.9rem] text-[#f6f4ef] active:scale-[0.97] lg:min-h-[52px] lg:px-[27px]') All
-    //   button(type='button' className='min-h-12 shrink-0 rounded-full border-0 bg-transparent px-5 text-[0.9rem] text-[#918f8c] active:scale-[0.97] lg:min-h-[52px] lg:px-[27px]') Verified
-    //   button(type='button' className='min-h-12 shrink-0 rounded-full border-0 bg-transparent px-5 text-[0.9rem] text-[#918f8c] active:scale-[0.97] lg:min-h-[52px] lg:px-[27px]') Active
-    // List(editorPicks={editorPicks})
-
-  Footer
-  Toasts
+    Suspense(fallback={Fallback})
+      LazyHero(error={null} isAuthenticated={false} isAuthLoading={false} isDebugMode={false} isStarting={false} onGetStarted={() => {}})
+  LazyFooter
+  LazyToast
