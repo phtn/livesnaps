@@ -172,6 +172,9 @@ import PhotoPreview from './photo-preview.btsx'
 import GuidePanel from './guide-panel.btsx'
 import ShutterButton from './shutter-button.btsx'
 import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
+import CameraStatusbar from './camera-statusbar.btsx'
+import { upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
+import { onError } from '@/lib/toast'
 
 props { cancelSession, completeSession, endCompletedSession, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
 

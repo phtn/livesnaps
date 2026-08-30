@@ -70,12 +70,12 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
       div(className={cn('flex h-24 items-center px-2 md:h-12', isMobile && 'landscape:hidden landscape:h-4 landscape:scale-50')})
         div(className='flex w-fit items-center space-x-1.5 rounded-full border border-slate-400 bg-slate-200/50 px-2 py-1 font-okx text-xs font-medium tracking-wider text-foreground/80 shadow-inner dark:border-slate-300 dark:bg-slate-200/20 md:text-sm')
           Icon(name='safe-shield' className='size-3 opacity-80')
-          p(className='drop-shadow-xs') Verifiable Proofs
+          p(className='drop-shadow-xs text-xs') Verifiable Proofs
       div(className={cn('relative flex select-none items-start whitespace-nowrap text-4xl font-poly font-medium leading-6 dark:text-white md:mt-2 md:text-5xl md:font-semibold md:leading-10 md:tracking-normal', isMobile && 'landscape:text-4xl landscape:leading-8')})
         span(className='uppercase tracking-tighter text-beach drop-shadow-xs dark:text-foreground') Live
         span(className='font-extrabold uppercase tracking-tighter dark:text-lime-200') Snaps
         span(className='relative -translate-y-3 px-3 text-2xl text-sand dark:text-foreground') now
-        Icon(name='sparkle' className='absolute -top-0.75 right-6.5 size-5 rotate-5 text-beach dark:text-white/60')
+        Icon(name='sparkle' className='absolute -top-0.75 right-7.5 size-5 rotate-5 text-beach dark:text-white/60')
       div(className='_flex hidden items-center space-x-2')
         Typewriter(speed={25} showCursor={false} className='mt-1.5 font-okx text-xl font-medium tracking-wide text-foreground opacity-60 md:text-2xl md:leading-10' text='Verify Proofs')
       div(className={cn('mt-0 flex h-20 flex-col justify-center space-y-1 md:mt-6 md:h-24 md:space-y-2', isMobile && 'landscape:mt-4 landscape:h-16')})
@@ -89,7 +89,7 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
           p(className='font-okx text-base font-light tracking-wide') Receive LiveSnap certificate.
       div(className='mt-4')
         Button(onClick={handleAction} variant='dark' disabled={isBusy} pending={isBusy} size='lg' className='h-13 font-poly text-base font-medium w-72 md:px-6 md:text-lg')
-          div(className='flex size-4.5 items-center justify-center overflow-hidden rounded-full')
+          div(className={cn('flex size-4.5 items-center justify-center overflow-hidden', {' rounded-full': isBusy})})
             Icon(name={actionIcon} className='size-5')
           span #{actionLabel}
         div(className='flex max-w-72 items-center justify-center py-2 text-center font-okx text-xs leading-4 text-foreground/75 md:justify-start md:text-left')

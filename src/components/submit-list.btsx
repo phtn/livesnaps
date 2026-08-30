@@ -44,8 +44,8 @@ component EmptyState
   props { isAuthenticated }: { isAuthenticated: boolean }
   div(className='flex min-h-24 items-center gap-3 px-4 py-5 text-sm text-muted-foreground')
     span(className='grid size-9 shrink-0 place-items-center rounded-full bg-muted/70')
-      Icon(name={isAuthenticated ? 'camera-plus' : 'safe-shield'} className='size-4')
-    p #{isAuthenticated ? 'Your latest submissions will appear here.' : 'Sign in to view your submissions.'}
+      Icon(name={isAuthenticated ? 're-up.ph' : 'safe-shield'} className='size-4')
+    p #{isAuthenticated ? '56% Complete' : 'Sign in to view your submissions.'}
 
 props { className }: SubmitListProps
 
@@ -66,13 +66,13 @@ setup
 section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})
   div(className='mb-3 flex items-end justify-between gap-4 px-1')
     div
-      p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Recent activity
+      p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') activity
       h2(id='latest-proof-submissions-title' className='mt-1 font-poly text-lg font-medium')
         div(className='flex items-center space-x-3')
-          span My Snaps
+          span Development in progress
           if isLoading
-            Icon(name='velocity' className='-mt-1.5 size-8 opacity-50')
-  div(className='overflow-hidden rounded-lg border-[0.5px] bg-card/60 shadow-xs')
+            Icon(name='velocity' className='-mt-0.5 size-6.5 opacity-50')
+  div(className={cn('overflow-hidden rounded-lg bg-muted/60 shadow-xs', {' border-[0.5px]': submissions && submissions.length > 0})})
     if isLoading
       div(className='relative h-16 animate-pulse bg-mist-100 dark:bg-mist-400/10')
     elseif submissions && submissions.length > 0

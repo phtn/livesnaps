@@ -53,9 +53,15 @@ setup
   const isEnabled = state === 'ready-to-enable-camera' || state === 'ready-to-capture'
   const isCameraMode = state === 'waiting-to-capture' || state === 'ready-to-capture' || state === 'capturing' || state === 'complete'
 
-button(className={cn(viewportStyles.shutterButton, 'flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-foreground px-5 text-background transition-[background-color,border-color,color,transform,box-shadow] duration-160 ease-[ease] disabled:cursor-not-allowed', isCameraMode && 'aspect-square size-14 gap-0 border-2 border-border/20 bg-background px-0 ring-2 ring-beach ring-offset-2 transition-all duration-200 active:scale-94 dark:border-neutral-400 dark:bg-foreground dark:ring-lime-300/80', isCameraMode && isMobile && 'landscape:size-12')} type='button' data-state={state} onClick={isCameraMode ? capturePhoto : enableCamera} disabled={!isEnabled} aria-busy={isBusy || undefined} aria-label={presentation.ariaLabel})
+button(
+  ~ className={cn(viewportStyles.shutterButton, 'flex h-12 cursor-pointer items-center justify-center gap-3 rounded-full border-0 bg-foreground px-6 text-background transition-[background-color,border-color,color,transform,box-shadow] duration-160 ease-[ease] disabled:cursor-not-allowed', isCameraMode && 'aspect-square size-14 gap-0 border-2 border-border/20 bg-background px-0 ring-2 ring-beach ring-offset-2 transition-all duration-200 active:scale-94 dark:border-neutral-400 dark:bg-foreground dark:ring-lime-300/80', isCameraMode && isMobile && 'landscape:size-12')}
+  ~ type='button'
+  ~ data-state={state}
+  ~ onClick={isCameraMode ? capturePhoto : enableCamera}
+  ~ disabled={true}
+  ~ aria-busy={isBusy || undefined}
+  ~ aria-label={presentation.ariaLabel})
   if presentation.icon
     Icon(name={presentation.icon} className={cn('size-6 -rotate-1', isMobile && 'landscape:size-8', isBusy && 'rotate-0 rounded-lg text-foreground opacity-80 dark:text-background')})
   if presentation.label
-    span(className={cn('bg-foreground font-poly text-base font-normal text-background', isMobile && 'landscape:hidden')}) #{presentation.label}
-
+    span(className={cn('bg-foreground font-poly text-sm font-normal text-background', isMobile && 'landscape:hidden')}) #{presentation.label}
