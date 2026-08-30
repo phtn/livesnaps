@@ -1,5 +1,3 @@
-import 'server-only'
-
 import { isIP } from 'node:net'
 import { parseIpinfoConfig } from './config'
 import { parseLiteData, type LiteData } from './type'

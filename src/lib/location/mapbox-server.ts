@@ -1,5 +1,3 @@
-import 'server-only'
-
 import { parseMapboxAddress } from './mapbox'
 import type { ReverseGeocodedAddress } from './type'
 

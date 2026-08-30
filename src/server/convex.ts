@@ -1,4 +1,4 @@
-import { api } from 'convex/_generated/api'
+import { api } from '../../convex/_generated/api'
 import { ConvexHttpClient } from 'convex/browser'
 
 export class RequestError extends Error {
@@ -14,7 +14,7 @@ export class RequestError extends Error {
 function getBearerToken(request: Request) {
   const authorization = request.headers.get('authorization')
   if (!authorization?.startsWith('Bearer ')) {
-    throw new RequestError(401, 'Sign in with Google to access your files.')
+    throw new RequestError(401, 'Sign in with Google to access LiveSnaps.')
   }
 
   const token = authorization.slice('Bearer '.length).trim()
@@ -23,17 +23,21 @@ function getBearerToken(request: Request) {
 }
 
 function getConvexUrl() {
-  const url = process.env.CONVEX_URL?.trim()
+  const url = process.env.CONVEX_URL?.trim() || process.env.PUBLIC_CONVEX_URL?.trim()
   if (!url) throw new Error('CONVEX_URL is not configured.')
   return url
 }
 
-export async function authenticateRequest(request: Request) {
-  const token = getBearerToken(request)
-  const client = new ConvexHttpClient(getConvexUrl(), {
-    auth: token,
+export function createConvexClient(token?: string) {
+  return new ConvexHttpClient(getConvexUrl(), {
+    ...(token ? { auth: token } : {}),
     logger: false
   })
+}
+
+export async function authenticateRequest(request: Request) {
+  const token = getBearerToken(request)
+  const client = createConvexClient(token)
 
   try {
     const userId = await client.mutation(api.users.m.ensureCurrent, {})
