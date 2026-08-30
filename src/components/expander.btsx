@@ -156,14 +156,13 @@ module
   }
 
 
-import { api } from '../../convex/_generated/api'
+import type { api } from '../../convex/_generated/api'
 import { useConvexQuery } from '@/hooks/use-convex-query'
 import {Icon} from "@/lib/icons";
 import { DEFAULT_IMAGE_CAPTURE_SETTINGS, type ImageCaptureSettingsValues } from '@/lib/snaps/snap-settings'
 import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
 import  CapturedPhotos from './captured-photos.btsx'
 import { CAPTURE_SLOTS, CaptureSlotIndex, MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'
-import { normalizeCaptureTonesConfig } from '@/lib/tones'
 import { cn } from '@/lib/utils'
 import * as viewportStyles from '@/components/mobile-viewport.module.css'
 import { RefObject } from 'octane'
@@ -175,6 +174,7 @@ import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
 import CameraStatusbar from './camera-statusbar.btsx'
 import { upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
 import { onError } from '@/lib/toast'
+import { createUuid } from '@/lib/uuid'
 
 props { cancelSession, completeSession, endCompletedSession, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
 
@@ -192,7 +192,9 @@ component Poster
     Icon(name={'re-up.ph'} className='size-12')
 
 setup
-  const snapSettings = useConvexQuery(api.snapSettings.q.get, {}) ?? DEFAULT_IMAGE_CAPTURE_SETTINGS
+  const snapSettingsQuery = 'snapSettings/q:get' as unknown as typeof api.snapSettings.q.get
+  const snapByUploadIdQuery = 'snaps/q:getByUploadId' as unknown as typeof api.snaps.q.getByUploadId
+  const snapSettings = useConvexQuery(snapSettingsQuery, {}) ?? DEFAULT_IMAGE_CAPTURE_SETTINGS
   const {
     cameraIdealHeight,
     cameraIdealWidth,
@@ -228,11 +230,8 @@ setup
   const expandPhotoStack = useCallback(() => setIsStackExpanded(true), [])
   const collapsePhotoStack = useCallback(() => setIsStackExpanded(false), [])
 
-  const captureTonesSetting = useConvexQuery(api.snapSettings.q.getCaptureTones, {})
-  const captureTones = useMemo(() => normalizeCaptureTonesConfig(captureTonesSetting), [captureTonesSetting])
-
   const proofSnapshot = useConvexQuery(
-    api.snaps.q.getByUploadId,
+    snapByUploadIdQuery,
     sessionUploadId && !isDebugMode ? { upload_id: sessionUploadId } : 'skip'
   )
 
@@ -470,7 +469,7 @@ setup
     // --- Optimistic update: instant UI feedback, shutter unlocks right here ---
     const captureNumber = activeCaptureIndex
     const capturedAt = Date.now()
-    const captureId = crypto.randomUUID()
+    const captureId = createUuid()
     const label = getInspectionLabel(captureNumber)
     const slug = label.replace(/\s+/g, '-').toLowerCase()
     const interimFile = new File([blob!], `pre-inspection-${slug}-${captureNumber}-${capturedAt}.jpg`, {
@@ -778,7 +777,7 @@ div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyl
           div(className='absolute inset-0 flex items-center justify-center')
             Poster
         else
-          CameraStatusbar(isDebugMode={isDebugMode} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} stopCamera={stopCamera} captureTones={captureTones})
+          CameraStatusbar(isDebugMode={isDebugMode} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} stopCamera={stopCamera})
         Activity(mode={shouldShowCaptureGuidance ? 'visible' : 'hidden'})
           CapturedPhotos(activeCaptureIndex={activeCaptureIndex} isStackExpanded={isStackExpanded} capturedPhotos={capturedPhotos} expandStack={expandPhotoStack} collapseStack={collapsePhotoStack} selectCaptureSlot={setActiveCaptureIndex} selectPhoto={selectPhoto})
         if selectedPhoto
@@ -788,7 +787,7 @@ div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyl
         div(className={viewportStyles.guidePanel})
           GuidePanel(activeCaptureIndex={activeCaptureIndex} capturedCount={capturedPhotos.length})
       div(className={cn(viewportStyles.shutterControls, 'mt-6 flex shrink-0 flex-col items-center gap-2')})
-        ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} captureTones={captureTones} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={capturedPhotos.length} captureLabel={getInspectionLabel(activeCaptureIndex)})
+        ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={capturedPhotos.length} captureLabel={getInspectionLabel(activeCaptureIndex)})
         Activity(mode={cameraError ? 'visible' : 'hidden'})
           p(className='max-w-md px-4 text-center text-xs text-destructive' role='alert') #{cameraError}
 

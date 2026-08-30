@@ -1,7 +1,6 @@
 import { useState } from 'octane'
 import { GoogleAuthProvider, signInWithRedirect } from 'firebase/auth'
 import Button from '@/components/ui/button.btsx'
-import Typewriter from '@/components/ui/typewriter.btsx'
 import { useMobile } from '@/hooks/use-mobile'
 import { auth, signInWithGoogle } from '@/lib/firebase'
 import { Icon } from '@/lib/icons'
@@ -62,7 +61,7 @@ setup
     }
     onGetStarted()
   }
-  const actionIcon = isSigningIn || isStarting ? 'spinner-blocks' : !isAuthenticated ? 'goog' : !isAuthenticated && isInAppBrowser ? 'external-link' : isDebugMode ? 'camera-enhance' : 'gps'
+  const actionIcon = isSigningIn || isStarting ? 'spinner-ferris' : !isAuthenticated ? 'goog' : !isAuthenticated && isInAppBrowser ? 'external' : isDebugMode ? 'camera-enhance' : 'gps'
 
 div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36', isMobile && 'landscape:h-[calc(100dvh-64px)] landscape:overflow-hidden landscape:px-12')})
   div(className='grid h-full md:grid-cols-2 md:gap-20 lg:gap-28 xl:gap-32 2xl:gap-36')
@@ -76,8 +75,6 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
         span(className='font-extrabold uppercase tracking-tighter dark:text-lime-200') Snaps
         span(className='relative -translate-y-3 px-3 text-2xl text-sand dark:text-foreground') now
         Icon(name='sparkle' className='absolute -top-0.75 right-7.5 size-5 rotate-5 text-beach dark:text-white/60')
-      div(className='_flex hidden items-center space-x-2')
-        Typewriter(speed={25} showCursor={false} className='mt-1.5 font-okx text-xl font-medium tracking-wide text-foreground opacity-60 md:text-2xl md:leading-10' text='Verify Proofs')
       div(className={cn('mt-0 flex h-20 flex-col justify-center space-y-1 md:mt-6 md:h-24 md:space-y-2', isMobile && 'landscape:mt-4 landscape:h-16')})
         div(className='flex items-center space-x-4')
           div(className='flex aspect-square size-5 items-center justify-center rounded-sm bg-sand/10 md:size-6')
@@ -88,8 +85,8 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
             Icon(name='check' className='size-4 stroke-2 drop-shadow-xs text-sand dark:text-lime-200 md:size-4')
           p(className='font-okx text-base font-light tracking-wide') Receive LiveSnap certificate.
       div(className='mt-4')
-        Button(onClick={handleAction} variant='dark' disabled={isBusy} pending={isBusy} size='lg' className='h-13 font-poly text-base font-medium w-72 md:px-6 md:text-lg')
-          div(className={cn('flex size-4.5 items-center justify-center overflow-hidden', {' rounded-full': isBusy})})
+        Button(onClick={handleAction} variant='dark' disabled={isBusy} pending={isBusy} size='lg' className='h-14 font-poly text-base font-medium w-72 md:px-6 md:text-lg')
+          div(className={cn('flex size-5 items-center justify-center overflow-hidden', {' rounded-full': isBusy})})
             Icon(name={actionIcon} className='size-5')
           span #{actionLabel}
         div(className='flex max-w-72 items-center justify-center py-2 text-center font-okx text-xs leading-4 text-foreground/75 md:justify-start md:text-left')

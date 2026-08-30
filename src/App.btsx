@@ -13,7 +13,7 @@ import * as viewportStyles from '@/components/mobile-viewport.module.css'
 import { createSnapSession } from '@/lib/snaps/create-snap-session'
 import { endSnapSession, type SnapSessionEndStatus } from '@/lib/snaps/end-snap-session'
 import { onError } from '@/lib/toast'
-import gsap from 'gsap'
+import { createUuid } from '@/lib/uuid'
 import Expander from './components/expander.btsx'
 
 module
@@ -21,7 +21,6 @@ module
   const LazyHero = lazy(() => import('./components/hero.btsx'))
   const LazyFooter = lazy(() => import('./components/footer.btsx'))
   const LazyToast = lazy(() => import('./components/toasts.btsx'))
-  const loadItemClassName = 'motion-safe:invisible motion-safe:translate-y-6 motion-safe:opacity-0'
   const runtimeMode = getSnapRuntimeMode()
   const readApiError = async (response: Response, fallback: string) => {
     const result = (await response.json().catch(() => null)) as { error?: unknown } | null
@@ -32,7 +31,6 @@ module
 props {}: {}
 setup
   const { isLoading: isUserLoading, user } = useFirebaseUser()
-  const rootRef = useRef<HTMLDivElement>(null)
   const locationWatchRef = useRef<DeviceLocationWatch | null>(null)
   const latestLocationRef = useRef<DeviceLocation | null>(null)
   const sessionUploadIdRef = useRef<string | null>(null)
@@ -42,38 +40,6 @@ setup
   const [startError, setStartError] = useState<string | null>(null)
   const [locationAccuracyMeters, setLocationAccuracyMeters] = useState<number | null>(null)
   const [sessionUploadId, setSessionUploadId] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!rootRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      return
-    }
-
-    const ctx = gsap.context(() => {
-      const items = gsap.utils.toArray<HTMLElement>('[data-load-item]')
-
-      gsap.set(items, {
-        y: 24,
-        autoAlpha: 0
-      })
-
-      for (const item of items) {
-        item.classList.remove('motion-safe:invisible', 'motion-safe:translate-y-6', 'motion-safe:opacity-0')
-      }
-
-      gsap.to(items, {
-        y: 0,
-        autoAlpha: 1,
-        duration: 0.72,
-        stagger: 0.1,
-        ease: 'power3.out',
-        force3D: true,
-        willChange: 'transform, opacity',
-        clearProps: 'transform,opacity,visibility,willChange'
-      })
-    }, rootRef)
-
-    return () => ctx.revert()
-  }, [])
 
   const { on: isExpanded, setOn: setIsExpanded } = useToggle(false)
   const handleLocation = useCallback((location: DeviceLocation) => {
@@ -217,7 +183,7 @@ setup
       }
 
       if (runtimeMode.debug) {
-        const uploadId = crypto.randomUUID()
+        const uploadId = createUuid()
         sessionUploadIdRef.current = uploadId
         setSessionUploadId(uploadId)
         setIsExpanded(true)
@@ -229,7 +195,7 @@ setup
         onFatalError: handleFatalLocationError,
         onLocation: handleLocation
       })
-      const uploadId = crypto.randomUUID()
+      const uploadId = createUuid()
 
       locationWatchRef.current = locationWatch
       latestLocationRef.current = locationWatch.initialLocation
@@ -322,11 +288,11 @@ component Fallback
     Icon(name='spinner-ferris')
     span Loading...
 
-div(ref={rootRef} data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
-  div(data-load-item={true} className={loadItemClassName})
+div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
+  div
     LazyTop
   ScrollArea(className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
-    div(data-load-item={true} className={loadItemClassName})
+    div
       div(className={cn(viewportStyles.pageContent, 'relative z-0 h-full', isExpanded && 'pointer-events-none')} inert={isExpanded})
         Suspense(fallback={Fallback})
           LazyHero(error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})

@@ -6,12 +6,7 @@ import {
   type ImageCaptureSettingsValues
 } from '../../src/lib/snaps/snap-settings'
 import { internalMutation, mutation, type MutationCtx } from '../_generated/server'
-import {
-  captureTonesConfigValidator,
-  shutterConfigValidator,
-  snapSettingsResultSchema,
-  snapSettingsValuesSchema
-} from './d'
+import { snapSettingsResultSchema, snapSettingsValuesSchema } from './d'
 
 const getSettingsDocument = async (ctx: MutationCtx) =>
   await ctx.db
@@ -70,75 +65,6 @@ export const update = mutation({
       ...settings,
       updatedAt
     }
-  }
-})
-
-const getAdminDocumentByIdentifier = async (db: MutationCtx['db'], identifier: string) =>
-  await db
-    .query('admin')
-    .withIndex('by_identifier', (q) => q.eq('identifier', identifier))
-    .first()
-
-const upsertAdminValue = async (ctx: MutationCtx, identifier: string, payload: unknown) => {
-  const existing = await getAdminDocumentByIdentifier(ctx.db, identifier)
-  const now = Date.now()
-  const value = {
-    type: 'json',
-    data: {
-      key: identifier,
-      value: JSON.stringify(payload, null, 2)
-    },
-    updatedAt: now
-  }
-
-  if (existing) {
-    await ctx.db.patch(existing._id, { value })
-    return now
-  }
-
-  await ctx.db.insert('admin', {
-    identifier,
-    value
-  })
-  return now
-}
-
-const CAPTURE_TONES_IDENTIFIER = 'capture-tones'
-const SHUTTER_CONFIG_IDENTIFIER = 'shutter-config'
-
-export const upsertCaptureTonesConfig = mutation({
-  args: {
-    config: captureTonesConfigValidator
-  },
-  returns: v.object({ updatedAt: v.number() }),
-  handler: async (ctx, { config }) => {
-    const identity = await ctx.auth.getUserIdentity()
-
-    if (!identity || identity.admin !== true) {
-      throw new ConvexError('Unauthorized.')
-    }
-
-    const updatedAt = await upsertAdminValue(ctx, CAPTURE_TONES_IDENTIFIER, config)
-
-    return { updatedAt }
-  }
-})
-
-export const upsertShutterConfig = mutation({
-  args: {
-    config: shutterConfigValidator
-  },
-  returns: v.object({ updatedAt: v.number() }),
-  handler: async (ctx, { config }) => {
-    const identity = await ctx.auth.getUserIdentity()
-
-    if (!identity || identity.admin !== true) {
-      throw new ConvexError('Unauthorized.')
-    }
-
-    const updatedAt = await upsertAdminValue(ctx, SHUTTER_CONFIG_IDENTIFIER, config)
-
-    return { updatedAt }
   }
 })
 

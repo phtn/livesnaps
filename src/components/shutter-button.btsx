@@ -58,7 +58,7 @@ button(
   ~ type='button'
   ~ data-state={state}
   ~ onClick={isCameraMode ? capturePhoto : enableCamera}
-  ~ disabled={true}
+  ~ disabled={!isEnabled}
   ~ aria-busy={isBusy || undefined}
   ~ aria-label={presentation.ariaLabel})
   if presentation.icon

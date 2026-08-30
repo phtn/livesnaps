@@ -1,5 +1,4 @@
 import { createElement, createRoot } from 'octane'
-import App from './App.btsx'
 import ThemeProvider from './components/theme-provider.btsx'
 import { applyTheme, getPreferredTheme } from './lib/theme'
 import './style.css'
@@ -9,6 +8,10 @@ if (container === null) throw new Error('Missing #app container.')
 
 applyTheme(getPreferredTheme())
 
-createRoot(container).render(ThemeProvider, {
-  children: createElement(App, { docsUrl: 'https://beast-docs.vercel.app' }),
+const root = createRoot(container)
+
+void import('./App.btsx').then(({ default: App }) => {
+  root.render(ThemeProvider, {
+    children: createElement(App, { docsUrl: 'https://beast-docs.vercel.app' })
+  })
 })

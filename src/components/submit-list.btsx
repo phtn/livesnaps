@@ -6,7 +6,7 @@ import { getSnapSubmissionPath } from '@/lib/snaps/routes'
 import { cn } from '@/lib/utils'
 import { getCurrentUser, subscribeToAuthState } from '@/lib/firebase'
 import type { FunctionReturnType } from 'convex/server'
-import { api } from '../../convex/_generated/api'
+import type { api } from '../../convex/_generated/api'
 
 module
   type ProofSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
