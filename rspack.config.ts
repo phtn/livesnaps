@@ -43,7 +43,8 @@ export default {
   context: root,
   entry: './src/main.ts',
   output: {
-    clean: true
+    clean: true,
+    publicPath: '/'
   },
   optimization: {
     splitChunks: {

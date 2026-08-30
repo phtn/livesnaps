@@ -8,7 +8,9 @@
     "build": "rspack build --mode production",
     "preview": "rspack dev --mode production",
     "typecheck": "tsrx-tsc --noEmit",
-    "check": "bun run typecheck && bun run build"
+    "check": "bun run typecheck && bun run build",
+    "deploy": "wrangler deploy",
+    "deploy:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "@octanejs/base-ui": "^0.1.47",
@@ -40,6 +42,7 @@
     "postcss": "^8.5.26",
     "postcss-loader": "^8.2.1",
     "tailwindcss": "^4.1.8",
-    "typescript": "^7.0.2"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.127.1"
   }
 }

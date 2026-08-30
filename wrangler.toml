@@ -1,9 +1,9 @@
 name = "livesnaps"
-main = "./dist/maint.js"  # or "dist/index.js", "index.ts", etc.
+compatibility_date = "2026-08-30"
 
-# If you have static assets, point to the correct directory
+[build]
+command = "bun run build"
+
 [assets]
-directory = "./public"  # or "./dist", "./static", or remove if no assets
-
-# Exclude node_modules explicitly
-exclude = ["node_modules", ".git", "src", "*.log"]
+directory = "./dist"
+not_found_handling = "single-page-application"
