@@ -1,0 +1,9 @@
+name = "livesnaps"
+main = "src/maint.ts"  # or "dist/index.js", "index.ts", etc.
+
+# If you have static assets, point to the correct directory
+[assets]
+directory = "./public"  # or "./dist", "./static", or remove if no assets
+
+# Exclude node_modules explicitly
+exclude = ["node_modules", ".git", "src", "*.log"]
