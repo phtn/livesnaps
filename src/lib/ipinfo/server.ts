@@ -54,14 +54,14 @@ export const getClientIpAddress = (headers: Headers): string | null => {
   return null
 }
 
-export const getIpinfoLiteData = async (ip: string): Promise<LiteData> => {
+export const getIpinfoLiteData = async (ip: string, configuredToken?: string): Promise<LiteData> => {
   const normalizedIp = normalizeIpAddress(ip)
 
   if (!normalizedIp) {
     throw new IpinfoError('Invalid IP address.', 400)
   }
 
-  const token = parseIpinfoConfig(process.env.IPINFO_LITE_TOKEN).lite.token.trim()
+  const token = parseIpinfoConfig(configuredToken ?? process.env.IPINFO_LITE_TOKEN).lite.token.trim()
 
   if (!token) {
     throw new IpinfoError('Access not configured for this user.', 500)

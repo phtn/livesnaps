@@ -8,6 +8,12 @@ import { authenticateRequest, createConvexClient, RequestError } from './convex'
 const SESSION_STATUSES = ['completed', 'cancelled', 'invalidated'] as const
 type SessionStatus = (typeof SESSION_STATUSES)[number]
 
+export interface SnapRouteEnvironment {
+  convexUrl?: string
+  ipinfoLiteToken?: string
+  mapboxAccessToken?: string
+}
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 
@@ -52,8 +58,8 @@ const readStatus = (body: Record<string, unknown>): SessionStatus => {
   return status as SessionStatus
 }
 
-async function startSnapSession(request: Request) {
-  const { client } = await authenticateRequest(request)
+async function startSnapSession(request: Request, environment: SnapRouteEnvironment) {
+  const { client } = await authenticateRequest(request, environment.convexUrl)
   const body = await readJson(request)
   const uploadId = readRequiredString(body, 'upload_id')
   const initialLocation = readLocation(body, 'initial_location')
@@ -64,8 +70,8 @@ async function startSnapSession(request: Request) {
   }
 
   const [address, ipinfo] = await Promise.all([
-    reverseGeocodeWithMapbox(initialLocation),
-    getIpinfoLiteData(clientIp)
+    reverseGeocodeWithMapbox({ ...initialLocation, accessToken: environment.mapboxAccessToken }),
+    getIpinfoLiteData(clientIp, environment.ipinfoLiteToken)
   ])
 
   await client.mutation(api.snaps.m.startSession, {
@@ -78,7 +84,7 @@ async function startSnapSession(request: Request) {
   return json({ ok: true })
 }
 
-async function updateSnapSession(request: Request) {
+async function updateSnapSession(request: Request, environment: SnapRouteEnvironment) {
   const body = await readJson(request)
   const lastLocationValue = body.last_location
   const lastLocation = lastLocationValue === undefined ? undefined : readLocation(body, 'last_location')
@@ -87,7 +93,7 @@ async function updateSnapSession(request: Request) {
   const plateNumber = readOptionalString(body, 'plate_number')
   const reason = readOptionalString(body, 'reason')
 
-  const client = createConvexClient()
+  const client = createConvexClient(undefined, environment.convexUrl)
   await client.mutation(api.snaps.m.endSession, {
     ...(lastLocation ? { last_location: lastLocation } : {}),
     ...(plateNumber ? { plate_number: plateNumber } : {}),
@@ -99,10 +105,10 @@ async function updateSnapSession(request: Request) {
   return json({ ok: true })
 }
 
-export async function handleSnapSessionRequest(request: Request) {
+export async function handleSnapSessionRequest(request: Request, environment: SnapRouteEnvironment = {}) {
   try {
-    if (request.method === 'POST') return await startSnapSession(request)
-    if (request.method === 'PATCH') return await updateSnapSession(request)
+    if (request.method === 'POST') return await startSnapSession(request, environment)
+    if (request.method === 'PATCH') return await updateSnapSession(request, environment)
     return json({ error: 'Method not allowed.' }, 405)
   } catch (error) {
     if (error instanceof RequestError) return json({ error: error.message }, error.status)

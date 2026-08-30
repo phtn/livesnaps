@@ -15,12 +15,14 @@ export class MapboxGeocodingError extends Error {
 
 export const reverseGeocodeWithMapbox = async ({
   latitude,
-  longitude
+  longitude,
+  accessToken
 }: {
+  accessToken?: string
   latitude: number
   longitude: number
 }): Promise<ReverseGeocodedAddress> => {
-  const token = process.env.MAPBOX_ACCESS_TOKEN?.trim()
+  const token = accessToken?.trim() || process.env.MAPBOX_ACCESS_TOKEN?.trim()
 
   if (!token) {
     throw new MapboxGeocodingError('Mapbox reverse geocoding is not configured.', 500)
