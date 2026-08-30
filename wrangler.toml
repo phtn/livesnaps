@@ -1,5 +1,5 @@
 name = "livesnaps"
-main = "dist/maint.js"  # or "dist/index.js", "index.ts", etc.
+main = "./dist/maint.js"  # or "dist/index.js", "index.ts", etc.
 
 # If you have static assets, point to the correct directory
 [assets]
