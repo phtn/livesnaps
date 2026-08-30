@@ -1,128 +1,105 @@
+import { Menu } from '@octanejs/base-ui/menu'
+import { createContext, createElement, use, useState } from 'octane'
 import { cn } from '@/lib/utils'
-import { Icon } from '@/lib/icons'
-import type { OctaneNode } from 'octane'
 
 module
-  export interface DropdownMenuProps {
-    children?: OctaneNode
-    className?: string
-  }
-  export interface DropdownMenuItemProps {
-    children?: OctaneNode
-    className?: string
-    inset?: boolean
-    variant?: 'default' | 'destructive'
-    disabled?: boolean
-    onClick?: (event: MouseEvent) => void
-  }
-  export interface DropdownMenuLabelProps {
-    children?: OctaneNode
-    className?: string
-    inset?: boolean
-  }
-  export interface DropdownMenuContentProps {
-    children?: OctaneNode
-    className?: string
-    align?: 'start' | 'center' | 'end'
-  }
-  export interface DropdownMenuSubTriggerProps {
-    children?: OctaneNode
-    className?: string
-    inset?: boolean
-  }
-  export interface DropdownMenuCheckboxItemProps extends DropdownMenuItemProps {
-    checked?: boolean
-    onCheckedChange?: (checked: boolean) => void
-  }
-  export interface DropdownMenuRadioItemProps extends DropdownMenuItemProps {
-    checked?: boolean
-    onCheckedChange?: (checked: boolean) => void
+  interface DropdownMenuContextValue {
+    open: boolean
+    toggle: () => void
   }
 
-  const ITEM_CLASS = 'group relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 data-[inset=true]:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:hover:bg-destructive/10 data-[variant=destructive]:hover:text-destructive'
-  const CHECK_ITEM_CLASS = 'relative flex cursor-pointer select-none items-center gap-2.5 rounded-xl py-2 pr-8 pl-3 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 data-[inset=true]:pl-9.5'
-  const CONTENT_CLASS = 'z-50 min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5 outline-none'
+  const DropdownMenuContext = createContext<DropdownMenuContextValue | null>(null)
 
-component DropdownMenuPortal
-  props { children }: { children?: OctaneNode }
-  | #{children}
+  const CONTENT_CLASS = 'z-50 max-h-(--available-height) w-(--anchor-width) min-w-48 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95'
 
-component DropdownMenuTrigger
-  props { children, className }: { children?: OctaneNode; className?: string }
-  summary(className={cn('cursor-pointer list-none rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden', className)} data-slot='dropdown-menu-trigger')
-    | #{children}
+  const contentPart = ({ className, align = 'start', alignOffset = 0, side = 'bottom', sideOffset = 4, ...props }: any) => {
+    return createElement(Menu.Portal, { children: createElement(Menu.Positioner, { className: 'isolate z-50 outline-none', align, alignOffset, side, sideOffset, children: createElement(Menu.Popup, { ...props, 'data-slot': 'dropdown-menu-content', className: cn(CONTENT_CLASS, className) }) }) })
+  }
+  const itemPart = (props: any) => {
+    const { className, inset, variant = 'default', ...itemProps } = props
+    return createElement(Menu.Item, { ...itemProps, 'data-slot': 'dropdown-menu-item', 'data-inset': inset, 'data-variant': variant, className: cn('group/dropdown-menu-item relative flex cursor-default items-center gap-2.5 rounded-xl px-3 py-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-disabled:pointer-events-none data-disabled:opacity-50', className) })
+  }
+  // Keep the namespace value separate from the generated default component
+  // name. The import site can still alias this to `DropdownMenu`.
+  const labelPart = (props: any) => {
+    const { className, inset, ...labelProps } = props
+    return createElement(Menu.GroupLabel, { ...labelProps, 'data-slot': 'dropdown-menu-label', 'data-inset': inset, className: cn('px-3 py-2.5 text-xs text-muted-foreground data-inset:pl-9.5', className) })
+  }
+  const subTriggerPart = (props: any) => {
+    const { className, inset, children, ...triggerProps } = props
+    return createElement(Menu.SubmenuTrigger, { ...triggerProps, 'data-slot': 'dropdown-menu-sub-trigger', 'data-inset': inset, className: cn('flex cursor-default items-center gap-2 rounded-xl px-3 py-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-inset:pl-9.5 data-popup-open:bg-accent data-popup-open:text-accent-foreground data-open:bg-accent data-open:text-accent-foreground', className), children })
+  }
+  const subContentPart = (props: any) => contentPart({ ...props, align: props.align ?? 'start', alignOffset: props.alignOffset ?? -3, side: props.side ?? 'right', sideOffset: props.sideOffset ?? 0, 'data-slot': 'dropdown-menu-sub-content', className: cn('w-auto min-w-36', props.className) })
+  const checkboxPart = (props: any) => {
+    const { children, ...itemProps } = props
+    return createElement(Menu.CheckboxItem, { ...itemProps, 'data-slot': 'dropdown-menu-checkbox-item', className: cn('relative flex cursor-default items-center gap-2.5 rounded-xl py-2 pr-8 pl-3 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50', props.className), children: [children, createElement('span', { className: 'pointer-events-none absolute right-2 flex items-center justify-center', children: createElement(Menu.CheckboxItemIndicator, { children: '✓' }) })] })
+  }
+  const radioGroupPart = (props: any) => createElement(Menu.RadioGroup, { ...props, 'data-slot': 'dropdown-menu-radio-group' })
+  const radioPart = (props: any) => {
+    const { children, ...itemProps } = props
+    return createElement(Menu.RadioItem, { ...itemProps, 'data-slot': 'dropdown-menu-radio-item', className: cn('relative flex cursor-default items-center gap-2.5 rounded-xl py-2 pr-8 pl-3 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50', props.className), children: [children, createElement('span', { className: 'pointer-events-none absolute right-2 flex items-center justify-center', children: createElement(Menu.RadioItemIndicator, { children: '✓' }) })] })
+  }
+  const separatorPart = (props: any) => createElement(Menu.Separator, { ...props, 'data-slot': 'dropdown-menu-separator', className: cn('-mx-1 my-1 h-px bg-border/50', props.className) })
+  const shortcutPart = (props: any) => createElement('span', { ...props, 'data-slot': 'dropdown-menu-shortcut', className: cn('ml-auto text-xs tracking-widest text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground', props.className) })
 
-component DropdownMenuContent
-  props { children, className }: DropdownMenuContentProps
-  div(className={cn(CONTENT_CLASS, 'mt-2 animate-in fade-in-0 zoom-in-95', className)} data-slot='dropdown-menu-content')
-    | #{children}
+  export const Dropdown = {
+    Root: DropdownRoot,
+    Portal: Menu.Portal,
+    Trigger: DropdownTrigger,
+    Content: contentPart,
+    Positioner: Menu.Positioner,
+    Popup: Menu.Popup,
+    Group: Menu.Group,
+    Label: labelPart,
+    Item: itemPart,
+    Separator: Menu.Separator,
+    Sub: Menu.SubmenuRoot,
+    SubTrigger: subTriggerPart,
+    SubContent: subContentPart,
+    CheckboxItem: checkboxPart,
+    RadioGroup: radioGroupPart,
+    RadioItem: radioPart,
+    Shortcut: shortcutPart
+  }
+  export const DropdownMenuNamespace = Dropdown
 
-component DropdownMenuGroup
-  props { children }: { children?: OctaneNode }
-  div(data-slot='dropdown-menu-group')
-    | #{children}
+component DropdownRoot
+  props { children, open: openProp, onOpenChange: externalOnOpenChange, ...rootProps }: any
+  setup
+    const [internalOpen, setInternalOpen] = useState(false)
+    const resolvedOpen = openProp ?? internalOpen
+    const handleOpenChange = (nextOpen: boolean, details: any) => {
+      if (openProp === undefined) setInternalOpen(nextOpen)
+      externalOnOpenChange?.(nextOpen, details)
+    }
+    const toggle = () => {
+      const nextOpen = !resolvedOpen
+      if (openProp === undefined) setInternalOpen(nextOpen)
+      externalOnOpenChange?.(nextOpen, undefined)
+    }
+    const contextValue: DropdownMenuContextValue = { open: resolvedOpen, toggle }
 
-component DropdownMenuLabel
-  props { children, className, inset }: DropdownMenuLabelProps
-  div(className={cn('px-3 py-2.5 text-xs text-muted-foreground', inset && 'pl-9.5', className)} data-slot='dropdown-menu-label')
-    | #{children}
-
-component DropdownMenuItem
-  props { children, className, inset, variant = 'default', disabled, onClick }: DropdownMenuItemProps
-  button(type='button' disabled={disabled} className={cn(ITEM_CLASS, className)} data-slot='dropdown-menu-item' data-inset={inset} data-variant={variant} onClick={onClick})
-    | #{children}
-
-component DropdownMenuSub
-  props { children }: { children?: OctaneNode }
-  details(className='relative' data-slot='dropdown-menu-sub')
-    | #{children}
-
-component DropdownMenuSubTrigger
-  props { children, className, inset }: DropdownMenuSubTriggerProps
-  summary(className={cn(ITEM_CLASS, inset && 'pl-9.5', className)} data-slot='dropdown-menu-sub-trigger')
-    | #{children}
-    Icon(name='arrow-right' size={16} className='ml-auto')
-
-component DropdownMenuSubContent
-  props { children, className }: DropdownMenuContentProps
-  div(className={cn(CONTENT_CLASS, 'ml-4 mt-1 min-w-36', className)} data-slot='dropdown-menu-sub-content')
-    | #{children}
-
-component DropdownMenuCheckboxItem
-  props { children, className, inset, checked = false, disabled, onCheckedChange }: DropdownMenuCheckboxItemProps
-  button(type='button' disabled={disabled} className={cn(CHECK_ITEM_CLASS, className)} data-slot='dropdown-menu-checkbox-item' data-inset={inset} aria-checked={checked} role='menuitemcheckbox' onClick={() => onCheckedChange?.(!checked)})
-    span(className='pointer-events-none absolute right-2 flex items-center justify-center' aria-hidden={true})
-      if checked
-        span(className='text-xs') ✓
-    | #{children}
-
-component DropdownMenuRadioGroup
-  props { children }: { children?: OctaneNode }
-  div(role='group' data-slot='dropdown-menu-radio-group')
-    | #{children}
-
-component DropdownMenuRadioItem
-  props { children, className, inset, checked = false, disabled, onCheckedChange }: DropdownMenuRadioItemProps
-  button(type='button' disabled={disabled} className={cn(CHECK_ITEM_CLASS, className)} data-slot='dropdown-menu-radio-item' data-inset={inset} aria-checked={checked} role='menuitemradio' onClick={() => onCheckedChange?.(true)})
-    span(className='pointer-events-none absolute right-2 flex items-center justify-center' aria-hidden={true})
-      if checked
-        span(className='text-xs') ●
-    | #{children}
-
-component DropdownMenuSeparator
-  props { className }: { className?: string }
-  div(className={cn('-mx-1 my-1 h-px bg-border/50', className)} data-slot='dropdown-menu-separator' role='separator')
-
-component DropdownMenuShortcut
-  props { children, className }: { children?: OctaneNode; className?: string }
-  span(className={cn('ml-auto text-xs tracking-widest text-muted-foreground group-focus:text-accent-foreground', className)} data-slot='dropdown-menu-shortcut')
-    | #{children}
-
-props { children, className }: DropdownMenuProps
-
-details(className={cn('relative inline-block', className)} data-slot='dropdown-menu')
-  DropdownMenuTrigger
-    | Menu
-  div(className='absolute left-0 top-full z-50')
-    DropdownMenuContent
+  DropdownMenuContext.Provider(value={contextValue})
+    Menu.Root(data-slot='dropdown-menu' {...rootProps} open={resolvedOpen} onOpenChange={handleOpenChange})
       | #{children}
+
+component DropdownTrigger
+  props { children, onClick: externalOnClick, ...triggerProps }: any
+  setup
+    const context = use(DropdownMenuContext)
+    const handleMouseDown = (event: MouseEvent & { preventBaseUIHandler?: () => void }) => {
+      event.preventBaseUIHandler?.()
+      if (event.button === 0) context?.toggle()
+    }
+    const handleClick = (event: MouseEvent & { preventBaseUIHandler?: () => void }) => {
+      event.preventBaseUIHandler?.()
+      if (event.detail === 0) context?.toggle()
+      externalOnClick?.(event)
+    }
+
+  Menu.Trigger({...triggerProps} aria-expanded={context?.open} onMouseDown={handleMouseDown} onClick={handleClick})
+    | #{children}
+
+props { className, ...props }: Menu.Root.Props
+
+Menu.Root(data-slot='dropdown-menu' className={className} {...props})

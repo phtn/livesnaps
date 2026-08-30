@@ -7,6 +7,7 @@ import type { User } from 'firebase/auth'
 import { useState } from 'octane'
 import Avatar from './ui/avatar.btsx'
 import SignOut from './signout.btsx'
+import { Menu } from '@octanejs/base-ui/menu'
 
 module
   export interface UserMenuProps {
@@ -15,17 +16,17 @@ module
     hasSnapAdminAccess: boolean
   }
 
-  interface MenuItemProps {
+  interface ItemProps {
     path: string
     label: string
     icon: IconName
   }
 
-component MenuItem
-  props { item, onNavigate }: { item: MenuItemProps; onNavigate: (path: string) => void }
-  button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground' onClick={() => onNavigate(item.path)})
-    Icon(name={item.icon} className='size-5')
-    span(className='text-base font-medium tracking-tight') #{item.label}
+component Item
+  props { item, onNavigate }: { item: ItemProps; onNavigate: (path: string) => void }
+  Menu.Item(className="group/dropdown-menu-item relative flex cursor-default items-center gap-3 rounded-lg px-3 py-2 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-inset:pl-9.5 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 data-[variant=destructive]:*:[svg]:text-destructive" onClick={() => onNavigate(item.path)})
+    Icon(name={item.icon} className='text-muted-foreground size-4.5')
+    span(className='font-medium text-muted-foreground text-base tracking-tight') #{item.label}
 
 props { user, hasAdminClaim, hasSnapAdminAccess }: UserMenuProps
 
@@ -57,23 +58,25 @@ setup
     }
   }
 
-details(className='relative inline-block')
-  summary(className='cursor-pointer list-none rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden' aria-label='Open user menu')
+Menu.Root
+  Menu.Trigger(className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
     div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-sand/10 dark:hover:bg-sand/80 md:size-12')
       Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
-  div(className='absolute right-0 top-full z-50 mt-2 min-w-48 rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5')
-    MenuItem(item={{ path: '/a', label: 'account', icon: 'user' }} onNavigate={navigate})
-    MenuItem(item={{ path: '/submits', label: 'submits', icon: 'folder' }} onNavigate={navigate})
-    if hasAdminClaim
-      fragment
-        MenuItem(item={{ path: '/r', label: 're-up', icon: 're-up.ph' }} onNavigate={navigate})
-        MenuItem(item={{ path: '/c', label: 'fields', icon: 'mechanics' }} onNavigate={navigate})
-        button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
-          Icon(name='horse-head' className='size-5 shrink-0')
-          span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
-    if hasSnapAdminAccess
-      button(type='button' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleSnapAdminNavigation} disabled={isNavigatingToSnapAdmin})
-        Icon(name='rook' className='size-5 shrink-0')
-        span(className='text-base font-medium tracking-tight') #{isNavigatingToSnapAdmin ? 'opening snaps admin' : 'snaps admin'}
-    div(className='-mx-1 my-1 h-px bg-border/50' role='separator')
-    SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-xl transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')
+  Menu.Portal
+    Menu.Positioner(className='isolate z-50 outline-none' align='end' side='bottom' sideOffset={8})
+      Menu.Popup(className='z-50 max-h-(--available-height) w-(--anchor-width) min-w-48 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5 duration-100 outline-none data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 dark:ring-foreground/10 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:overflow-hidden data-closed:fade-out-0 data-closed:zoom-out-95')
+        Item(item={{ path: '/a', label: 'account', icon: 'user' }} onNavigate={navigate})
+        Item(item={{ path: '/submits', label: 'my snaps', icon: 'folder' }} onNavigate={navigate})
+        if hasAdminClaim
+          fragment
+            Item(item={{ path: '/r', label: 're-up', icon: 're-up.ph' }} onNavigate={navigate})
+            Item(item={{ path: '/c', label: 'fields', icon: 'mechanics' }} onNavigate={navigate})
+            Menu.Item(className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+              Icon(name='horse-head' className='size-5 shrink-0')
+              span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
+        if hasSnapAdminAccess
+          Menu.Item(className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleSnapAdminNavigation} disabled={isNavigatingToSnapAdmin})
+            Icon(name='rook' className='size-5 shrink-0')
+            span(className='text-base font-medium tracking-tight') #{isNavigatingToSnapAdmin ? 'opening snaps admin' : 'snaps admin'}
+        div(className='-mx-1 my-1 h-px bg-border/50' role='separator')
+        SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-xl transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

@@ -1,4 +1,4 @@
-import type { ProofSlotIndex } from '@/lib/r2/proof-images'
+import type { SnapSlotIndex } from '@/lib/r2/snap-images'
 import { normalizeMileage } from './odometer'
 import { normalizeDetectedVehicleDetails, type VehicleDetails } from './vehicle-details'
 
@@ -7,7 +7,7 @@ export type CaptureReading = {
   mileageKm: number | null
 }
 
-export const parseCaptureReading = (value: unknown, slot: ProofSlotIndex): CaptureReading => {
+export const parseCaptureReading = (value: unknown, slot: SnapSlotIndex): CaptureReading => {
   const response = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
   const isVehicleSlot = slot === 1 || slot === 2
 

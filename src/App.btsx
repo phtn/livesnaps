@@ -1,32 +1,337 @@
 import { lazy, Suspense } from 'octane'
 import type Game from './components/list.btsx'
 import { Icon } from '@/lib/icons'
-
+import { ScrollArea } from '@/components/ui/'
+import { getSnapRuntimeMode } from '@/lib/snaps/debug'
+import { useCallback, useRef, useState, useEffect } from 'octane'
+import { DeviceLocationError, startDeviceLocationWatch, type DeviceLocationWatch } from '@/lib/location/client'
+import { MAX_SNAP_LOCATION_ACCURACY_METERS, type DeviceLocation } from '@/lib/location/type'
+import { useToggle } from '@/hooks/use-toggle'
+import { useFirebaseUser } from '@/lib/firebase/auth'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
+import { createSnapSession } from '@/lib/snaps/create-snap-session'
+import { endSnapSession, type SnapSessionEndStatus } from '@/lib/snaps/end-snap-session'
+import { onError } from '@/lib/toast'
+import gsap from 'gsap'
+import Expander from './components/expander.btsx'
 
 module
-  interface Props { docsUrl: string }
   const LazyTop = lazy(() => import('./components/topbar.btsx'))
   const LazyHero = lazy(() => import('./components/hero.btsx'))
   const LazyFooter = lazy(() => import('./components/footer.btsx'))
   const LazyToast = lazy(() => import('./components/toasts.btsx'))
-  const editorPicks: Game[] = [
-    { title: 'Sable Crown', genre: 'Tactical RPG', score: '4.9', tone: 'crown', glyph: 'SC', badge: 'Choice' },
-    { title: 'Morrow Tide', genre: 'Narrative adventure', score: '4.8', tone: 'tide', glyph: 'MT' },
-    { title: 'Paper Kingdom', genre: 'Strategy', score: '4.7', tone: 'paper', glyph: 'PK' },
-  ]
+  const loadItemClassName = 'motion-safe:invisible motion-safe:translate-y-6 motion-safe:opacity-0'
+  const runtimeMode = getSnapRuntimeMode()
+  const readApiError = async (response: Response, fallback: string) => {
+    const result = (await response.json().catch(() => null)) as { error?: unknown } | null
+    return typeof result?.error === 'string' ? result.error : fallback
+  }
 
 
-props { docsUrl }: Props
+props {}: {}
+setup
+  const { isLoading: isUserLoading, user } = useFirebaseUser()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const locationWatchRef = useRef<DeviceLocationWatch | null>(null)
+  const latestLocationRef = useRef<DeviceLocation | null>(null)
+  const sessionUploadIdRef = useRef<string | null>(null)
+  const sessionCompletedRef = useRef(false)
+  const startInvalidationReasonRef = useRef<string | null>(null)
+  const [isStarting, setIsStarting] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
+  const [locationAccuracyMeters, setLocationAccuracyMeters] = useState<number | null>(null)
+  const [sessionUploadId, setSessionUploadId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!rootRef.current || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return
+    }
+
+    const ctx = gsap.context(() => {
+      const items = gsap.utils.toArray<HTMLElement>('[data-load-item]')
+
+      gsap.set(items, {
+        y: 24,
+        autoAlpha: 0
+      })
+
+      for (const item of items) {
+        item.classList.remove('motion-safe:invisible', 'motion-safe:translate-y-6', 'motion-safe:opacity-0')
+      }
+
+      gsap.to(items, {
+        y: 0,
+        autoAlpha: 1,
+        duration: 0.72,
+        stagger: 0.1,
+        ease: 'power3.out',
+        force3D: true,
+        willChange: 'transform, opacity',
+        clearProps: 'transform,opacity,visibility,willChange'
+      })
+    }, rootRef)
+
+    return () => ctx.revert()
+  }, [])
+
+  const { on: isExpanded, setOn: setIsExpanded } = useToggle(false)
+  const handleLocation = useCallback((location: DeviceLocation) => {
+    latestLocationRef.current = location
+    const roundedAccuracy = Math.ceil(location.accuracy_meters)
+    setLocationAccuracyMeters((currentAccuracy) =>
+      currentAccuracy === roundedAccuracy ? currentAccuracy : roundedAccuracy
+    )
+  }, [])
+  const closeVerificationSession = useCallback(
+    (status: SnapSessionEndStatus, reason?: string) => {
+      const uploadId = sessionUploadIdRef.current
+      const lastLocation = latestLocationRef.current
+      const isPreciseCompletion =
+        status !== 'completed' ||
+        (lastLocation !== null && lastLocation.accuracy_meters <= MAX_SNAP_LOCATION_ACCURACY_METERS)
+      const finalStatus = isPreciseCompletion ? status : 'invalidated'
+      const finalReason = isPreciseCompletion
+        ? reason
+        : 'Precise Location Services were unavailable when verification ended.'
+
+      locationWatchRef.current?.stop()
+      locationWatchRef.current = null
+      latestLocationRef.current = null
+      sessionUploadIdRef.current = null
+      sessionCompletedRef.current = false
+      setLocationAccuracyMeters(null)
+      setSessionUploadId(null)
+      setIsExpanded(false)
+
+      if (uploadId && runtimeMode.mutationsEnabled) {
+        void endSnapSession({ lastLocation, reason: finalReason, status: finalStatus, uploadId }).catch(() => null)
+      }
+    },
+    [setIsExpanded]
+  )
+  const handleFatalLocationError = useCallback(
+    (error: DeviceLocationError) => {
+      startInvalidationReasonRef.current = error.message
+      closeVerificationSession('invalidated', error.message)
+      setStartError(error.message)
+      onError(error.message)
+    },
+    [closeVerificationSession]
+  )
+
+  const getCurrentLocation = useCallback(async () => {
+    const watch = locationWatchRef.current
+
+    if (!watch) {
+      const error = new DeviceLocationError('Location verification is no longer active.')
+      handleFatalLocationError(error)
+      throw error
+    }
+
+    try {
+      return await watch.getFreshLocation()
+    } catch (error) {
+      const locationError =
+        error instanceof DeviceLocationError
+          ? error
+          : new DeviceLocationError('A precise device location could not be verified.')
+      handleFatalLocationError(locationError)
+      throw locationError
+    }
+  }, [handleFatalLocationError])
+
+  const completeVerificationSession = useCallback(
+    async (plateNumber: string) => {
+      const uploadId = sessionUploadIdRef.current
+
+      if (!uploadId) {
+        throw new Error('The proof verification session is no longer active.')
+      }
+
+      if (runtimeMode.debug) {
+        sessionCompletedRef.current = true
+        return
+      }
+
+      const lastLocation = await getCurrentLocation()
+      const response = await endSnapSession({
+        lastLocation,
+        plateNumber,
+        status: 'completed',
+        uploadId
+      })
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, 'Unable to complete the proof verification session.'))
+      }
+
+      sessionCompletedRef.current = true
+    },
+    [getCurrentLocation]
+  )
+
+  const endCompletedSession = useCallback(() => {
+    if (!sessionCompletedRef.current) {
+      return
+    }
+
+    locationWatchRef.current?.stop()
+    locationWatchRef.current = null
+    latestLocationRef.current = null
+    sessionUploadIdRef.current = null
+    sessionCompletedRef.current = false
+    setLocationAccuracyMeters(null)
+    setSessionUploadId(null)
+    setIsExpanded(false)
+  }, [setIsExpanded])
+
+  const cancelVerificationSession = useCallback(() => {
+    closeVerificationSession('cancelled')
+  }, [closeVerificationSession])
+
+  const handleGetStarted = useCallback(async () => {
+    console.log('handleGetStarted', 'TRIGGERED')
+    if (isStarting || locationWatchRef.current) {
+      return
+    }
+
+    setIsStarting(true)
+    setStartError(null)
+    startInvalidationReasonRef.current = null
+    sessionCompletedRef.current = false
+
+    try {
+      if (!user) {
+        throw new Error(
+          isUserLoading ? 'Checking your signed-in account.' : 'Sign in before starting a proof submission.'
+        )
+      }
+
+      if (!user.displayName?.trim()) {
+        throw new Error('Your signed-in account needs a display name before submitting proof.')
+      }
+
+      if (!user.email?.trim()) {
+        throw new Error('Your signed-in account needs an email before submitting proof.')
+      }
+
+      if (runtimeMode.debug) {
+        const uploadId = crypto.randomUUID()
+        sessionUploadIdRef.current = uploadId
+        setSessionUploadId(uploadId)
+        setIsExpanded(true)
+        return
+      }
+
+      const idToken = await user.getIdToken(true)
+      const locationWatch = await startDeviceLocationWatch({
+        onFatalError: handleFatalLocationError,
+        onLocation: handleLocation
+      })
+      const uploadId = crypto.randomUUID()
+
+      locationWatchRef.current = locationWatch
+      latestLocationRef.current = locationWatch.initialLocation
+      sessionUploadIdRef.current = uploadId
+      await createSnapSession(uploadId, locationWatch.initialLocation, idToken)
+
+      if (
+        locationWatchRef.current !== locationWatch ||
+        sessionUploadIdRef.current !== uploadId ||
+        startInvalidationReasonRef.current
+      ) {
+        const reason =
+          startInvalidationReasonRef.current ?? 'Location Services became unavailable while verification was starting.'
+        await endSnapSession({
+          lastLocation: latestLocationRef.current,
+          reason,
+          status: 'invalidated',
+          uploadId
+        })
+        throw new DeviceLocationError(reason)
+      }
+
+      setSessionUploadId(uploadId)
+      setIsExpanded(true)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to start location verification.'
+      const uploadId = sessionUploadIdRef.current
+
+      locationWatchRef.current?.stop()
+      locationWatchRef.current = null
+      latestLocationRef.current = null
+      sessionUploadIdRef.current = null
+      setLocationAccuracyMeters(null)
+      setSessionUploadId(null)
+      setStartError(message)
+
+      if (uploadId && runtimeMode.mutationsEnabled && !startInvalidationReasonRef.current) {
+        void endSnapSession({ lastLocation: null, status: 'cancelled', uploadId }).catch(() => null)
+      }
+
+      onError(message)
+    } finally {
+      startInvalidationReasonRef.current = null
+      setIsStarting(false)
+    }
+  }, [handleFatalLocationError, handleLocation, isStarting, isUserLoading, setIsExpanded, user])
+
+  useEffect(() => {
+    const handlePageHide = () => {
+      const uploadId = sessionUploadIdRef.current
+
+      if (!runtimeMode.mutationsEnabled) {
+        locationWatchRef.current?.stop()
+        return
+      }
+
+      if (!uploadId || sessionCompletedRef.current) {
+        locationWatchRef.current?.stop()
+        return
+      }
+
+      const lastLocation = latestLocationRef.current
+      locationWatchRef.current?.stop()
+      void endSnapSession({
+        keepalive: true,
+        lastLocation,
+        reason: 'The verification page was closed before the session ended.',
+        status: 'invalidated',
+        uploadId: uploadId!
+      }).catch(() => null)
+    }
+
+    window.addEventListener('pagehide', handlePageHide)
+
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide)
+      locationWatchRef.current?.stop()
+    }
+  }, [])
+
+
+  const isLocationPrecise =
+    !runtimeMode.gpsRequired ||
+    (locationAccuracyMeters !== null && locationAccuracyMeters <= MAX_SNAP_LOCATION_ACCURACY_METERS)
+
+
 
 component Fallback
-  div(className='flex items-center justify-center gap-x-6 h-100')
+  div(className={cn('flex items-center justify-center gap-x-4 h-100')})
     Icon(name='spinner-ferris')
     span Loading...
 
-div(className='min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')
-  LazyTop
-  main(id='top' className='mx-auto w-full max-w-[1520px] h-screen')
-    Suspense(fallback={Fallback})
-      LazyHero(error={null} isAuthenticated={false} isAuthLoading={false} isDebugMode={false} isStarting={false} onGetStarted={() => {}})
+div(ref={rootRef} data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
+  div(data-load-item={true} className={loadItemClassName})
+    LazyTop
+  ScrollArea(className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
+    div(data-load-item={true} className={loadItemClassName})
+      div(className={cn(viewportStyles.pageContent, 'relative z-0 h-full', isExpanded && 'pointer-events-none')} inert={isExpanded})
+        Suspense(fallback={Fallback})
+          LazyHero(error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})
+
+  Expander(key={sessionUploadId ?? 'inactive-snap-session'} cancelSession={cancelVerificationSession} completeSession={completeVerificationSession} endCompletedSession={endCompletedSession} getCurrentLocation={getCurrentLocation} isDebugMode={runtimeMode.debug} isExpanded={isExpanded} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} sessionUploadId={sessionUploadId})
+
   LazyFooter
   LazyToast

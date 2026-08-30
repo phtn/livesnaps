@@ -26,6 +26,7 @@ const requiredConfig = {
   PUBLIC_FIREBASE_APP_ID: firebaseConfig.appId
 }
 
+export const isFirebaseConfigured = Object.values(firebaseConfig).every(Boolean)
 const missingConfig = Object.entries(requiredConfig)
   .filter(([, value]) => !value)
   .map(([name]) => name)

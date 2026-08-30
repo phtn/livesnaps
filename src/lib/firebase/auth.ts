@@ -1,5 +1,3 @@
-'use client'
-
 import {
   getFirebaseCustomClaimsFromIdTokenResult,
   hasFirebaseSnapAdminAccess,
@@ -15,9 +13,9 @@ import {
   type User,
   type UserCredential
 } from 'firebase/auth'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'octane'
 
-import { auth, isFirebaseConfigured } from './config'
+import { auth, isFirebaseConfigured } from './'
 
 const googleProvider = new GoogleAuthProvider()
 

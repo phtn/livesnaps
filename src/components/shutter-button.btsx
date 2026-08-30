@@ -1,0 +1,61 @@
+import { useMobile } from '@/hooks/use-mobile'
+import { Icon, type IconName } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'
+import * as viewportStyles from './mobile-viewport.module.css'
+
+module
+  type ShutterState = 'waiting-for-location' | 'ready-to-enable-camera' | 'enabling-camera' | 'waiting-to-capture' | 'ready-to-capture' | 'capturing' | 'complete'
+  export interface ShutterButtonProps {
+    isCameraActive: boolean
+    isCameraRequesting: boolean
+    isCapturing: boolean
+    isLocationPrecise: boolean
+    capturedPhotoCount: number
+    captureLabel: string
+    capturePhoto: VoidFunction
+    enableCamera: VoidFunction
+  }
+  interface ShutterPresentation {
+    ariaLabel: string
+    icon?: IconName
+    label?: string
+  }
+  const getShutterState = ({ capturedPhotoCount, isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise }: Pick<ShutterButtonProps, 'capturedPhotoCount' | 'isCameraActive' | 'isCameraRequesting' | 'isCapturing' | 'isLocationPrecise'>): ShutterState => {
+    if (isCameraActive) {
+      if (capturedPhotoCount >= MAX_CAPTURED_PHOTOS) return 'complete'
+      if (isCapturing) return 'capturing'
+      if (!isLocationPrecise) return 'waiting-to-capture'
+      return 'ready-to-capture'
+    }
+    if (isCameraRequesting) return 'enabling-camera'
+    if (!isLocationPrecise) return 'waiting-for-location'
+    return 'ready-to-enable-camera'
+  }
+  const getShutterPresentation = ({ captureLabel, capturedPhotoCount, state }: { captureLabel: string; capturedPhotoCount: number; state: ShutterState }): ShutterPresentation => {
+    switch (state) {
+      case 'waiting-for-location': return { ariaLabel: 'Waiting for precise location', icon: 'location', label: 'Waiting for GPS…' }
+      case 'ready-to-enable-camera': return { ariaLabel: 'Turn on camera', icon: 'camera-enhance', label: 'Turn on camera' }
+      case 'enabling-camera': return { ariaLabel: 'Starting camera', icon: 'spinner-blocks', label: 'Starting camera…' }
+      case 'waiting-to-capture': return { ariaLabel: 'Waiting for precise location before capturing' }
+      case 'ready-to-capture': return { ariaLabel: `Capture ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured` }
+      case 'capturing': return { ariaLabel: `Capturing ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured`, icon: 'spinner-blocks' }
+      case 'complete': return { ariaLabel: 'All five photos captured' }
+    }
+  }
+
+props { isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise, capturePhoto, capturedPhotoCount, captureLabel, enableCamera }: ShutterButtonProps
+setup
+  const isMobile = useMobile()
+  const state = getShutterState({ capturedPhotoCount, isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise })
+  const presentation = getShutterPresentation({ captureLabel, capturedPhotoCount, state })
+  const isBusy = state === 'enabling-camera' || state === 'capturing'
+  const isEnabled = state === 'ready-to-enable-camera' || state === 'ready-to-capture'
+  const isCameraMode = state === 'waiting-to-capture' || state === 'ready-to-capture' || state === 'capturing' || state === 'complete'
+
+button(className={cn(viewportStyles.shutterButton, 'flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full border-0 bg-foreground px-5 text-background transition-[background-color,border-color,color,transform,box-shadow] duration-160 ease-[ease] disabled:cursor-not-allowed', isCameraMode && 'aspect-square size-14 gap-0 border-2 border-border/20 bg-background px-0 ring-2 ring-beach ring-offset-2 transition-all duration-200 active:scale-94 dark:border-neutral-400 dark:bg-foreground dark:ring-lime-300/80', isCameraMode && isMobile && 'landscape:size-12')} type='button' data-state={state} onClick={isCameraMode ? capturePhoto : enableCamera} disabled={!isEnabled} aria-busy={isBusy || undefined} aria-label={presentation.ariaLabel})
+  if presentation.icon
+    Icon(name={presentation.icon} className={cn('size-6 -rotate-1', isMobile && 'landscape:size-8', isBusy && 'rotate-0 rounded-lg text-foreground opacity-80 dark:text-background')})
+  if presentation.label
+    span(className={cn('bg-foreground font-poly text-base font-normal text-background', isMobile && 'landscape:hidden')}) #{presentation.label}
+

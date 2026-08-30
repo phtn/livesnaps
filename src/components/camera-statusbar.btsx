@@ -1,0 +1,23 @@
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from './mobile-viewport.module.css'
+
+module
+  export interface CameraStatusbarProps {
+    isDebugMode: boolean
+    isLocationPrecise: boolean
+    locationAccuracyMeters: number | null
+    stopCamera: VoidFunction
+  }
+
+props { isDebugMode, isLocationPrecise, locationAccuracyMeters, stopCamera }: CameraStatusbarProps
+
+div(className={cn(viewportStyles.cameraStatusbar, 'absolute top-2 w-full text-xs text-white')})
+  div(className='flex w-full items-center justify-between')
+    div(className='inline-flex items-center gap-2 rounded-full bg-black/50 px-2.5 py-1.5 font-okx font-medium')
+      Icon(name='gps' className={cn('size-3.5 text-amber-400', isLocationPrecise && !isDebugMode && 'text-emerald-400', isDebugMode && 'text-fuchsia-400 dark:text-fuchsia-300')})
+      span #{isDebugMode ? 'Debug Mode' : locationAccuracyMeters === null ? 'Checking GPS' : `GPS ±${locationAccuracyMeters} m`}
+    button(type='button' onClick={stopCamera} className='flex cursor-pointer items-center gap-2 px-2 font-okx font-medium' aria-label='Turn off camera')
+      Icon(name='camera-off')
+      span Turn OFF
+

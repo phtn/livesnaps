@@ -1,9 +1,9 @@
-import { ConvexHttpClient } from 'convex/browser'
+import { ConvexClient } from 'convex/browser'
 import { api } from '../../convex/_generated/api'
 import { auth } from '@/lib/firebase'
 
 const url = import.meta.env.PUBLIC_CONVEX_URL
-export const convexClient = url ? new ConvexHttpClient(url) : null
+export const convexClient = url ? new ConvexClient(url) : null
 
 if (convexClient) {
   convexClient.setAuth(async () => (auth.currentUser ? auth.currentUser.getIdToken() : null))

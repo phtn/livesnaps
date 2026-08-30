@@ -1,0 +1,793 @@
+
+module
+  interface ExpanderProps {
+    cancelSession: VoidFunction
+    completeSession: (plateNumber: string) => Promise<void>
+    endCompletedSession: VoidFunction
+    getCurrentLocation: () => Promise<DeviceLocation>
+    isDebugMode: boolean
+    isExpanded: boolean
+    isLocationPrecise: boolean
+    locationAccuracyMeters: number | null
+    sessionUploadId: string | null
+  }
+
+  type CameraStatus = 'idle' | 'requesting' | 'active' | 'error'
+
+  const getInspectionLabel = (index: CaptureSlotIndex) => CAPTURE_SLOTS.find((slot) => slot.index === index)?.label ?? `photo ${index}`
+  type PersistPhotoResult = {
+    vehicle: VehicleDetails | null
+    mileageKm: number | null
+    odometerVisionStatus?: string
+    captureIntegrity?: import('@/lib/proofs/capture-integrity').CaptureIntegrityAnalysis | null
+    visionProvider?: string
+    visionModel?: string
+  }
+
+  type ImageOptimizationSettings = Pick<
+    ImageCaptureSettingsValues,
+    'imageOptimizationTimeoutMs' | 'imageQuality' | 'maxImageDimension'
+  >
+  const optimizeCapturedToWebp = async (file: File, settings: ImageOptimizationSettings) => {
+    const bitmap = await createImageBitmap(file)
+
+    try {
+      const scale = Math.min(1, settings.maxImageDimension / Math.max(bitmap.width, bitmap.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('Unable to prepare the captured image.')
+      }
+
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        const timeoutId = window.setTimeout(
+          () => reject(new Error('Image optimization timed out. Please try a smaller image.')),
+          settings.imageOptimizationTimeoutMs
+        )
+
+        canvas.toBlob((output) => {
+          window.clearTimeout(timeoutId)
+          if (output) {
+            resolve(output)
+          } else {
+            reject(new Error('Unable to optimize the captured image.'))
+          }
+        }, 'image/webp', settings.imageQuality)
+      })
+
+      const basename = file.name.replace(/\.[^/.]+$/, '') || 'capture'
+      return new File([blob], `${basename}.webp`, {
+        type: blob.type,
+        lastModified: Date.now()
+      })
+    } finally {
+      bitmap.close()
+    }
+  }
+  const stopMediaStream = (stream: MediaStream | null) => {
+    for (const track of stream?.getTracks() ?? []) {
+      track.stop()
+    }
+  }
+  const persistCapturedPhoto = async ({
+    captureId,
+    file,
+    isRetake,
+    location,
+    slot,
+    uploadId,
+    capturedAt
+  }: {
+    captureId: string
+    capturedAt: number
+    file: File
+    isRetake: boolean
+    location: DeviceLocation
+    slot: ProofSlotIndex
+    uploadId: string
+  }) => {
+    const formData = new FormData()
+    formData.set('captureId', captureId)
+    formData.set('capturedAt', String(capturedAt))
+    formData.set('file', file)
+    formData.set('isRetake', String(isRetake))
+    formData.set('location', JSON.stringify(location))
+    formData.set('uploadId', uploadId)
+    formData.set('slot', String(slot))
+
+    const response = await fetch('/api/proofs', {
+      method: 'POST',
+      body: formData
+    })
+    const result = (await response.json().catch(() => null)) as {
+      error?: unknown
+      vehicle?: unknown
+      mileage?: unknown
+      odometerVisionStatus?: unknown
+      captureIntegrity?: unknown
+      visionProvider?: unknown
+      visionModel?: unknown
+    } | null
+
+    if (!response.ok) {
+      throw new Error(typeof result?.error === 'string' ? result.error : 'Unable to save the proof image.')
+    }
+
+    const captureIntegrity =
+      result?.captureIntegrity && typeof result.captureIntegrity === 'object'
+        ? (result.captureIntegrity as import('@/lib/proofs/capture-integrity').CaptureIntegrityAnalysis)
+        : null
+
+    return {
+      ...parseCaptureReading(result, slot),
+      odometerVisionStatus: typeof result?.odometerVisionStatus === 'string' ? result.odometerVisionStatus : undefined,
+      captureIntegrity,
+      visionProvider: typeof result?.visionProvider === 'string' ? result.visionProvider : undefined,
+      visionModel: typeof result?.visionModel === 'string' ? result.visionModel : undefined
+    } satisfies PersistPhotoResult
+  }
+  const getCameraErrorMessage = (error: unknown) => {
+    if (!(error instanceof DOMException)) {
+      return 'Unable to start the camera. Check your device and try again.'
+    }
+
+    switch (error.name) {
+      case 'NotAllowedError':
+      case 'SecurityError':
+        return 'Camera access was blocked. Allow camera access in your browser settings, then try again.'
+      case 'NotFoundError':
+      case 'DevicesNotFoundError':
+        return 'No camera was found on this device.'
+      case 'NotReadableError':
+      case 'TrackStartError':
+        return 'The camera is unavailable or already being used by another app.'
+      case 'OverconstrainedError':
+        return 'This camera does not support the requested video settings.'
+      case 'AbortError':
+        return 'Camera startup was interrupted. Try again.'
+      default:
+        return 'Unable to start the camera. Check your browser permissions and try again.'
+    }
+  }
+
+
+import { api } from '../../convex/_generated/api'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import {Icon} from "@/lib/icons";
+import { DEFAULT_IMAGE_CAPTURE_SETTINGS, type ImageCaptureSettingsValues } from '@/lib/snaps/snap-settings'
+import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
+import  CapturedPhotos from './captured-photos.btsx'
+import { CAPTURE_SLOTS, CaptureSlotIndex, MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'
+import { normalizeCaptureTonesConfig } from '@/lib/tones'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
+import { RefObject } from 'octane'
+import CaptureProgress from './capture-progress.btsx'
+import PhotoPreview from './photo-preview.btsx'
+import GuidePanel from './guide-panel.btsx'
+import ShutterButton from './shutter-button.btsx'
+import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
+
+props { cancelSession, completeSession, endCompletedSession, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
+
+component CameraPreview
+  props { previewRef }: { previewRef: RefObject<HTMLVideoElement | null> }
+  video(ref={previewRef} muted={true} autoPlay={true} playsInline={true} className={viewportStyles.cameraPreview} aria-label='live Camera preview')
+
+component Hint
+  div(className='flex items-start space-x-2')
+    Icon(name='bolt' className='mt-0.5')
+    span(className='max-w-100 italic text-[#808596] text-sm text-balance') Ensure lighting is good and capture photos as clearly as possible.
+  div(className='')
+component Poster
+  div(className='grid size-32 place-items-center rounded-[28px] border bg-beach border-[oklch(0.793_0.108_189.22/50)] dark:bg-lime-200 text-white dark:text-background _light:bg-[linear-gradient(145deg,oklch(0.84_0.115_189.22),oklch(0.68_0.125_189.22))] dark:shadow-[0_20px_40px_oklch(0.939_0.128_124.56/0.15),0_0_0_12px_oklch(0.94_0.128_134.56/0.15)] shadow-[0_20px_40px_oklch(0.68_0.125_189.22/0.24),0_0_0_12px_oklch(0.76_0.115_189.22/0.15)] ' aria-hidden='true')
+    Icon(name={'re-up.ph'} className='size-12')
+
+setup
+  const snapSettings = useConvexQuery(api.snapSettings.q.get, {}) ?? DEFAULT_IMAGE_CAPTURE_SETTINGS
+  const {
+    cameraIdealHeight,
+    cameraIdealWidth,
+    imageOptimizationTimeoutMs,
+    imageQuality,
+    maxImageDimension,
+    sourceJpegQuality
+  } = snapSettings
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const requestSequenceRef = useRef(0)
+  const requestPendingRef = useRef(false)
+  const capturePendingRef = useRef(false)
+  const retakeSlotsRef = useRef<Set<CaptureSlotIndex>>(new Set())
+  const capturedPhotosRef = useRef<CapturedPhoto[]>([])
+  const vehicleDetailsRef = useRef<VehicleDetails>(EMPTY_VEHICLE_DETAILS)
+  const [cameraStatus, setCameraStatus] = useState<CameraStatus>('idle')
+  const [cameraError, setCameraError] = useState<string | null>(null)
+  const [capturedPhotos, setCapturedPhotos] = useState<CapturedPhoto[]>([])
+  const [isCapturing, setIsCapturing] = useState(false)
+  const [selectedPhoto, setSelectedPhoto] = useState<CapturedPhoto | null>(null)
+  const [isStackExpanded, setIsStackExpanded] = useState(false)
+  const [activeCaptureIndex, setActiveCaptureIndex] = useState<CaptureSlotIndex>(1)
+  const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails>(EMPTY_VEHICLE_DETAILS)
+  const [mileageKm, setMileageKm] = useState<number | null>(null)
+  const [plateNumber, setPlateNumber] = useState('')
+  const [plateConfirmationStage, setPlateConfirmationStage] = useState<PlateConfirmationStage | null>(null)
+  const [plateConfirmationError, setPlateConfirmationError] = useState<string | null>(null)
+  const isCameraActive = cameraStatus === 'active'
+  const isCameraRequesting = cameraStatus === 'requesting'
+  const hasCapturedAllPhotos = capturedPhotos.length >= MAX_CAPTURED_PHOTOS
+  const shouldShowCaptureGuidance = isCameraActive || capturedPhotos.length > 0
+  const expandPhotoStack = useCallback(() => setIsStackExpanded(true), [])
+  const collapsePhotoStack = useCallback(() => setIsStackExpanded(false), [])
+
+  const captureTonesSetting = useConvexQuery(api.snapSettings.q.getCaptureTones, {})
+  const captureTones = useMemo(() => normalizeCaptureTonesConfig(captureTonesSetting), [captureTonesSetting])
+
+  const proofSnapshot = useConvexQuery(
+    api.snaps.q.getByUploadId,
+    sessionUploadId && !isDebugMode ? { upload_id: sessionUploadId } : 'skip'
+  )
+
+  useEffect(() => {
+    if (!proofSnapshot || isDebugMode) return
+
+    const vehicleFromProof: VehicleDetails = {
+      plate_number: (proofSnapshot as unknown as { plate_number?: string }).plate_number ?? '',
+      make: (proofSnapshot as unknown as { make?: string }).make ?? '',
+      model: (proofSnapshot as unknown as { model?: string }).model ?? ''
+    }
+
+    const hasVehicleData = Boolean(vehicleFromProof.plate_number || vehicleFromProof.make || vehicleFromProof.model)
+    if (hasVehicleData) {
+      const current = vehicleDetailsRef.current
+      const isDifferent =
+        vehicleFromProof.plate_number !== current.plate_number ||
+        vehicleFromProof.make !== current.make ||
+        vehicleFromProof.model !== current.model
+
+      if (isDifferent) {
+        const merged = mergeDetectedVehicleDetails(current, vehicleFromProof)
+        vehicleDetailsRef.current = merged
+        setVehicleDetails(merged)
+        const formatted = formatCapturePlateNumber(merged.plate_number)
+        // Only auto-fill plate number if available and we won't clobber a user-entered complete plate
+        // - empty plate -> fill
+        // - incomplete plate -> fill when background vision delivers a complete plate
+        // - still matches previous auto value -> update to new vision value
+        if (formatted) {
+          const currentFormatted = formatCapturePlateNumber(current.plate_number)
+          const isUserCompletePlate = isCompleteCapturePlateNumber(plateNumber)
+          const isNewComplete = isCompleteCapturePlateNumber(formatted)
+          const shouldUpdate =
+            !plateNumber ||
+            !isUserCompletePlate ||
+            plateNumber === currentFormatted ||
+            (isNewComplete && !isUserCompletePlate)
+
+          if (shouldUpdate) {
+            setPlateNumber(formatted)
+          }
+        }
+      }
+    }
+
+    const mileageFromProof = (proofSnapshot as unknown as { mileage?: number | null }).mileage ?? null
+    if (mileageFromProof !== null && mileageFromProof !== mileageKm) {
+      setMileageKm(mileageFromProof)
+    }
+  }, [proofSnapshot, isDebugMode, mileageKm, plateNumber])
+  const releaseCamera = useCallback(() => {
+    requestSequenceRef.current += 1
+    requestPendingRef.current = false
+    capturePendingRef.current = false
+
+    const stream = streamRef.current
+    streamRef.current = null
+    stopMediaStream(stream)
+
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+  }, [])
+
+  const stopCamera = useCallback(() => {
+    releaseCamera()
+    setCameraStatus('idle')
+    setCameraError(null)
+    setIsCapturing(false)
+  }, [releaseCamera])
+
+  const enableCamera = useCallback(async () => {
+    if (requestPendingRef.current || streamRef.current) {
+      return
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraStatus('error')
+      setCameraError('Camera access requires a supported browser and a secure HTTPS connection.')
+      return
+    }
+
+    const requestId = ++requestSequenceRef.current
+    requestPendingRef.current = true
+    setCameraStatus('requesting')
+    setCameraError(null)
+
+    let stream: MediaStream | null = null
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: cameraIdealWidth },
+          height: { ideal: cameraIdealHeight }
+        }
+      })
+
+      if (requestId !== requestSequenceRef.current || !isExpanded) {
+        stopMediaStream(stream)
+        return
+      }
+
+      // Try to apply max capabilities for high-resolution capture
+      const [track] = stream.getVideoTracks()
+      const capabilities = track?.getCapabilities?.() as
+        | { width?: { max?: number }; height?: { max?: number } }
+        | undefined
+      if (capabilities?.width?.max && capabilities?.height?.max) {
+        try {
+          await track.applyConstraints({
+            width: capabilities.width.max,
+            height: capabilities.height.max
+          })
+        } catch {
+          // ignore if device cannot apply max constraints
+        }
+      }
+
+      const video = videoRef.current
+      if (!video) {
+        throw new Error('Camera preview is unavailable.')
+      }
+
+      streamRef.current = stream
+      video.srcObject = stream
+      await video.play()
+
+      if (requestId === requestSequenceRef.current) {
+        setCameraStatus('active')
+      }
+    } catch (error) {
+      stopMediaStream(stream)
+
+      if (streamRef.current === stream) {
+        streamRef.current = null
+      }
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = null
+      }
+
+      if (requestId === requestSequenceRef.current) {
+        setCameraStatus('error')
+        setCameraError(getCameraErrorMessage(error))
+      }
+    } finally {
+      if (requestId === requestSequenceRef.current) {
+        requestPendingRef.current = false
+      }
+    }
+  }, [cameraIdealHeight, cameraIdealWidth, isExpanded])
+
+  const capturePhoto = useCallback(async () => {
+    // Allow pipelining — only block concurrent canvas captures, not background uploads
+    if (capturePendingRef.current) return
+    if (capturedPhotosRef.current.length >= MAX_CAPTURED_PHOTOS) {
+      // If all 5 slots are filled optimistically, don't allow extra captures (retakes go via retakePhoto)
+      const hasEmptySlot = CAPTURE_SLOTS.some(
+        (slot) => !capturedPhotosRef.current.some((photo) => photo.index === slot.index)
+      )
+      if (!hasEmptySlot) return
+    }
+
+    const video = videoRef.current
+    if (!streamRef.current || !video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      setCameraError('The camera is still preparing the next frame. Try again in a moment.')
+      return
+    }
+
+    const width = video.videoWidth
+    const height = video.videoHeight
+    if (!width || !height) {
+      setCameraError('The camera frame is not ready yet. Try again in a moment.')
+      return
+    }
+
+    const captureSessionId = requestSequenceRef.current
+
+    if (!sessionUploadId) {
+      setCameraError('The proof verification session is no longer active.')
+      return
+    }
+
+    if (!isDebugMode && !isLocationPrecise) {
+      setCameraError('A precise device location is required before every photo.')
+      return
+    }
+
+    // Short-lived capture lock — only for canvas phase, released immediately after optimistic update
+    capturePendingRef.current = true
+    setIsCapturing(true)
+    setCameraError(null)
+
+    let canvas: HTMLCanvasElement | null = null
+    let blob: Blob | null = null
+
+    try {
+      canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+
+      const context = canvas.getContext('2d')
+      if (!context) {
+        throw new Error('Unable to prepare the photo canvas.')
+      }
+
+      context.drawImage(video, 0, 0, width, height)
+
+      blob = await new Promise<Blob | null>((resolve) => {
+        canvas!.toBlob(resolve, 'image/jpeg', sourceJpegQuality)
+      })
+
+      if (!blob) {
+        throw new Error('Unable to encode the captured photo.')
+      }
+
+      if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
+        capturePendingRef.current = false
+        setIsCapturing(false)
+        return
+      }
+    } catch (error) {
+      if (captureSessionId === requestSequenceRef.current) {
+        setCameraError(
+          error instanceof Error ? error.message : 'Unable to capture this frame. Keep the camera open and try again.'
+        )
+      }
+      capturePendingRef.current = false
+      setIsCapturing(false)
+      return
+    }
+    // --- Optimistic update: instant UI feedback, shutter unlocks right here ---
+    const captureNumber = activeCaptureIndex
+    const capturedAt = Date.now()
+    const captureId = crypto.randomUUID()
+    const label = getInspectionLabel(captureNumber)
+    const slug = label.replace(/\s+/g, '-').toLowerCase()
+    const interimFile = new File([blob!], `pre-inspection-${slug}-${captureNumber}-${capturedAt}.jpg`, {
+      lastModified: capturedAt,
+      type: 'image/jpeg'
+    })
+    const optimisticPhoto: CapturedPhoto = {
+      file: interimFile,
+      id: captureId,
+      index: captureNumber,
+      label,
+      preview: URL.createObjectURL(interimFile),
+      uploadStatus: 'saving'
+    }
+    const previousPhoto = capturedPhotosRef.current.find((photo) => photo.index === captureNumber)
+    const optimisticPhotos = upsertCapturedPhoto(capturedPhotosRef.current, optimisticPhoto)
+    const optimisticNextEmptySlot = CAPTURE_SLOTS.find(
+      (slot) => !optimisticPhotos.some((capturedPhoto) => capturedPhoto.index === slot.index)
+    )
+
+    capturedPhotosRef.current = optimisticPhotos
+    setCapturedPhotos(optimisticPhotos)
+    if (optimisticNextEmptySlot) setActiveCaptureIndex(optimisticNextEmptySlot.index)
+
+    // Unlock shutter immediately — next photo can be taken while this one uploads in background
+    capturePendingRef.current = false
+    setIsCapturing(false)
+
+    // Capture locals for background closure
+    const bgCaptureNumber = captureNumber
+    const bgCapturedAt = capturedAt
+    const bgCaptureId = captureId
+    const bgSlug = slug
+    const bgCanvas = canvas!
+    const bgInterimFile = interimFile
+    const bgOptimisticPhoto = optimisticPhoto
+    const bgPreviousPhoto = previousPhoto
+    const bgUploadId = sessionUploadId
+    const bgIsRetake = retakeSlotsRef.current.has(captureNumber)
+
+    // Background pipeline: optimize + location + upload + vision handling — does NOT block shutter
+    void (async () => {
+      try {
+        const locationPromise = isDebugMode ? Promise.resolve(null) : getCurrentLocation()
+        const outputFilePromise = (async () => {
+          try {
+            return await optimizeCapturedToWebp(bgInterimFile, {
+              imageOptimizationTimeoutMs,
+              imageQuality,
+              maxImageDimension
+            })
+          } catch {
+            const webpBlob = await new Promise<Blob | null>((resolve) => {
+              bgCanvas.toBlob(resolve, 'image/webp', imageQuality)
+            })
+
+            if (webpBlob?.type === 'image/webp') {
+              return new File([webpBlob], `pre-inspection-${bgSlug}-${bgCaptureNumber}-${bgCapturedAt}.webp`, {
+                lastModified: bgCapturedAt,
+                type: 'image/webp'
+              })
+            }
+
+            return bgInterimFile
+          }
+        })()
+
+        const [location, outputFile] = await Promise.all([locationPromise, outputFilePromise])
+
+        if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
+          // Session ended — keep optimistic as saved locally but don't persist
+          const savedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, uploadStatus: 'saved' }
+          const savedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, savedPhoto)
+          capturedPhotosRef.current = savedPhotos
+          setCapturedPhotos(savedPhotos)
+          return
+        }
+
+        if (outputFile.type !== 'image/webp') {
+          throw new Error('This browser could not convert the capture to WebP. Please try another browser.')
+        }
+
+        const file = outputFile
+
+        // Persist: fast server path (R2 + Convex) — vision runs via server `after` in background
+        const persistResult: PersistPhotoResult =
+          location || isDebugMode
+            ? await persistCapturedPhoto({
+                captureId: bgCaptureId,
+                capturedAt: bgCapturedAt,
+                file,
+                isRetake: bgIsRetake,
+                location: location ?? {
+                  latitude: 0,
+                  longitude: 0,
+                  accuracy_meters: 0,
+                  altitude_meters: null,
+                  altitude_accuracy_meters: null,
+                  heading_degrees: null,
+                  speed_meters_per_second: null,
+                  captured_at: bgCapturedAt
+                },
+                slot: bgCaptureNumber,
+                uploadId: bgUploadId
+              })
+            : { vehicle: null, mileageKm: null, captureIntegrity: null }
+
+        // Mark photo as saved (optimistic -> saved) — keeps preview, updates file
+        const savedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, file, uploadStatus: 'saved' }
+        const savedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, savedPhoto)
+
+        capturedPhotosRef.current = savedPhotos
+        retakeSlotsRef.current.delete(bgCaptureNumber)
+        setCapturedPhotos(savedPhotos)
+        setSelectedPhoto((selected) => (selected?.id === bgOptimisticPhoto.id ? savedPhoto : selected))
+
+        if (bgPreviousPhoto) URL.revokeObjectURL(bgPreviousPhoto.preview)
+
+        if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
+          return
+        }
+
+        // Vehicle / plate handling (in debug, vision comes back inline; in prod, also via Convex subscription for background vision)
+        if (persistResult.vehicle) {
+          const hasFrontPlate = Boolean(normalizePlateNumber(vehicleDetailsRef.current.plate_number))
+          const isBackWithFrontPlate = bgCaptureNumber === 2 && hasFrontPlate
+
+          if (isBackWithFrontPlate) {
+            if (isDebugMode) {
+              onInfo('Front plate already captured — back vehicle vision skipped', { duration: 3000 })
+            }
+          } else {
+            const mergedVehicle = mergeDetectedVehicleDetails(vehicleDetailsRef.current, persistResult.vehicle)
+            vehicleDetailsRef.current = mergedVehicle
+            setVehicleDetails(mergedVehicle)
+            const formatted = formatCapturePlateNumber(mergedVehicle.plate_number)
+            setPlateNumber(formatted)
+            if (isDebugMode) {
+              const plate = mergedVehicle.plate_number.trim()
+              const makeModel = [mergedVehicle.make, mergedVehicle.model].filter(Boolean).join(' ')
+              if (plate) {
+                onSuccess(`Plate read: ${plate}${makeModel ? ` — ${makeModel}` : ''}`, { duration: 4000 })
+              } else {
+                onInfo(`No plate read${makeModel ? ` (saw: ${makeModel})` : ''} — try closer, fill frame`, {
+                  duration: 4000
+                })
+              }
+            }
+          }
+        } else if (isDebugMode && (bgCaptureNumber === 1 || bgCaptureNumber === 2)) {
+          const hasFrontPlate = Boolean(normalizePlateNumber(vehicleDetailsRef.current.plate_number))
+          if (bgCaptureNumber === 2 && hasFrontPlate) {
+            // skipped
+          } else {
+            onInfo('No vehicle data — vision unavailable or skipped', { duration: 3500 })
+          }
+        }
+
+        if (bgCaptureNumber === 5 && persistResult.mileageKm !== null) {
+          setMileageKm(persistResult.mileageKm)
+        }
+
+        if (isDebugMode) {
+          if (bgCaptureNumber === 5) {
+            if (persistResult.mileageKm !== null) {
+              onSuccess(`Odometer: ${persistResult.mileageKm.toLocaleString()} ${ODOMETER_DISTANCE_UNIT}`, {
+                duration: 4000
+              })
+            } else if (persistResult.odometerVisionStatus) {
+              onInfo('Odometer unreadable — try straight, no glare', { duration: 4000 })
+            }
+          }
+          const ci = persistResult.captureIntegrity
+          if (ci) {
+            if (ci.verdict === 'display_replay') {
+              onError(`Integrity: display replay — ${ci.disposition} (${ci.confidence.toFixed(2)})`, {
+                duration: 5000
+              })
+            } else if (ci.verdict === 'uncertain') {
+              onInfo(`Integrity: uncertain (${ci.confidence.toFixed(2)}) — ${ci.signals.join(', ') || 'no signals'}`, {
+                duration: 4000
+              })
+            } else if (ci.status === 'completed') {
+              onSuccess(`Integrity: ${ci.verdict} — ${ci.disposition}`, { duration: 3000 })
+            }
+          }
+        }
+
+        // Completion: only when every slot has a saved photo (background uploads finished)
+        const allSlotsFilled = CAPTURE_SLOTS.every((slot) =>
+          savedPhotos.some((photo) => photo.index === slot.index)
+        )
+        const allSaved = savedPhotos.every((photo) => photo.uploadStatus === 'saved')
+        if (allSlotsFilled && allSaved) {
+          onSuccess('5 Photos complete!')
+          setPlateConfirmationError(null)
+          setPlateConfirmationStage('confirm')
+        } else if (allSlotsFilled && !allSaved) {
+          // Some photos still saving — completion will fire when last background finishes
+        }
+      } catch (bgError) {
+        // Background failure: mark photo as failed (keep preview, allow retake) and surface error non-blockingly
+        const failedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, uploadStatus: 'failed' }
+        const failedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, failedPhoto)
+        capturedPhotosRef.current = failedPhotos
+        setCapturedPhotos(failedPhotos)
+        setSelectedPhoto((selected) => (selected?.id === bgOptimisticPhoto.id ? failedPhoto : selected))
+
+        const message =
+          bgError instanceof Error ? bgError.message : 'Unable to save this photo. Tap retake to retry.'
+        if (captureSessionId === requestSequenceRef.current) {
+          setCameraError(message)
+        }
+        // Keep retake flag so next capture for this slot is treated as retake
+        onError(message)
+      }
+    })()
+  }, [
+    activeCaptureIndex,
+    getCurrentLocation,
+    imageOptimizationTimeoutMs,
+    imageQuality,
+    isDebugMode,
+    isLocationPrecise,
+    maxImageDimension,
+    sessionUploadId,
+    sourceJpegQuality
+  ])
+
+  const closeExpander = useCallback(() => {
+    if (hasCapturedAllPhotos) {
+      return
+    }
+
+    stopCamera()
+    cancelSession()
+  }, [cancelSession, hasCapturedAllPhotos, stopCamera])
+
+  useEffect(() => {
+    return () => {
+      releaseCamera()
+
+      for (const photo of capturedPhotosRef.current) {
+        URL.revokeObjectURL(photo.preview)
+      }
+    }
+  }, [releaseCamera])
+
+  const selectPhoto = useCallback((photo: CapturedPhoto) => {
+    setSelectedPhoto(photo)
+  }, [])
+
+  const retakePhoto = useCallback((photo: CapturedPhoto) => {
+    const nextPhotos = capturedPhotosRef.current.filter((capturedPhoto) => capturedPhoto.id !== photo.id)
+
+    capturedPhotosRef.current = nextPhotos
+    retakeSlotsRef.current.add(photo.index as CaptureSlotIndex)
+    setCapturedPhotos(nextPhotos)
+    setActiveCaptureIndex(photo.index as CaptureSlotIndex)
+    setSelectedPhoto(null)
+    URL.revokeObjectURL(photo.preview)
+  }, [])
+
+  const confirmPlateNumber = useCallback(
+    async (event: SubmitEvent) => {
+      event.preventDefault()
+
+      const formattedPlateNumber = formatCapturePlateNumber(plateNumber)
+      if (!isCompleteCapturePlateNumber(formattedPlateNumber)) {
+        setPlateConfirmationError('Enter the plate number in AAA 1234 format.')
+        return
+      }
+
+      setPlateNumber(formattedPlateNumber)
+      setPlateConfirmationError(null)
+      setPlateConfirmationStage('submitting')
+
+      try {
+        await completeSession(formattedPlateNumber)
+        setPlateConfirmationStage('complete')
+      } catch (error) {
+        setPlateConfirmationError(
+          error instanceof Error ? error.message : 'Unable to complete this proof session. Please try again.'
+        )
+        setPlateConfirmationStage('confirm')
+      }
+    },
+    [completeSession, plateNumber]
+  )
+  const endSession = useCallback(() => {
+    stopCamera()
+    endCompletedSession()
+  }, [endCompletedSession, stopCamera])
+
+div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyles.expanderViewport, "fixed inset-x-0 z-20 isolate flex items-center overflow-hidden bg-background contain-[layout_paint] before:pointer-events-none before:absolute before:inset-4.5 before:z-0 before:rounded-px before:border before:border-dashed before:content-['']")})
+  div(id='expanded-drop-zone' inert={!isExpanded} onKeyDown={(event) => { if (event.key === 'Escape' && isExpanded) closeExpander() }} className={cn(viewportStyles.expanderScroller, 'absolute inset-0 z-1 flex items-start justify-center bg-background')})
+    button(className={cn(viewportStyles.closeButton, 'absolute top-4 grid size-6 rounded-full cursor-pointer place-items-center text-[#656b7e] transition-all duration-160 ease-[ease] dark:hover:text-lime-200 rotate-3 z-10', { 'opacity-0': isCameraActive })} onClick={closeExpander} aria-label='Close drop zone' type='button')
+      Icon(name='close' className='size-6 stroke-2')
+
+    div(className={cn(viewportStyles.expanderContent, 'flex flex-col items-center justify-start relative')})
+      div(id='camera-container' className={viewportStyles.cameraViewport} data-camera-active={isCameraActive} aria-busy={isCameraRequesting})
+        CameraPreview(previewRef={videoRef})
+        CaptureProgress(isActive={isCapturing} isDebugMode={isDebugMode})
+        if (!isCameraActive)
+          div(className='absolute inset-0 flex items-center justify-center')
+            Poster
+        else
+          CameraStatusbar(isDebugMode={isDebugMode} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} stopCamera={stopCamera} captureTones={captureTones})
+        Activity(mode={shouldShowCaptureGuidance ? 'visible' : 'hidden'})
+          CapturedPhotos(activeCaptureIndex={activeCaptureIndex} isStackExpanded={isStackExpanded} capturedPhotos={capturedPhotos} expandStack={expandPhotoStack} collapseStack={collapsePhotoStack} selectCaptureSlot={setActiveCaptureIndex} selectPhoto={selectPhoto})
+        if selectedPhoto
+          PhotoPreview(selectedPhoto={selectedPhoto} capturedPhotos={capturedPhotos} onClose={() => setSelectedPhoto(null)} onRetake={() => retakePhoto(selectedPhoto)})
+
+      Activity(mode={shouldShowCaptureGuidance ? 'visible' : 'hidden'})
+        div(className={viewportStyles.guidePanel})
+          GuidePanel(activeCaptureIndex={activeCaptureIndex} capturedCount={capturedPhotos.length})
+      div(className={cn(viewportStyles.shutterControls, 'mt-6 flex shrink-0 flex-col items-center gap-2')})
+        ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} captureTones={captureTones} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={capturedPhotos.length} captureLabel={getInspectionLabel(activeCaptureIndex)})
+        Activity(mode={cameraError ? 'visible' : 'hidden'})
+          p(className='max-w-md px-4 text-center text-xs text-destructive' role='alert') #{cameraError}
+
+
+  PlateConfirmationDialog(error={plateConfirmationError} isDebugMode={isDebugMode} onEnd={endSession} onPlateNumberChange={setPlateNumber} onSubmit={confirmPlateNumber} mileageKm={mileageKm} plateNumber={plateNumber} stage={plateConfirmationStage} vehicle={vehicleDetails})

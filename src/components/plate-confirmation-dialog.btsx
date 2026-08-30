@@ -1,0 +1,61 @@
+import { Icon } from '@/lib/icons'
+import { ODOMETER_DISTANCE_UNIT } from '@/lib/snaps/odometer'
+import { CAPTURE_PLATE_NUMBER_INPUT_PATTERN, CAPTURE_PLATE_NUMBER_MAX_LENGTH, formatCapturePlateNumber, isCompleteCapturePlateNumber, type VehicleDetails } from '@/lib/snaps/vehicle-details'
+
+module
+  export type PlateConfirmationStage = 'confirm' | 'submitting' | 'complete'
+  export interface PlateConfirmationDialogProps {
+    error: string | null
+    isDebugMode: boolean
+    mileageKm: number | null
+    onEnd: VoidFunction
+    onPlateNumberChange: (plateNumber: string) => void
+    onSubmit: (event: SubmitEvent) => void
+    plateNumber: string
+    stage: PlateConfirmationStage | null
+    vehicle: VehicleDetails
+  }
+
+props { error, isDebugMode, mileageKm, onEnd, onPlateNumberChange, onSubmit, plateNumber, stage, vehicle }: PlateConfirmationDialogProps
+setup
+  const detectedVehicle = [vehicle.make, vehicle.model].filter(Boolean).join(' ')
+  const hasCompletePlateNumber = isCompleteCapturePlateNumber(plateNumber)
+  const isComplete = stage === 'complete'
+  const isSubmitting = stage === 'submitting'
+
+if stage !== null
+  div(className='fixed inset-0 z-50 grid place-items-center bg-black/65 p-4 backdrop-blur-sm' role='presentation')
+    section(className='w-full max-w-xs overflow-hidden rounded-2xl border bg-background shadow-2xl' role='dialog' aria-modal='true' aria-labelledby='plate-confirmation-title' aria-describedby='plate-confirmation-description')
+      if isComplete
+        div(className='flex flex-col items-center gap-6 px-6 py-8 text-center')
+          div(className='grid size-16 place-items-center rounded-full bg-beach/15 text-beach dark:bg-lime-200/15 dark:text-lime-200')
+            Icon(name='checkmark-circle' className='size-9')
+          div(className='grid justify-items-center gap-2')
+            h2(id='plate-confirmation-title' className='font-okx text-2xl') #{isDebugMode ? 'Debug run complete' : "You're all set!"}
+            p(id='plate-confirmation-description' className='text-balance text-sm text-muted-foreground') #{isDebugMode ? 'Nothing was uploaded or written to Convex.' : 'Your vehicle proof has been submitted successfully.'}
+          button(type='button' className='h-12 w-full cursor-pointer rounded-xl bg-foreground px-5 font-medium text-background disabled:opacity-50' onClick={onEnd}) #{isDebugMode ? 'Workflow Finishline' : 'View Submissions'}
+      else
+        form(className='grid gap-6 p-6' onSubmit={onSubmit})
+          header(className='grid gap-2')
+            h2(id='plate-confirmation-title' className='font-okx text-xl') #{hasCompletePlateNumber ? 'Is this plate number correct?' : 'Enter vehicle plate number'}
+            p(id='plate-confirmation-description' className='text-sm text-muted-foreground') #{hasCompletePlateNumber ? 'We read this plate from the back photo. Correct it below if needed.' : 'We could not read the plate clearly. Enter it below to finish.'}
+          div(className='grid gap-2')
+            label(htmlFor='confirmed-plate-number' className='font-okx tracking-wide') Plate number
+            input(id='confirmed-plate-number' name='plateNumber' value={plateNumber} onInput={(event) => onPlateNumberChange(formatCapturePlateNumber(event.currentTarget.value))} aria-describedby='plate-number-format' aria-invalid={Boolean(error)} autoCapitalize='characters' autoComplete='off' autoCorrect='off' enterKeyHint='done' inputMode='text' maxLength={CAPTURE_PLATE_NUMBER_MAX_LENGTH} pattern={CAPTURE_PLATE_NUMBER_INPUT_PATTERN} placeholder='SUV 9999' spellCheck={false} className='h-12 rounded-xl border bg-background px-3 font-mono text-xl uppercase tracking-widest outline-none focus-visible:ring-2 focus-visible:ring-ring md:text-xl' disabled={isSubmitting} autoFocus required)
+            if detectedVehicle || mileageKm !== null
+              div(className='grid gap-1 text-xs text-muted-foreground')
+                if detectedVehicle
+                  p Detected vehicle: #{detectedVehicle}
+                if mileageKm !== null
+                  p Detected odometer: #{mileageKm.toLocaleString('en-PH', { maximumFractionDigits: 1 })} #{ODOMETER_DISTANCE_UNIT}
+            if error
+              p(className='text-xs text-destructive' role='alert') #{error}
+          button(type='submit' className='inline-flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-foreground px-5 font-medium text-background disabled:cursor-not-allowed disabled:opacity-50' disabled={isSubmitting || !hasCompletePlateNumber})
+            if isSubmitting
+              fragment
+                Icon(name='spinner-ring' className='size-4')
+                span Finishing…
+            elseif hasCompletePlateNumber
+              span Yes, that's correct
+            else
+              span Save and continue

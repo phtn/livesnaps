@@ -1,0 +1,87 @@
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from './mobile-viewport.module.css'
+import type { CapturedPhoto } from './photo-preview.btsx'
+
+module
+  export const CAPTURE_SLOTS = [
+    { index: 1, label: 'front' },
+    { index: 2, label: 'back' },
+    { index: 3, label: 'side A' },
+    { index: 4, label: 'side B' },
+    { index: 5, label: 'odometer' }
+  ] as const
+  export type CaptureSlotIndex = (typeof CAPTURE_SLOTS)[number]['index']
+  export const MAX_CAPTURED_PHOTOS = CAPTURE_SLOTS.length
+  export interface CapturedPhotosProps {
+    capturedPhotos: CapturedPhoto[]
+    activeCaptureIndex: CaptureSlotIndex
+    isStackExpanded: boolean
+    expandStack: VoidFunction
+    collapseStack: VoidFunction
+    selectCaptureSlot: (index: CaptureSlotIndex) => void
+    selectPhoto: (photo: CapturedPhoto) => void
+  }
+
+component SlotImage
+  props { photo, label }: { photo: CapturedPhoto; label: string }
+  img(src={photo.preview} alt={`${label} photo`} className='absolute inset-0 size-full object-cover')
+
+component SavingBadge
+  span(className='absolute right-1 top-1 rounded-full bg-black/75 px-1.5 py-0.5 text-[8px] font-medium tracking-wide text-white') Saving
+
+props { capturedPhotos, activeCaptureIndex, isStackExpanded, expandStack, collapseStack, selectCaptureSlot, selectPhoto }: CapturedPhotosProps
+setup
+  const capturedByIndex = new Map(capturedPhotos.map((photo) => [photo.index, photo]))
+  const mostRecentPhoto = capturedPhotos.reduce<CapturedPhoto | undefined>((latest, photo) => !latest || photo.file.lastModified > latest.file.lastModified ? photo : latest, undefined)
+  const collapsedTopSlotIndex = mostRecentPhoto?.index ?? activeCaptureIndex
+  const stackedSlots = [...CAPTURE_SLOTS.filter((slot) => slot.index !== collapsedTopSlotIndex), ...CAPTURE_SLOTS.filter((slot) => slot.index === collapsedTopSlotIndex)]
+  const shouldScaleDown = capturedPhotos.length === 0 && !isStackExpanded
+
+div(className={cn(viewportStyles.cameraRightControl, 'pointer-events-auto')} data-empty={shouldScaleDown})
+  if !isStackExpanded
+    button(type='button' onClick={expandStack} className='group relative cursor-pointer rounded-lg focus-visible:outline-none' aria-label={`Choose a photo slot, ${capturedPhotos.length} of ${MAX_CAPTURED_PHOTOS} captured`})
+      div(className='relative size-20')
+        each slot, index in stackedSlots key slot.index
+          scope
+            setup
+              const photo = capturedByIndex.get(slot.index)
+              const offset = (stackedSlots.length - 1 - index) * 2
+              const rotate = (stackedSlots.length - 1 - index) * -1.5
+              const isActive = slot.index === activeCaptureIndex
+            div(data-upload-status={photo?.uploadStatus} className={cn('absolute inset-0 overflow-hidden rounded-lg border bg-black/65 shadow-lg transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && 'border-beach ring-1 ring-beach/50 dark:border-lime-200 dark:ring-lime-200/50')} style={{ zIndex: index, transform: `translate3d(${-offset}px, ${-offset}px, 0) rotate(${rotate}deg)` }})
+              if photo
+                SlotImage(photo={photo} label={slot.label})
+              else
+                Icon(name='camera-enhance' className='absolute inset-0 m-auto size-10 -rotate-2 text-white/50 dark:text-lime-100/60')
+              if photo?.uploadStatus === 'saving'
+                SavingBadge
+      span(className='absolute -bottom-2 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded-full border border-white/80 bg-black/60 px-2 py-0.5 text-[10px] font-medium tracking-widest text-white backdrop-blur-sm') #{capturedPhotos.length} / #{MAX_CAPTURED_PHOTOS}
+  else
+    div(className='flex w-24 flex-col gap-2 overflow-y-auto overscroll-contain rounded-xl bg-transparent p-2 shadow-2xl backdrop-blur-md dark:border dark:border-white/15 dark:bg-black/25')
+      div(className='flex items-center justify-between px-1 pb-1')
+        span(className='text-xs font-medium tracking-wide dark:text-white/80') #{capturedPhotos.length} / #{MAX_CAPTURED_PHOTOS}
+        button(type='button' onClick={collapseStack} className='grid size-5 cursor-pointer place-items-center rounded-full bg-white/35 transition hover:bg-white/45 dark:bg-transparent dark:text-white' aria-label='Collapse stack')
+          Icon(name='cancel' className='size-3')
+      div(className='flex flex-col gap-2')
+        each slot in CAPTURE_SLOTS key slot.index
+          scope
+            setup
+              const photo = capturedByIndex.get(slot.index)
+              const isActive = slot.index === activeCaptureIndex
+              const handleSelect = () => {
+                if (photo) {
+                  selectPhoto(photo)
+                  return
+                }
+
+                selectCaptureSlot(slot.index)
+              }
+            button(data-upload-status={photo?.uploadStatus} type='button' onClick={handleSelect} className={cn('group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-md border-[0.5px] bg-zinc-500/80 shadow-sm transition-[transform,box-shadow] hover:scale-[1.02] hover:shadow-2xl active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beach', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && !photo && 'border-beach ring-1 ring-beach/60 dark:border-lime-200 dark:ring-lime-200/50')} aria-label={photo ? `View ${slot.label} photo` : `Select ${slot.label} photo for capture`} aria-pressed={photo ? undefined : isActive})
+              if photo
+                SlotImage(photo={photo} label={slot.label})
+              else
+                Icon(name='circle-plus' className='absolute inset-0 m-auto size-4.5 -translate-y-0.75 text-white/50')
+              if photo?.uploadStatus === 'saving'
+                SavingBadge
+              span(className='absolute bottom-1 left-1 rounded-xs bg-black/70 px-1.5 py-0.75 text-[10px] font-medium capitalize leading-none text-white') #{slot.label}

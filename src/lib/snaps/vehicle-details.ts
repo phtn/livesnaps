@@ -50,13 +50,10 @@ export const formatCapturePlateNumber = (value: unknown) => {
   // If the raw looks like a BR plate without space, insert it for convenience: ABC1234 -> ABC 1234
   const compact = normalized.replace(/[ -]/g, '')
   if (/^[A-Z]{3}[0-9]{4}$/.test(compact)) {
-    console.info('[RAW]', value)
-    console.info('[NORMALIZED]', normalized)
-    console.info('[COMPACT]', `${compact.slice(0, 3)} ${compact.slice(3)}`)
-    return value
+    return `${compact.slice(0, 3)} ${compact.slice(3)}`
   }
 
-  return value
+  return normalized
 }
 
 const hasMinPlateContent = (value: string) => {

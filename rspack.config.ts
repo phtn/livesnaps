@@ -60,7 +60,7 @@ export default {
     rules: [
       {
         test: /\.css$/,
-        type: 'css',
+        type: 'css/auto',
         use: ['postcss-loader']
       },
       {

@@ -1,0 +1,297 @@
+.root {
+  --proof-nav-height: 4rem;
+  height: 100vh;
+}
+
+.pageContent {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: 50% 18%;
+  transition:
+    opacity 220ms ease-out,
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.root[data-expanded='true'] .pageContent {
+  opacity: 0;
+  transform: translate3d(0, -10px, 0) scale(0.995);
+}
+
+.navigation {
+  height: calc(var(--proof-nav-height) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.viewportBody,
+.expanderViewport {
+  height: calc(100vh - var(--proof-nav-height) - env(safe-area-inset-top));
+}
+
+.expanderViewport {
+  pointer-events: none;
+  top: calc(var(--proof-nav-height) + env(safe-area-inset-top));
+  visibility: hidden;
+  opacity: 0;
+  transform: translate3d(0, 14px, 0) scale(0.995);
+  transform-origin: 50% 18%;
+  transition:
+    visibility 0s linear 380ms,
+    opacity 190ms ease-in,
+    transform 380ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: opacity, transform;
+}
+
+.expanderViewport::before {
+  opacity: 0;
+  transform: scale(0.997);
+  transition:
+    opacity 220ms ease,
+    transform 440ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.expanderViewport[data-expanded='true'] {
+  pointer-events: auto;
+  visibility: visible;
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition:
+    visibility 0s,
+    opacity 280ms ease-out,
+    transform 460ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.expanderViewport[data-expanded='true']::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.expanderScroller {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+  -webkit-overflow-scrolling: touch;
+}
+
+.expanderContent {
+  position: relative;
+  min-height: 100%;
+  width: min(100%, 620px);
+  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 1rem));
+}
+
+.cameraViewport {
+  position: relative;
+  min-height: 10rem;
+  width: 100vw;
+  flex: 1 1 0%;
+  overflow: hidden;
+}
+
+.cameraPreview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.cameraViewport[data-camera-active='true'] .cameraPreview {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pageContent,
+  .expanderViewport,
+  .expanderViewport::before {
+    transition: none;
+  }
+
+  .cameraPreview {
+    transition: none;
+  }
+}
+
+.guidePanel {
+  flex-shrink: 0;
+}
+
+.shutterControls {
+  position: relative;
+}
+
+.shutterButton {
+  position: relative;
+  isolation: isolate;
+}
+
+.shutterButton::after {
+  position: absolute;
+  inset: -0.4rem;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 9999px;
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+}
+
+.shutterButton[data-state='capturing']::after {
+  animation: shutter-flash 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes shutter-flash {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.76);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shutterButton[data-state='capturing']::after {
+    animation: none;
+  }
+}
+
+.cameraStatusbar {
+  padding-left: max(0.5rem, env(safe-area-inset-left));
+  padding-right: max(0.5rem, env(safe-area-inset-right));
+}
+
+.cameraRightControl {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: 1rem;
+  z-index: 20;
+  display: flex;
+  max-height: 85%;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  scale: 1;
+  transform-origin: right bottom;
+  transition: scale 280ms ease-out;
+}
+
+.cameraRightControl[data-empty='true'] {
+  scale: 0.8;
+  transition-delay: 460ms;
+}
+
+.closeButton {
+  right: max(2rem, env(safe-area-inset-right));
+}
+
+@supports (height: 100dvh) {
+  .root {
+    height: 100dvh;
+  }
+
+  .viewportBody,
+  .expanderViewport {
+    height: calc(100dvh - var(--proof-nav-height) - env(safe-area-inset-top));
+  }
+}
+
+@media (min-width: 48rem) and (min-height: 501px) {
+  .root {
+    --proof-nav-height: 6rem;
+  }
+
+  .navigation {
+    padding-left: max(3rem, env(safe-area-inset-left));
+    padding-right: max(3rem, env(safe-area-inset-right));
+  }
+
+  .expanderScroller {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+  }
+}
+
+/* Orientation media queries update synchronously with device rotation, including
+   Safari where the Screen Orientation API is not consistently available. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .root[data-expanded='true'] {
+    --proof-nav-height: 0rem;
+  }
+
+  .root[data-expanded='true'] .navigation {
+    display: none;
+  }
+
+  .root[data-expanded='true'] .viewportBody,
+  .root[data-expanded='true'] .expanderViewport {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .root[data-expanded='true'] .expanderViewport {
+    top: 0;
+  }
+
+  .expanderScroller {
+    overflow: hidden;
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .expanderContent {
+    width: 100%;
+    padding-bottom: 0;
+  }
+
+  .cameraViewport {
+    position: absolute;
+    inset: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  .cameraStatusbar {
+    top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  .cameraRightControl {
+    right: auto;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: max(1rem, env(safe-area-inset-left));
+    align-items: flex-start;
+    transform-origin: left bottom;
+  }
+
+  .cameraRightControl[data-empty='true'] {
+    scale: 0.62;
+  }
+
+  .guidePanel {
+    position: absolute;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: 50%;
+    z-index: 20;
+    transform: translateX(-50%);
+  }
+
+  .guidePanel > * {
+    margin-top: 0;
+  }
+
+  .shutterControls {
+    position: absolute;
+    top: 50%;
+    right: max(1.25rem, calc(env(safe-area-inset-right) + 0.5rem));
+    z-index: 30;
+    margin-top: 0;
+    transform: translateY(-50%);
+  }
+}

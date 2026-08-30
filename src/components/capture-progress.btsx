@@ -1,0 +1,13 @@
+import { cn } from '@/lib/utils'
+
+module
+  export interface CaptureProgressProps {
+    isActive: boolean
+    isDebugMode: boolean
+  }
+
+props { isActive, isDebugMode }: CaptureProgressProps
+
+div(className={cn('pointer-events-none invisible absolute left-1/2 top-1/2 z-100 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full bg-black/75 px-3 py-1.5 text-xs font-medium text-white shadow-lg', isActive && 'visible')} role='status' data-active={isActive} aria-hidden={!isActive} aria-live='polite')
+  | #{isDebugMode ? 'Processing locally…' : 'Uploading…'}
+

@@ -1,0 +1,42 @@
+import { Icon } from '@/lib/icons'
+
+module
+  export type CapturedPhoto = {
+    file: File
+    id: string
+    index: number
+    label: string
+    preview: string
+    uploadStatus: 'saved' | 'saving' | 'failed'
+  }
+  export interface PhotoPreviewProps {
+    onClose: VoidFunction
+    onRetake: VoidFunction
+    selectedPhoto: CapturedPhoto
+    capturedPhotos: CapturedPhoto[]
+  }
+
+props { selectedPhoto, capturedPhotos, onClose, onRetake }: PhotoPreviewProps
+setup
+  const isSaving = selectedPhoto.uploadStatus === 'saving'
+  const isFailed = selectedPhoto.uploadStatus === 'failed'
+  const photoNumber = capturedPhotos.findIndex((photo) => photo.id === selectedPhoto.id) + 1
+
+div(className='absolute inset-0 z-20 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm' onClick={onClose} role='dialog' aria-modal='true' aria-label='Captured photo preview')
+  div(className='relative max-h-[90%] max-w-[90%] overflow-hidden rounded-2xl bg-black shadow-2xl' onClick={(event) => event.stopPropagation()})
+    img(width={1552} height={1552} src={selectedPhoto.preview} alt={`Captured photo preview ${photoNumber}`} className='aspect-auto max-h-[70vh] max-w-[85vw] object-contain')
+    div(className='absolute left-2 top-2 flex items-center gap-2')
+      button(type='button' onClick={onRetake} disabled={isSaving} className='inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-rose-500/80 px-3 text-sm font-medium text-white backdrop-blur transition hover:bg-rose-500/90 disabled:cursor-wait disabled:bg-black/60' aria-label={isSaving ? `${selectedPhoto.label} photo is saving` : isFailed ? `Retry ${selectedPhoto.label} photo` : `Retake ${selectedPhoto.label} photo`})
+        Icon(name='camera-enhance' className='size-4.5 -rotate-2')
+        | #{isSaving ? 'Saving…' : isFailed ? 'Failed — Retake' : 'Retake'}
+      a(href={selectedPhoto.preview} download={selectedPhoto.file.name} className='grid size-8 cursor-pointer place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80' aria-label={`Download ${selectedPhoto.label} photo`})
+        Icon(name='download-line' className='size-4')
+    button(type='button' onClick={onClose} className='absolute right-2 top-2 grid size-8 cursor-pointer place-items-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/80' aria-label='Close photo preview')
+      Icon(name='cancel' className='size-4')
+    div(className='absolute inset-x-0 bottom-0 flex items-center justify-between bg-linear-to-t from-black/70 to-transparent px-3 py-2 text-xs text-white')
+      span(className='font-okx')
+        span(className='text-xl font-light opacity-80') #{photoNumber}
+        span(className='px-1 font-mono opacity-50') /
+        span(className='px-0.5 text-[12px] font-semibold opacity-50') 5
+      span(className='truncate font-medium uppercase opacity-80') #{selectedPhoto.label}
+
