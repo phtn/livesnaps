@@ -207,6 +207,67 @@ a {
   text-decoration: none;
 }
 
+.legal-document {
+  margin-inline: auto;
+  max-width: 52rem;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  line-height: 1.75;
+}
+
+.legal-document > h2,
+.legal-document > h3 {
+  scroll-margin-top: 5rem;
+  font-family: var(--font-poly);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.legal-document > h2 {
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+}
+
+.legal-document > h3 {
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.legal-document > p,
+.legal-document > ul,
+.legal-document > ol {
+  margin-block: 1rem;
+  color: color-mix(in oklab, var(--foreground) 78%, transparent);
+}
+
+.legal-document ul,
+.legal-document ol {
+  padding-left: 1.4rem;
+}
+
+.legal-document ul {
+  list-style: disc;
+}
+
+.legal-document ol {
+  list-style: decimal;
+}
+
+.legal-document hr {
+  margin-block: 3rem;
+  border: 0;
+  border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+}
+
+.legal-document a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 0.25rem;
+}
+
 ::-webkit-scrollbar {
   display: none;
 }

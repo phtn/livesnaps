@@ -1,0 +1,10 @@
+import { Link } from '@octanejs/tanstack-router'
+import StoreMark from '@/components/store-mark.btsx'
+
+main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
+  div(className='max-w-md')
+    StoreMark(className='mx-auto size-12')
+    p(className='mt-6 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') 404
+    h1(className='mt-2 font-poly text-3xl font-medium') Page not found
+    p(className='mt-3 text-sm leading-6 text-muted-foreground') The page you requested does not exist or is no longer available.
+    Link(to='/' className='mt-6 inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background') Back home

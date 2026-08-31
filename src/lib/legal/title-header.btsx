@@ -1,0 +1,11 @@
+props { title, effectiveDate, lastUpdated }: { title: string; effectiveDate: string; lastUpdated: string }
+
+div(className='flex h-36 w-full items-center justify-between')
+  h1(className='font-sans text-4xl font-bold capitalize tracking-tighter text-foreground md:text-5xl') #{title}
+  div(className='text-right text-sm')
+    div(className='hidden')
+      span(className='mr-2 font-semibold') Effective Date:
+      | #{effectiveDate}
+    div(className='flex max-w-[13ch] flex-col md:max-w-full')
+      p(className='font-sans opacity-80') #{lastUpdated}
+      p(className='font-sans font-medium opacity-80') Last Updated

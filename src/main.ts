@@ -1,7 +1,8 @@
 import { createElement, createRoot } from 'octane'
+import { RouterProvider } from '@octanejs/tanstack-router'
 import ThemeProvider from './components/theme-provider.btsx'
 import { applyTheme, getPreferredTheme } from './lib/theme'
-import { getSnapSubmissionRouteId } from './lib/snaps/routes'
+import { router } from './router'
 import './style.css'
 
 const registerServiceWorker = () => {
@@ -33,18 +34,6 @@ applyTheme(getPreferredTheme())
 registerServiceWorker()
 
 const root = createRoot(container)
-const snapId = getSnapSubmissionRouteId(window.location.pathname)
-
-if (snapId) {
-  void import('./pages/snap-submission-detail.btsx').then(({ default: SnapSubmissionDetail }) => {
-    root.render(ThemeProvider, {
-      children: createElement(SnapSubmissionDetail, { snapId })
-    })
-  })
-} else {
-  void import('./App.btsx').then(({ default: App }) => {
-    root.render(ThemeProvider, {
-      children: createElement(App, { docsUrl: 'https://beast-docs.vercel.app' })
-    })
-  })
-}
+root.render(ThemeProvider, {
+  children: createElement(RouterProvider, { router })
+})

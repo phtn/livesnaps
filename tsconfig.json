@@ -4,6 +4,7 @@
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
@@ -21,6 +22,6 @@
   },
   "include": ["src", "octane.config.ts", "rspack.config.ts"],
   "tsrx": {
-    "compiler": "octane"
+    "compiler": "octane/compiler/volar"
   }
 }

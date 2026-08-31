@@ -1,0 +1,8 @@
+import { useParams } from '@octanejs/tanstack-router'
+import SnapSubmissionDetail from '@/pages/snap-submission-detail.btsx'
+
+setup
+  const params = useParams({ strict: false })
+  const snapId = String(params.snapId)
+
+SnapSubmissionDetail(snapId={snapId})

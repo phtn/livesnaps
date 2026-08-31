@@ -4,12 +4,8 @@ import { getCurrentUser, signInWithGoogle, subscribeToAuthState } from '@/lib/fi
 import UserMenu from './user-menu.btsx'
 import type { User } from 'firebase/auth'
 import { useEffect, useState } from 'octane'
-
-
-
-component StoreMark
-  span(className='size-7 hidden md:flex' aria-hidden={true})
-    img(src='/livesnaps-icons/icon0.svg' className='size-full')
+import { Link } from '@octanejs/tanstack-router'
+import StoreMark from './store-mark.btsx'
 
 setup
   const [user, setUser] = useState<User | null>(getCurrentUser)
@@ -36,14 +32,14 @@ setup
     }
   }
 header(className='relative z-10 mx-auto flex h-16 w-full max-w-[1520px] items-center justify-between px-[4vw] min-[700px]:h-[108px] min-[700px]:px-[34px] lg:px-[54px] min-[1360px]:px-[70px]')
-  a(className='inline-flex items-center gap-2 text-[clamp(1.2rem,3vw,1.6rem)] font-poly font-medium text-foreground/90 tracking-tight' href='/' aria-label='App home')
-    StoreMark
+  Link(className='inline-flex items-center gap-2 text-[clamp(1.2rem,3vw,1.6rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
+    StoreMark(className='hidden md:inline-flex')
     h1(className='')
       span(className='uppercase text-beach dark:text-foreground') Live
       span(className='uppercase dark:text-lime-200') Snaps
       span(className='text-sand dark:text-foreground') Now
   nav(className='hidden items-center gap-[clamp(22px,3vw,42px)] md:flex' aria-label='Primary navigation')
-    a(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' href='/?#discover') My Snaps
+    Link(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' to='/' hash='discover') My Snaps
 
   div(className='flex items-center gap-4 md:gap-6')
     ThemeToggle

@@ -19,3 +19,10 @@ declare module '*.btsx' {
   const component: ComponentBody
   export default component
 }
+
+declare module '*.mdx' {
+  import type { ComponentBody } from 'octane'
+
+  const component: ComponentBody<{ components?: Record<string, unknown> }>
+  export default component
+}

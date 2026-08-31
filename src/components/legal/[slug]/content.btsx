@@ -1,0 +1,12 @@
+import { Privacy, Purchase, Tos } from '@/lib/legal'
+
+props { slug }: { slug: string }
+
+main#legal-scroll-container(className='legal-document h-screen overflow-y-auto pb-24 pt-24 print:mb-24! print:h-auto! print:max-h-none! print:overflow-visible!')
+  switch slug
+    case 'terms-of-use'
+      Tos
+    case 'privacy-policy'
+      Privacy
+    case 'purchase-agreement'
+      Purchase

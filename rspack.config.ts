@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const root = path.dirname(fileURLToPath(import.meta.url))
+const octaneMdxLoader = fileURLToPath(new URL('./octane-mdx-loader.mjs', import.meta.url))
 const localApiOrigin = process.env.LIVESNAPS_LOCAL_API_ORIGIN ?? 'http://localhost:8787'
 
 const publicEnvNames = [
@@ -57,13 +58,18 @@ export default {
     }
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.btsx'],
+    extensions: ['.ts', '.tsx', '.js', '.btsx', '.mdx'],
     alias: {
       '@': srcDir
     }
   },
   module: {
     rules: [
+      {
+        test: /\.mdx$/,
+        type: 'javascript/auto',
+        use: [{ loader: octaneMdxLoader }]
+      },
       {
         test: /\.css$/,
         type: 'css/auto',

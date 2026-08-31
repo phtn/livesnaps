@@ -1,0 +1,8 @@
+import { useParams } from '@octanejs/tanstack-router'
+import LegalPage from '@/components/legal/[slug]/page.btsx'
+
+setup
+  const params = useParams({ strict: false })
+  const slug = String(params.slug)
+
+LegalPage(slug={slug})

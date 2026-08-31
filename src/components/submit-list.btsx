@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'octane'
+import { memo, useEffect, useState } from 'octane'
+import { Link } from '@octanejs/tanstack-router'
 import Badge from '@/components/ui/badge.btsx'
 import { Icon } from '@/lib/icons'
 import { getMySubmissions } from '@/lib/convex-client'
-import { getSnapSubmissionPath } from '@/lib/snaps/routes'
 import { cn } from '@/lib/utils'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
@@ -26,6 +26,22 @@ module
     pending: { badge: 'border-amber-500/25 bg-amber-500/8! text-amber-700! dark:text-amber-300!', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
   }
   const vehicleLabel = (submission: SnapSubmission) => [submission.year, submission.make, submission.model].filter(Boolean).join(' ') || 'Vehicle details: N/A'
+  const sameRenderedSubmission = (
+    previous: Readonly<{ submission: SnapSubmission }>,
+    next: Readonly<{ submission: SnapSubmission }>
+  ) => {
+    const left = previous.submission
+    const right = next.submission
+    return left._id === right._id &&
+      left.status === right.status &&
+      left.startedAt === right.startedAt &&
+      left.plateNumber === right.plateNumber &&
+      left.year === right.year &&
+      left.make === right.make &&
+      left.model === right.model &&
+      left.photoCount === right.photoCount
+  }
+  const StableSubmissionRow = memo(SubmissionRow, sameRenderedSubmission)
 
 component SubmissionRow
   props { submission }: { submission: SnapSubmission }
@@ -33,7 +49,7 @@ component SubmissionRow
     const presentation = statusPresentation[submission.status]
     const timestamp = new Date(submission.startedAt)
   li
-    a(href={getSnapSubmissionPath(submission._id)} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
+    Link(to='/snaps/$snapId' params={{ snapId: String(submission._id) }} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
       span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', presentation.iconFrame)})
         Icon(name={presentation.icon as any} className='size-5')
       div(className='min-w-0 flex-1')
@@ -86,6 +102,6 @@ section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full p
     elseif submissions && submissions.length > 0
       ul(className='divide-y divide-border/60')
         each submission in submissions key submission._id
-          SubmissionRow(submission={submission})
+          StableSubmissionRow(submission={submission})
     else
       EmptyState(isAuthenticated={isAuthenticated})

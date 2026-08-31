@@ -17,6 +17,7 @@ import { createUuid } from '@/lib/uuid'
 import Expander from './components/expander.btsx'
 import Sandbox from "./components/sandbox.btsx";
 import { useScrollBox } from '@/hooks/use-scroll-box'
+import StoreMark from '@/components/store-mark.btsx'
 
 module
   const LazyTop = lazy(() => import('./components/topbar.btsx'))
@@ -296,9 +297,8 @@ setup
 
 
 component Fallback
-  div(className={cn('flex items-center justify-center gap-x-4 h-100')})
-    Icon(name='spinner-ferris')
-    span Loading...
+  div(className='fixed inset-0 z-50 grid place-items-center bg-background')
+    StoreMark(className='size-12')
 
 div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
   div

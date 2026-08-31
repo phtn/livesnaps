@@ -15,8 +15,11 @@
     "deploy:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
-    "@octanejs/base-ui": "^0.1.47",
-    "@octanejs/rsbuild-plugin": "^0.1.44",
+    "@octanejs/base-ui": "0.1.47",
+    "@octanejs/mdx": "0.1.46",
+    "@octanejs/rsbuild-plugin": "0.1.44",
+    "@octanejs/tanstack-query": "0.1.48",
+    "@octanejs/tanstack-router": "0.1.48",
     "beast-tsrx": "0.2.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

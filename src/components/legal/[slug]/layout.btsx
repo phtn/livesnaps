@@ -1,0 +1,231 @@
+import { startTransition, useEffect, useRef, useState } from 'octane'
+import type { OctaneNode } from 'octane'
+import { Link } from '@octanejs/tanstack-router'
+import StoreMark from '@/components/store-mark.btsx'
+import type { Heading } from '@/lib/legal/documents'
+import { legalDocuments } from '@/lib/legal/documents'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+
+module
+  interface LegalDocumentLayoutProps {
+    children?: OctaneNode
+    slug: string
+  }
+
+  interface TocLinksProps {
+    activeId?: string
+    headings: Heading[]
+    onNavigate?: () => void
+  }
+
+  const slugifyForId = (input: string) => input
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+
+component Spacer
+  div(className='h-20' aria-hidden={true})
+
+component ResourceLinks
+  props { activeSlug, onNavigate }: { activeSlug: string; onNavigate?: () => void }
+  nav(className='space-y-1' aria-label='Legal documents')
+    each legalDocument in legalDocuments key legalDocument.slug
+      Link(
+        ~ to='/legal/$slug'
+        ~ params={{ slug: legalDocument.slug }}
+        ~ onClick={onNavigate}
+        ~ className={cn('block w-fit py-2 font-sans font-medium text-foreground/80 transition-colors hover:text-foreground', legalDocument.slug === activeSlug && 'text-foreground underline decoration-dotted decoration-[0.5px] underline-offset-6')}
+        ~ ) #{legalDocument.title}
+
+component TocLinks
+  props { activeId, headings, onNavigate }: TocLinksProps
+  nav(className='space-y-2 text-sm' aria-label='Table of contents')
+    each heading in headings key heading.id
+      a(
+        ~ href={`#${heading.id}`}
+        ~ onClick={(event) => {
+        ~   event.preventDefault();
+        ~   document.getElementById(heading.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        ~   onNavigate?.();
+        ~ }}
+        ~ className={cn('block truncate rounded px-2 py-1 font-sans text-muted-foreground transition-colors hover:text-foreground', heading.level === 2 ? 'font-medium' : 'ml-3 font-normal', heading.id === activeId && 'text-foreground underline decoration-dotted decoration-[0.5px] underline-offset-6')}
+        ~ ) #{heading.text}
+
+props { children, slug }: LegalDocumentLayoutProps
+
+setup
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const contentRootRef = useRef<HTMLDivElement | null>(null)
+  const [headings, setHeadings] = useState<Heading[]>([])
+  const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null)
+
+  const closeDrawer = () => startTransition(() => setIsDrawerOpen(false))
+
+  const handlePrint = () => {
+    closeDrawer()
+    const scroller = document.getElementById('legal-scroll-container')
+    if (!scroller) {
+      window.requestAnimationFrame(() => window.print())
+      return
+    }
+
+    const iframe = document.createElement('iframe')
+    iframe.setAttribute('aria-hidden', 'true')
+    iframe.tabIndex = -1
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.style.opacity = '0'
+    document.body.appendChild(iframe)
+
+    const printDocument = iframe.contentDocument
+    const printWindow = iframe.contentWindow
+    if (!printDocument || !printWindow) {
+      iframe.remove()
+      window.requestAnimationFrame(() => window.print())
+      return
+    }
+
+    const styles = Array.from(
+      document.head.querySelectorAll<HTMLLinkElement | HTMLStyleElement>('link[rel="stylesheet"], style')
+    ).map((element) => element.outerHTML)
+
+    const printCss = '<style>@page{margin:.5in .5in 1in}@media print{html,body,#legal-scroll-container{height:auto!important;max-height:none!important;overflow:visible!important}#legal-scroll-container{margin-bottom:1in!important}}</style>'
+    const printHtml = `<!doctype html><html><head><meta charset="utf-8" />${styles.join('\n')}${printCss}</head><body>${scroller.outerHTML}</body></html>`
+    printDocument.open()
+    printDocument.write(printHtml)
+    printDocument.close()
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.setTimeout(() => {
+          try {
+            printWindow.focus()
+            printWindow.print()
+          } finally {
+            iframe.remove()
+          }
+        }, 50)
+      })
+    })
+  }
+
+  useEffect(() => {
+    const root = contentRootRef.current
+    if (!root) return
+
+    let disposed = false
+    let scheduled: number | null = null
+    const collect = () => {
+      if (disposed) return
+      const elements = Array.from(root.querySelectorAll<HTMLHeadingElement>('h2, h3')).filter(
+        (element) => element.textContent && element.offsetParent !== null
+      )
+      const seen = new Map<string, number>()
+      const nextHeadings: Heading[] = []
+
+      for (const element of elements) {
+        const text = (element.textContent ?? '').trim()
+        if (!text) continue
+        const baseId = element.id.trim() || slugifyForId(text)
+        if (!baseId) continue
+        const count = seen.get(baseId) ?? 0
+        seen.set(baseId, count + 1)
+        const id = count === 0 ? baseId : `${baseId}-${count + 1}`
+        if (element.id !== id) element.id = id
+        nextHeadings.push({ id, text, level: element.tagName === 'H2' ? 2 : 3 })
+      }
+
+      setHeadings(nextHeadings)
+    }
+    const scheduleCollect = () => {
+      if (scheduled !== null) window.clearTimeout(scheduled)
+      scheduled = window.setTimeout(collect, 0)
+    }
+
+    setHeadings([])
+    setActiveHeadingId(null)
+    scheduleCollect()
+    const observer = new MutationObserver(scheduleCollect)
+    observer.observe(root, { subtree: true, childList: true, characterData: true })
+
+    return () => {
+      disposed = true
+      if (scheduled !== null) window.clearTimeout(scheduled)
+      observer.disconnect()
+    }
+  }, [slug])
+
+  useEffect(() => {
+    const root = contentRootRef.current
+    const scrollContainer = root?.querySelector<HTMLElement>('#legal-scroll-container')
+    if (!scrollContainer || headings.length === 0) return
+
+    const observed = headings
+      .map((heading) => document.getElementById(heading.id))
+      .filter((element): element is HTMLElement => Boolean(element))
+    if (observed.length === 0) return
+
+    startTransition(() => setActiveHeadingId((previous) => previous ?? headings[0]?.id ?? null))
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const next = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((left, right) => left.boundingClientRect.top - right.boundingClientRect.top)[0]?.target as HTMLElement | undefined
+        if (next?.id) startTransition(() => setActiveHeadingId(next.id))
+      },
+      { root: scrollContainer, rootMargin: '-64px 0px -70% 0px', threshold: 0 }
+    )
+
+    for (const element of observed) observer.observe(element)
+    return () => observer.disconnect()
+  }, [headings, slug])
+
+div(className='min-h-screen overflow-hidden bg-background print:h-auto! print:max-h-none! print:overflow-visible!')
+  header(className='fixed inset-x-0 top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-2xl print:hidden')
+    div(className='flex h-16 items-center justify-between px-3 sm:px-6 lg:px-8')
+      Link(to='/' className='inline-flex items-center gap-2 rounded-md p-2 text-sm hover:bg-muted' aria-label='Back to homepage')
+        Icon(name='chevron-right' className='size-4 -rotate-90 text-muted-foreground')
+        span(className='hidden sm:inline') Home
+      Link(to='/' className='flex items-center gap-2' aria-label='LiveSnapsNow home')
+        StoreMark
+        span(className='font-poly') LiveSnapsNow
+      div(className='flex items-center gap-1 md:gap-3')
+        button(type='button' onClick={handlePrint} className='inline-flex items-center justify-center rounded-md p-2 hover:bg-muted' aria-label='Print document')
+          Icon(name='print' className='size-5 opacity-70')
+        button(type='button' onClick={() => startTransition(() => setIsDrawerOpen(true))} className='inline-flex items-center justify-center rounded-md p-2 hover:bg-muted lg:hidden' aria-label='Open table of contents')
+          Icon(name='menu' className='size-5 opacity-70')
+
+  if isDrawerOpen
+    div(className='fixed inset-0 z-50 lg:hidden' role='dialog' aria-modal='true' aria-label='Legal document navigation')
+      button(type='button' className='absolute inset-0 bg-black/45 backdrop-blur-sm' onClick={closeDrawer} aria-label='Close navigation')
+      aside(className='absolute inset-y-0 right-0 w-[min(88vw,24rem)] overflow-y-auto border-l border-border bg-background p-6 shadow-2xl')
+        div(className='flex items-center justify-between')
+          h2(className='font-poly text-lg') Contents
+          button(type='button' onClick={closeDrawer} className='rounded-md p-2 hover:bg-muted' aria-label='Close navigation')
+            Icon(name='cancel' className='size-5')
+        p(className='mb-3 mt-8 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground') Resources
+        ResourceLinks(activeSlug={slug} onNavigate={closeDrawer})
+        p(className='mb-3 mt-8 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground') On this page
+        TocLinks(headings={headings} activeId={activeHeadingId ?? undefined} onNavigate={closeDrawer})
+
+  div(className='flex')
+    aside(className='fixed inset-y-0 left-0 hidden w-72 overflow-y-auto border-r border-border bg-muted/30 p-6 pt-24 lg:block xl:w-80 print:hidden')
+      p(className='mb-5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground') Resources
+      ResourceLinks(activeSlug={slug})
+      Spacer
+
+    div(ref={contentRootRef} className='mx-auto min-w-0 flex-1 px-5 sm:px-8 lg:ml-72 lg:mr-72 lg:max-w-none xl:ml-80 xl:mr-80')
+      | #{children}
+
+    aside(className='fixed inset-y-0 right-0 hidden w-72 overflow-y-auto border-l border-border bg-foreground/2 p-6 pt-24 lg:block xl:w-80 print:hidden')
+      p(className='mb-5 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground') Table of Contents
+      TocLinks(headings={headings} activeId={activeHeadingId ?? undefined})
+      Spacer

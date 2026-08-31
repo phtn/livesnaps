@@ -1,0 +1,4 @@
+import StoreMark from '@/components/store-mark.btsx'
+
+div(className='fixed inset-0 z-50 grid place-items-center bg-background')
+  StoreMark(className='size-12')

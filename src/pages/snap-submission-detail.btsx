@@ -13,6 +13,7 @@ import { snapPhotoPreviewResolver } from '@/lib/snaps/snap-photo-preview'
 import { cn } from '@/lib/utils'
 import { useScrollBox } from '@/hooks/use-scroll-box'
 import * as viewportStyles from '@/components/mobile-viewport.module.css'
+import { Link } from '@octanejs/tanstack-router'
 
 module
   type SnapSubmission = NonNullable<FunctionReturnType<typeof api.snaps.q.getMineByRouteId>>
@@ -102,7 +103,7 @@ component MessageState
         Icon(name={icon} className='size-6')
       h1(className='mt-5 font-poly text-2xl font-medium') #{title}
       p(className='mt-2 text-sm leading-6 text-muted-foreground') #{message}
-      a(className='mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85' href='/?#discover')
+      Link(className='mt-6 inline-flex h-10 items-center gap-2 rounded-full bg-foreground px-5 text-sm font-medium text-background transition-opacity hover:opacity-85' to='/' hash='discover')
         Icon(name='arrow-left' className='size-4')
         span Back to My Snaps
 
@@ -116,7 +117,7 @@ setup
   const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({})
   const [viewerPhotoId, setViewerPhotoId] = useState<string | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
-  const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
+  const scrollPct = submission ? useScrollBox<HTMLDivElement>(boxRef) : 0
 
   useEffect(() => subscribeToAuthState(() => {
     setUser(getCurrentUser())
@@ -245,7 +246,7 @@ div(className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidd
                 p(className='mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground')
                   | IP country #{submission.countryCodeMatchesIpinfo === null ? 'not checked' : submission.countryCodeMatchesIpinfo ? 'matched' : 'did not match'}
 
-            section(className='mt-10' aria-labelledby='snap-photos-heading')
+            section(className='mt-10 min-h-24' aria-labelledby='snap-photos-heading')
               div(className='flex items-end justify-between gap-4')
                 div
                   p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Proofs

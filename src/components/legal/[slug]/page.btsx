@@ -1,0 +1,19 @@
+import { useEffect } from 'octane'
+import { legalDocuments } from '@/lib/legal/documents'
+import Content from './content.btsx'
+import LegalDocumentLayout from './layout.btsx'
+
+props { slug }: { slug: string }
+
+setup
+  const document = legalDocuments.find((candidate) => candidate.slug === slug)
+  useEffect(() => {
+    if (!document) return
+    const previousTitle = window.document.title
+    window.document.title = `${document.title} — LiveSnapsNow`
+    return () => { window.document.title = previousTitle }
+  }, [document])
+
+if document
+  LegalDocumentLayout(slug={slug})
+    Content(slug={slug})

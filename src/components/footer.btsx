@@ -1,5 +1,6 @@
 import {Icon} from "@/lib/icons";
 import {cn} from "@/lib/utils";
+import { Link } from '@octanejs/tanstack-router'
 
 props {scrollPct}: {scrollPct?: number}
 footer(className={cn("border-t border-border/20 border-dashed w-full fixed bottom-0 opacity-0 transition-opacity duration-300 ease-out", {'opacity-100': scrollPct >= 98 })})
@@ -9,7 +10,7 @@ footer(className={cn("border-t border-border/20 border-dashed w-full fixed botto
         div(className="font-sans text-xs text-muted-foreground") ©#{new Date().getFullYear()}
           span(className="pl-3 font-poly font-medium") LiveSnapsNow
     div(className="flex items-center gap-4 uppercase tracking-wide")
-      a(href="#" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Privacy
-      a(href="#" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Terms
+      Link(to='/legal/$slug' params={{ slug: 'privacy-policy' }} className="hover:text-foreground transition") Privacy
+      Link(to='/legal/$slug' params={{ slug: 'terms-of-use' }} className="hover:text-foreground transition") Terms
       a(href="https://bigticket.ph/r" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 border-l border-border/50 pl-4")
         Icon(name="re-up.ph" className="size-3 text-muted-foreground")

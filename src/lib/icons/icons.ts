@@ -590,6 +590,18 @@ export const icons = {
       '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5m-5-7v12"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  menu: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 6h10M4 12h16M7 12h13M7 18h10"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  print: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 18h3a1 1 0 0 0 1-1v-7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v7a1 1 0 0 0 1 1h3m8-7h2M7 4h10v4H7zm0 11h10v6H7z"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 
