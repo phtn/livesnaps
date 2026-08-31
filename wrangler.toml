@@ -3,6 +3,9 @@ compatibility_date = "2026-08-30"
 compatibility_flags = ["nodejs_compat"]
 main = "./src/worker.ts"
 
+[vars]
+CONVEX_URL = "https://nautical-bobcat-280.convex.cloud"
+
 [build]
 command = "bun run build"
 
