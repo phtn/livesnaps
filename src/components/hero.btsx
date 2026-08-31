@@ -10,8 +10,8 @@ import { useTheme } from './theme-provider.btsx'
 import SubmitList from './submit-list.btsx'
 
 module
-  const HERO_ENTER_ANIMATION = 'animate-in slide-in-from-left duration-180 ease-out motion-reduce:animate-none'
-  const LIST_ENTER_ANIMATION = 'animate-in fade-in slide-in-from-right duration-180 ease-out motion-reduce:animate-none'
+  const HERO_ENTER_ANIMATION = 'animate-in fade-in slide-in-from-bottom duration-180 ease-out motion-reduce:animate-none'
+  const LIST_ENTER_ANIMATION = 'animate-in fade-in slide-in-from-bottom duration-180 ease-out motion-reduce:animate-none'
   export interface HeroProps {
     error: string | null
     isAuthenticated: boolean
@@ -71,7 +71,7 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
   div(className='grid h-full md:grid-cols-2 md:gap-20 lg:gap-28 xl:gap-32 2xl:gap-36')
     div(className='flex size-full flex-col items-center justify-start space-y-6 md:items-start md:justify-center')
       div(className={cn('flex h-24 items-center px-2 md:h-12', HERO_ENTER_ANIMATION, 'delay-50', isMobile && 'landscape:hidden landscape:h-4 landscape:scale-50')})
-        div(className='flex w-fit items-center space-x-1.5 rounded-full border border-slate-400 bg-slate-200/50 px-2 py-1 font-okx text-xs font-medium tracking-wider text-foreground/80 shadow-inner dark:border-slate-300 dark:bg-slate-200/20 md:text-sm')
+        div(className='flex w-fit items-center space-x-1.5 rounded-full border border-border/50 bg-slate-200/30 px-2 py-1 font-okx text-xs font-medium tracking-wide text-foreground/80 shadow-inner dark:bg-slate-200/20 md:text-sm')
           Icon(name='safe-shield' className='size-3 opacity-80')
           p(className='drop-shadow-xs text-xs') Verifiable Proofs
       div(className={cn('relative flex select-none items-start whitespace-nowrap text-4xl font-poly font-medium leading-6 dark:text-white md:mt-2 md:text-5xl md:font-semibold md:leading-10 md:tracking-normal', HERO_ENTER_ANIMATION, 'delay-50', isMobile && 'landscape:text-4xl landscape:leading-8')})
@@ -81,11 +81,11 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
         Icon(name='sparkle' className='absolute -top-0.75 right-7.25 size-5 rotate-5 text-beach dark:text-white/60')
       div(className={cn('mt-0 flex h-20 flex-col justify-center space-y-1 md:mt-6 md:h-24 md:space-y-2', HERO_ENTER_ANIMATION, 'delay-100', isMobile && 'landscape:mt-4 landscape:h-16')})
         div(className='flex items-center space-x-4')
-          div(className='flex aspect-square size-5 items-center justify-center rounded-sm bg-sand/10 md:size-6')
+          div(className='flex aspect-square size-5 items-center justify-center rounded-sm bg-sand/10 dark:bg-lime-100/10 md:size-6')
             Icon(name='check' className='size-4 stroke-2 drop-shadow-xs text-sand dark:text-lime-200 md:size-4')
           p(className='font-okx text-base font-light tracking-wide') Take 5 clear photos.
         div(className='flex items-center space-x-4')
-          div(className='flex aspect-square size-5 items-center justify-center rounded-sm bg-sand/10 md:size-6')
+          div(className='flex aspect-square size-5 items-center justify-center rounded-sm bg-sand/1 dark:bg-lime-100/10 md:size-6')
             Icon(name='check' className='size-4 stroke-2 drop-shadow-xs text-sand dark:text-lime-200 md:size-4')
           p(className='font-okx text-base font-light tracking-wide') Receive LiveSnap certificate.
       div(className={cn('mt-4', HERO_ENTER_ANIMATION, 'delay-150')})

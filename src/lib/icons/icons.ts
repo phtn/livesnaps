@@ -578,6 +578,12 @@ export const icons = {
       '<g transform="scale(0.667)"><path d="M19 3c1.1 0 2 .9 2 2v14c0 1.1-.9 2-2 2H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2zM8.7 8l2.1 2.1L7 14l2.8 2.8 3.8-3.9 2.1 2.1V8z" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  down: {
+    symbol:
+      '<path d="M9.097 9.904a1.46 1.46 0 0 1-2.194 0L4.215 6.97a.856.856 0 0 1 0-1.135.69.69 0 0 1 1.04 0L7.941 8.77a.076.076 0 0 0 .116 0l2.688-2.935a.69.69 0 0 1 1.039 0 .856.856 0 0 1 0 1.135z" transform-origin="0 0" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

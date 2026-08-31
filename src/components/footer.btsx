@@ -1,11 +1,15 @@
-import Icon from "../lib/icons/icon.btsx";
-footer(className="border-t border-border/30 w-full mt-auto")
-  div(className="w-full px-6 py-6 flex items-center justify-between gap-4 font-mono text-muted-foreground text-[11px] uppercase")
+import {Icon} from "@/lib/icons";
+import {cn} from "@/lib/utils";
+
+props {scrollPct}: {scrollPct?: number}
+footer(className={cn("border-t border-border/20 border-dashed w-full fixed bottom-0 opacity-0 transition-opacity duration-300 ease-out", {'opacity-100': scrollPct >= 98 })})
+  div(className="w-full px-6 py-6 flex items-center justify-between gap-4 font-mono text-muted-foreground text-[11px]")
     div(className="flex items-center gap-3")
       div
-        div(className="font-mono text-xs text-border") ©#{new Date().getFullYear()} LiveSnapsNow
-    div(className="flex items-center gap-4")
-      a(href="https://beast-docs.vercel.app" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Privacy
-      a(href="https://beast-docs.vercel.app" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Terms
-      a(href="https://github.com/phtn/beast" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 pl-4")
-        Icon(name="github" className="text-muted-foreground")
+        div(className="font-sans text-xs text-muted-foreground") ©#{new Date().getFullYear()}
+          span(className="pl-3 font-poly font-medium") LiveSnapsNow
+    div(className="flex items-center gap-4 uppercase tracking-wide")
+      a(href="#" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Privacy
+      a(href="#" target="_blank" rel="noreferrer" className="hover:text-foreground transition") Terms
+      a(href="https://bigticket.ph/r" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 border-l border-border/50 pl-4")
+        Icon(name="re-up.ph" className="size-3 text-muted-foreground")

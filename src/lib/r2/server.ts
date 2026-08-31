@@ -1,5 +1,3 @@
-import 'server-only'
-
 import { createHash, createHmac } from 'node:crypto'
 
 const R2_REGION = 'auto'
@@ -7,9 +5,10 @@ const R2_SERVICE = 's3'
 const R2_BUCKET_NAME = 'livesnaps'
 const EMPTY_BODY_HASH = createHash('sha256').update('').digest('hex')
 
-interface R2Config {
+export interface R2Config {
   accessKeyId: string
   accountId: string
+  bucket: string
   secretAccessKey: string
 }
 
@@ -35,10 +34,11 @@ const hash = (data: string | ArrayBuffer) =>
 
 const encodePath = (path: string) => path.split('/').map(encodeURIComponent).join('/')
 
-const getR2Config = (): R2Config => {
-  const accountId = process.env.R2_ACCOUNT_ID?.trim()
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim()
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY?.trim()
+const getR2Config = (overrides?: Partial<R2Config>): R2Config => {
+  const accountId = overrides?.accountId?.trim() || process.env.R2_ACCOUNT_ID?.trim()
+  const accessKeyId = overrides?.accessKeyId?.trim() || process.env.R2_ACCESS_KEY_ID?.trim()
+  const secretAccessKey = overrides?.secretAccessKey?.trim() || process.env.R2_SECRET_ACCESS_KEY?.trim()
+  const bucket = overrides?.bucket?.trim() || process.env.R2_BUCKET_NAME?.trim() || R2_BUCKET_NAME
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new R2ConfigurationError()
@@ -47,7 +47,8 @@ const getR2Config = (): R2Config => {
   return {
     accountId,
     accessKeyId,
-    secretAccessKey
+    secretAccessKey,
+    bucket
   }
 }
 
@@ -61,7 +62,7 @@ const getSignedR2Headers = ({
 }: {
   accessKeyId: string
   host: string
-  method: 'GET' | 'PUT'
+  method: 'DELETE' | 'GET' | 'PUT'
   pathname: string
   payloadHash: string
   secretAccessKey: string
@@ -91,16 +92,18 @@ const requestR2 = ({
   body,
   contentType,
   method,
-  objectKey
+  objectKey,
+  r2
 }: {
   body?: ArrayBuffer
   contentType?: string
-  method: 'GET' | 'PUT'
+  method: 'DELETE' | 'GET' | 'PUT'
   objectKey: string
+  r2?: Partial<R2Config>
 }) => {
-  const config = getR2Config()
+  const config = getR2Config(r2)
   const host = `${config.accountId}.r2.cloudflarestorage.com`
-  const pathname = `/${R2_BUCKET_NAME}/${objectKey}`
+  const pathname = `/${config.bucket}/${objectKey}`
   const payloadHash = body ? hash(body) : EMPTY_BODY_HASH
 
   return fetch(`https://${host}${encodePath(pathname)}`, {
@@ -120,24 +123,35 @@ const requestR2 = ({
   })
 }
 
-export const getR2Object = (objectKey: string) =>
+export const getR2Object = (objectKey: string, r2?: Partial<R2Config>) =>
   requestR2({
     method: 'GET',
-    objectKey
+    objectKey,
+    r2
   })
 
 export const putR2Object = ({
   body,
   contentType,
-  objectKey
+  objectKey,
+  r2
 }: {
   body: ArrayBuffer
   contentType: string
   objectKey: string
+  r2?: Partial<R2Config>
 }) =>
   requestR2({
     body,
     contentType,
     method: 'PUT',
-    objectKey
+    objectKey,
+    r2
+  })
+
+export const deleteR2Object = (objectKey: string, r2?: Partial<R2Config>) =>
+  requestR2({
+    method: 'DELETE',
+    objectKey,
+    r2
   })

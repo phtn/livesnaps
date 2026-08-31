@@ -4,6 +4,7 @@ module
     cancelSession: VoidFunction
     completeSession: (plateNumber: string) => Promise<void>
     endCompletedSession: VoidFunction
+    getCurrentIdToken: () => Promise<string>
     getCurrentLocation: () => Promise<DeviceLocation>
     isDebugMode: boolean
     isExpanded: boolean
@@ -19,7 +20,7 @@ module
     vehicle: VehicleDetails | null
     mileageKm: number | null
     odometerVisionStatus?: string
-    captureIntegrity?: import('@/lib/proofs/capture-integrity').CaptureIntegrityAnalysis | null
+    captureIntegrity?: import('@/lib/snaps/capture-integrity').CaptureIntegrityAnalysis | null
     visionProvider?: string
     visionModel?: string
   }
@@ -77,6 +78,7 @@ module
   const persistCapturedPhoto = async ({
     captureId,
     file,
+    getCurrentIdToken,
     isRetake,
     location,
     slot,
@@ -86,9 +88,10 @@ module
     captureId: string
     capturedAt: number
     file: File
+    getCurrentIdToken: () => Promise<string>
     isRetake: boolean
     location: DeviceLocation
-    slot: ProofSlotIndex
+    slot: CaptureSlotIndex
     uploadId: string
   }) => {
     const formData = new FormData()
@@ -100,8 +103,12 @@ module
     formData.set('uploadId', uploadId)
     formData.set('slot', String(slot))
 
+    const idToken = await getCurrentIdToken()
     const response = await fetch('/api/proofs', {
       method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`
+      },
       body: formData
     })
     const result = (await response.json().catch(() => null)) as {
@@ -120,7 +127,7 @@ module
 
     const captureIntegrity =
       result?.captureIntegrity && typeof result.captureIntegrity === 'object'
-        ? (result.captureIntegrity as import('@/lib/proofs/capture-integrity').CaptureIntegrityAnalysis)
+        ? (result.captureIntegrity as import('@/lib/snaps/capture-integrity').CaptureIntegrityAnalysis)
         : null
 
     return {
@@ -176,7 +183,7 @@ import { upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-stat
 import { onError } from '@/lib/toast'
 import { createUuid } from '@/lib/uuid'
 
-props { cancelSession, completeSession, endCompletedSession, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
+props { cancelSession, completeSession, endCompletedSession, getCurrentIdToken, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
 
 component CameraPreview
   props { previewRef }: { previewRef: RefObject<HTMLVideoElement | null> }
@@ -188,7 +195,7 @@ component Hint
     span(className='max-w-100 italic text-[#808596] text-sm text-balance') Ensure lighting is good and capture photos as clearly as possible.
   div(className='')
 component Poster
-  div(className='grid size-32 place-items-center rounded-[28px] border bg-beach border-[oklch(0.793_0.108_189.22/50)] dark:bg-lime-200 text-white dark:text-background _light:bg-[linear-gradient(145deg,oklch(0.84_0.115_189.22),oklch(0.68_0.125_189.22))] dark:shadow-[0_20px_40px_oklch(0.939_0.128_124.56/0.15),0_0_0_12px_oklch(0.94_0.128_134.56/0.15)] shadow-[0_20px_40px_oklch(0.68_0.125_189.22/0.24),0_0_0_12px_oklch(0.76_0.115_189.22/0.15)] ' aria-hidden='true')
+  div(className='grid size-32 place-items-center rounded-[28px] border bg-beach border-[oklch(0.793_0.108_189.22/50)] dark:bg-lime-200 text-white dark:text-background dark:shadow-[0_20px_40px_oklch(0.939_0.128_124.56/0.15),0_0_0_12px_oklch(0.94_0.128_134.56/0.15)] shadow-[0_20px_40px_oklch(0.68_0.125_189.22/0.24),0_0_0_12px_oklch(0.76_0.115_189.22/0.15)] ' aria-hidden='true')
     Icon(name={'re-up.ph'} className='size-12')
 
 setup
@@ -561,6 +568,7 @@ setup
                 captureId: bgCaptureId,
                 capturedAt: bgCapturedAt,
                 file,
+                getCurrentIdToken,
                 isRetake: bgIsRetake,
                 location: location ?? {
                   latitude: 0,
@@ -689,6 +697,7 @@ setup
     })()
   }, [
     activeCaptureIndex,
+    getCurrentIdToken,
     getCurrentLocation,
     imageOptimizationTimeoutMs,
     imageQuality,
@@ -778,6 +787,9 @@ div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyl
             Poster
         else
           CameraStatusbar(isDebugMode={isDebugMode} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} stopCamera={stopCamera})
+        Activity(mode={cameraError ? 'visible' : 'hidden'})
+          div(className='pointer-events-none absolute inset-0 z-30 flex items-center justify-center px-6')
+            p(className='max-w-md rounded-xl bg-black/70 px-4 py-3 text-center text-xs text-destructive shadow-lg backdrop-blur-sm' role='alert') #{cameraError}
         Activity(mode={shouldShowCaptureGuidance ? 'visible' : 'hidden'})
           CapturedPhotos(activeCaptureIndex={activeCaptureIndex} isStackExpanded={isStackExpanded} capturedPhotos={capturedPhotos} expandStack={expandPhotoStack} collapseStack={collapsePhotoStack} selectCaptureSlot={setActiveCaptureIndex} selectPhoto={selectPhoto})
         if selectedPhoto
@@ -788,8 +800,6 @@ div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyl
           GuidePanel(activeCaptureIndex={activeCaptureIndex} capturedCount={capturedPhotos.length})
       div(className={cn(viewportStyles.shutterControls, 'mt-6 flex shrink-0 flex-col items-center gap-2')})
         ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={capturedPhotos.length} captureLabel={getInspectionLabel(activeCaptureIndex)})
-        Activity(mode={cameraError ? 'visible' : 'hidden'})
-          p(className='max-w-md px-4 text-center text-xs text-destructive' role='alert') #{cameraError}
 
 
   PlateConfirmationDialog(error={plateConfirmationError} isDebugMode={isDebugMode} onEnd={endSession} onPlateNumberChange={setPlateNumber} onSubmit={confirmPlateNumber} mileageKm={mileageKm} plateNumber={plateNumber} stage={plateConfirmationStage} vehicle={vehicleDetails})

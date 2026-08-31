@@ -6,6 +6,16 @@ import './style.css'
 const registerServiceWorker = () => {
   if (!('serviceWorker' in navigator)) return
 
+  if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+    void caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('livesnaps-shell-')).map((key) => caches.delete(key))))
+    return
+  }
+
   window.addEventListener('load', () => {
     void navigator.serviceWorker.register('/service-worker.js', { scope: '/' }).catch(() => {
       // Service worker support is an enhancement; the app remains usable without it.

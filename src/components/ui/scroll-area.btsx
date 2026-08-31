@@ -8,10 +8,11 @@ module
     orientation?: 'vertical' | 'horizontal' | 'both'
     tabIndex?: number
     'aria-label'?: string
+    ref?: { current: HTMLDivElement | null }
   }
 
-props { children, className, orientation = 'vertical', tabIndex, 'aria-label': ariaLabel }: ScrollAreaProps
+props { children, className, orientation = 'vertical', tabIndex, 'aria-label': ariaLabel, ref: viewportRef }: ScrollAreaProps
 
 div(className={cn('relative', className)} data-slot='scroll-area' data-orientation={orientation})
-  div(className={cn('size-full rounded-[inherit] outline-none transition-[color,box-shadow] focus-visible:outline-1 focus-visible:ring-[3px] focus-visible:ring-ring/50', orientation === 'horizontal' ? 'overflow-x-auto overflow-y-hidden' : orientation === 'both' ? 'overflow-auto' : 'overflow-x-hidden overflow-y-auto')} data-slot='scroll-area-viewport' tabIndex={tabIndex} aria-label={ariaLabel})
+  div(ref={viewportRef} className={cn('size-full rounded-[inherit] outline-none transition-[color,box-shadow] focus-visible:outline-1 focus-visible:ring-[3px] focus-visible:ring-ring/50', orientation === 'horizontal' ? 'overflow-x-auto overflow-y-hidden' : orientation === 'both' ? 'overflow-auto' : 'overflow-x-hidden overflow-y-auto')} data-slot='scroll-area-viewport' tabIndex={tabIndex} aria-label={ariaLabel})
     | #{children}

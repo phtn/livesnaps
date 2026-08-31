@@ -1,4 +1,5 @@
-const CACHE_NAME = 'livesnaps-shell-v1'
+const CACHE_NAME = 'livesnaps-shell-v2'
+const IS_LOCAL_DEVELOPMENT = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname)
 const APP_SHELL = [
   '/',
   '/site.webmanifest',
@@ -36,6 +37,8 @@ self.addEventListener('activate', (event) => {
 })
 
 self.addEventListener('fetch', (event) => {
+  if (IS_LOCAL_DEVELOPMENT) return
+
   const request = event.request
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
 

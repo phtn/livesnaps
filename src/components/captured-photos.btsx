@@ -29,7 +29,7 @@ component SlotImage
   img(src={photo.preview} alt={`${label} photo`} className='absolute inset-0 size-full object-cover')
 
 component SavingBadge
-  span(className='absolute right-1 top-1 rounded-full bg-black/75 px-1.5 py-0.5 text-[8px] font-medium tracking-wide text-white') Saving
+  Icon(name='cloud' className='absolute right-1 top-1 text-white/60 animate-pulse')
 
 component CollapsedStackSlot
   props { slot, stackIndex, stackSize, photo, isActive }: { slot: CaptureSlot; stackIndex: number; stackSize: number; photo?: CapturedPhoto; isActive: boolean }

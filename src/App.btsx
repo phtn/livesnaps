@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'octane'
+import { lazy, Suspense, useRef } from 'octane'
 import type Game from './components/list.btsx'
 import { Icon } from '@/lib/icons'
 import { ScrollArea } from '@/components/ui/'
@@ -15,6 +15,8 @@ import { endSnapSession, type SnapSessionEndStatus } from '@/lib/snaps/end-snap-
 import { onError } from '@/lib/toast'
 import { createUuid } from '@/lib/uuid'
 import Expander from './components/expander.btsx'
+import Sandbox from "./components/sandbox.btsx";
+import { useScrollBox } from '@/hooks/use-scroll-box'
 
 module
   const LazyTop = lazy(() => import('./components/topbar.btsx'))
@@ -106,6 +108,14 @@ setup
       throw locationError
     }
   }, [handleFatalLocationError])
+
+  const getCurrentIdToken = useCallback(async () => {
+    if (!user) {
+      throw new Error('Sign in before saving proof photos.')
+    }
+
+    return user.getIdToken()
+  }, [user])
 
   const completeVerificationSession = useCallback(
     async (plateNumber: string) => {
@@ -275,6 +285,8 @@ setup
       locationWatchRef.current?.stop()
     }
   }, [])
+  const boxRef = useRef<HTMLDivElement>(null)
+  const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
 
 
   const isLocationPrecise =
@@ -291,13 +303,12 @@ component Fallback
 div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
   div
     LazyTop
-  ScrollArea(className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
-    div
-      div(className={cn(viewportStyles.pageContent, 'relative z-0 h-full', isExpanded && 'pointer-events-none')} inert={isExpanded})
+  ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
+    div(className='flex flex-col')
+      div(className={cn(viewportStyles.pageContent, 'relative z-0', isExpanded && 'pointer-events-none')} inert={isExpanded})
         Suspense(fallback={Fallback})
           LazyHero(error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})
+      LazyFooter(scrollPct={scrollPct})
 
-  Expander(key={sessionUploadId ?? 'inactive-snap-session'} cancelSession={cancelVerificationSession} completeSession={completeVerificationSession} endCompletedSession={endCompletedSession} getCurrentLocation={getCurrentLocation} isDebugMode={runtimeMode.debug} isExpanded={isExpanded} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} sessionUploadId={sessionUploadId})
-
-  LazyFooter
+  Expander(key={sessionUploadId ?? 'inactive-snap-session'} cancelSession={cancelVerificationSession} completeSession={completeVerificationSession} endCompletedSession={endCompletedSession} getCurrentIdToken={getCurrentIdToken} getCurrentLocation={getCurrentLocation} isDebugMode={runtimeMode.debug} isExpanded={isExpanded} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} sessionUploadId={sessionUploadId})
   LazyToast

@@ -38,7 +38,7 @@ component SubmissionRow
           Badge(variant='outline' className={cn('capitalize font-normal', presentation.badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
         p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
       time(dateTime={timestamp.toISOString()} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{dateFormatter.format(timestamp)}
-      Icon(name='arrow-right' className='size-4 shrink-0 text-muted-foreground transition-transform group-hover/submission:translate-x-0.5')
+      Icon(name='down' className='-rotate-45 shrink-0 text-muted-foreground transition-transform group-hover/submission:translate-x-0.5')
 
 component EmptyState
   props { isAuthenticated }: { isAuthenticated: boolean }
@@ -64,6 +64,7 @@ setup
   }, [isAuthenticated])
 
 section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})
+
   div(className='mb-3 flex items-end justify-between gap-4 px-1')
     div
       p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') activity
@@ -72,7 +73,7 @@ section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full p
           span Development in progress
           if isLoading
             Icon(name='velocity' className='-mt-0.5 size-6.5 opacity-50')
-  div(className={cn('overflow-hidden rounded-lg bg-muted/60 shadow-xs', {' border-[0.5px]': submissions && submissions.length > 0})})
+  div(className={cn('overflow-hidden rounded-lg bg-muted/60 shadow-xs', {' border-[0.5px] border-border/50': submissions && submissions.length > 0})})
     if isLoading
       div(className='relative h-16 animate-pulse bg-mist-100 dark:bg-mist-400/10')
     elseif submissions && submissions.length > 0

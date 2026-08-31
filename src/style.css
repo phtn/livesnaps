@@ -90,6 +90,7 @@
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand: oklch(0.6112 0.2095 267.78);
 }
 
 :root {
