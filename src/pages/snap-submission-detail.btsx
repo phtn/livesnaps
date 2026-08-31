@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'octane'
+import { useEffect, useRef, useState } from 'octane'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
 import Badge from '@/components/ui/badge.btsx'
+import Footer from '@/components/footer.btsx'
+import PhotoViewer, { type PhotoViewerPhoto } from '@/components/photo-viewer.btsx'
 import Topbar from '@/components/topbar.btsx'
+import { ScrollArea } from '@/components/ui/'
 import { Icon, type IconName } from '@/lib/icons'
 import { getMySubmission } from '@/lib/convex-client'
 import { getAuthStateReady, getCurrentUser, subscribeToAuthState } from '@/lib/firebase'
+import { snapPhotoPreviewResolver } from '@/lib/snaps/snap-photo-preview'
 import { cn } from '@/lib/utils'
+import { useScrollBox } from '@/hooks/use-scroll-box'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
 
 module
   type SnapSubmission = NonNullable<FunctionReturnType<typeof api.snaps.q.getMineByRouteId>>
@@ -15,7 +21,11 @@ module
 
   interface PageProps { snapId: string }
   interface DetailItemProps { label: string; value: string }
-  interface PhotoCardProps { photo: SnapPhoto }
+  interface PhotoCardProps {
+    onOpen: (photoId: string) => void
+    photo: SnapPhoto
+    previewUrl: string | null
+  }
 
   const dateFormatter = new Intl.DateTimeFormat('en-PH', {
     dateStyle: 'medium',
@@ -23,12 +33,12 @@ module
   })
   const numberFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 1 })
   const statusPresentation: Record<SnapStatus, { badge: string; icon: IconName; label: string }> = {
-    active: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'sparkle', label: 'Active' },
-    abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'alert-diamond-fill', label: 'Abandoned' },
-    cancelled: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'cancel', label: 'Cancelled' },
-    completed: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'check-circle-fill', label: 'Submitted' },
-    invalidated: { badge: 'border-red-500/25 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'alert-octagon-fill', label: 'Invalidated' },
-    pending: { badge: 'border-amber-500/25 bg-amber-500/8 text-amber-700 dark:text-amber-300', icon: 'spinner-ferris', label: 'Pending' }
+    active: { badge: 'border-blue-500/25 bg-blue-500/8! text-blue-700! dark:text-blue-400!', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', label: 'Active' },
+    abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/10! text-zinc-700! dark:text-zinc-300!', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300', label: 'Abandoned' },
+    cancelled: { badge: 'border-mauve-500/20 bg-mauve-500/10! text-mauve-700! dark:text-mauve-300!', icon: 'cancel', iconFrame: 'bg-mauve-500/10 text-mauve-600 dark:text-mauve-300', label: 'Cancelled' },
+    completed: { badge: 'border-beach/25 bg-beach! text-white! dark:bg-beach/10! dark:text-beach!', icon: 'check-circle-fill', iconFrame: 'bg-beach/10 text-beach dark:text-beach', label: 'Submitted' },
+    invalidated: { badge: 'border-red-500/25! bg-red-500/8! text-red-700! dark:text-red-300!', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300', label: 'Rejected' },
+    pending: { badge: 'border-amber-500/25 bg-amber-500/8! text-amber-700! dark:text-amber-300!', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300', label: 'Pending' }
   }
   const formatDate = (value: number | null) => value === null ? 'Not available' : dateFormatter.format(new Date(value))
   const formatVehicle = (submission: SnapSubmission) =>
@@ -41,6 +51,11 @@ module
     bytes < 1024 * 1024
       ? `${numberFormatter.format(bytes / 1024)} KB`
       : `${numberFormatter.format(bytes / (1024 * 1024))} MB`
+  const getPhotoId = (photo: SnapPhoto) => String(photo.slot)
+  const getPhotoLabel = (photo: SnapPhoto) => photo.label || `Photo ${photo.slot}`
+  const getDownloadFilePart = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  const getPhotoDownloadName = (submission: SnapSubmission, photo: SnapPhoto) =>
+    `${getDownloadFilePart(submission.plateNumber) || 'snap'}-${getDownloadFilePart(getPhotoLabel(photo)) || `photo-${photo.slot}`}.webp`
 
 component DetailItem
   props { label, value }: DetailItemProps
@@ -49,17 +64,29 @@ component DetailItem
     dd(className='mt-1.5 break-words text-sm text-foreground') #{value}
 
 component PhotoCard
-  props { photo }: PhotoCardProps
-  setup const capturedAt = new Date(photo.capturedAt)
-  li(className='group overflow-hidden rounded-2xl border border-border/30 bg-card/20 shadow-xs')
-    div(className='grid aspect-[4/3] place-items-center bg-muted/70')
-      div(className='grid size-14 place-items-center rounded-full border border-border/30 bg-background/75 text-muted-foreground transition-transform group-hover:scale-105')
-        Icon(name='camera-enhance' className='size-7')
-    div(className='flex items-start justify-between gap-3 px-4 py-3')
+  props { onOpen, photo, previewUrl }: PhotoCardProps
+  setup
+    const capturedAt = new Date(photo.capturedAt)
+    const label = getPhotoLabel(photo)
+  li(className='group overflow-hidden rounded-xl md:rounded-2xl border border-border/30 bg-card/20 shadow-xs')
+    button(
+      ~ type='button'
+      ~ disabled={!previewUrl}
+      ~ onClick={() => onOpen(getPhotoId(photo))}
+      ~ aria-haspopup='dialog'
+      ~ aria-label={previewUrl ? `View ${label} in photo viewer` : `Loading ${label}`}
+      ~ className='relative grid aspect-square w-full place-items-center overflow-hidden bg-muted/70 text-left enabled:cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-wait'
+      ~ )
+      if previewUrl
+        img(src={previewUrl} alt={`${label} vehicle photo`} loading='lazy' decoding='async' className='size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]')
+      else
+        div(className='grid size-14 place-items-center rounded-full border border-border/30 bg-background/75 text-muted-foreground transition-transform group-hover:scale-105')
+          Icon(name='camera-enhance' className='size-7')
+    div(className='flex items-start justify-between gap-2 p-3')
       div(className='min-w-0')
-        p(className='truncate font-poly text-sm font-medium capitalize') #{photo.label || `Photo ${photo.slot}`}
-        time(dateTime={capturedAt.toISOString()} className='mt-1 block text-xs text-muted-foreground') #{dateFormatter.format(capturedAt)}
-      span(className='shrink-0 font-mono text-[9px] uppercase tracking-wide text-muted-foreground') #{formatPhotoSize(photo.size)}
+        p(className='truncate font-poly text-sm font-medium capitalize') #{label}
+        time(datetime={capturedAt.toISOString()} className='mt-1 block text-xs text-muted-foreground') #{dateFormatter.format(capturedAt)}
+      span(className='shrink-0 font-mono text-[9px] uppercase tracking-wider text-muted-foreground') #{formatPhotoSize(photo.size)}
 
 component LoadingState
   div(className='grid min-h-[420px] place-items-center rounded-3xl border border-border/30 bg-card/20')
@@ -86,6 +113,10 @@ setup
   const [isAuthReady, setIsAuthReady] = useState(getAuthStateReady)
   const [submission, setSubmission] = useState<SnapSubmission | null | undefined>(undefined)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({})
+  const [viewerPhotoId, setViewerPhotoId] = useState<string | null>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
+  const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
 
   useEffect(() => subscribeToAuthState(() => {
     setUser(getCurrentUser())
@@ -126,66 +157,117 @@ setup
     return () => { document.title = previousTitle }
   }, [submission])
 
+  useEffect(() => {
+    let cancelled = false
+    setPreviewUrls({})
+    setViewerPhotoId(null)
+
+    if (!submission) return () => { cancelled = true }
+
+    for (const photo of submission.photos) {
+      void snapPhotoPreviewResolver
+        .resolve(submission._id, photo.slot)
+        .then((url) => {
+          if (cancelled || !url) return
+          setPreviewUrls((current) => ({ ...current, [photo.slot]: url }))
+        })
+        .catch(() => {})
+    }
+
+    return () => { cancelled = true }
+  }, [submission])
+
   const presentation = submission ? statusPresentation[submission.status] : null
+  const viewerPhotos: PhotoViewerPhoto[] = submission
+    ? submission.photos.flatMap((photo): PhotoViewerPhoto[] => {
+        const src = previewUrls[photo.slot]
+        if (!src) return []
+        const label = getPhotoLabel(photo)
+        return [{
+          alt: `${label} vehicle photo`,
+          description: `${dateFormatter.format(new Date(photo.capturedAt))} · ${formatPhotoSize(photo.size)}`,
+          downloadName: getPhotoDownloadName(submission, photo),
+          id: getPhotoId(photo),
+          label,
+          src,
+          thumbnailSrc: src
+        }]
+      })
+    : []
+  const viewerTitle = submission ? `${submission.plateNumber.trim() || 'Snap'} photos` : 'Submitted photos'
 
-div(className='min-h-screen min-w-[320px] bg-background font-sans text-foreground antialiased')
+div(className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
   Topbar
-  main(className='mx-auto w-full max-w-7xl px-4 pb-16 sm:px-8 sm:pb-24')
-    if !isAuthReady || submission === undefined
-      LoadingState
-    elseif !user
-      MessageState(icon='person' title='Sign in to view this snap' message='Use the account button above to sign in with the same Google account that created this submission.')
-    elseif loadError
-      MessageState(icon='alert-octagon-fill' title='We could not load this snap' message={loadError})
-    elseif !submission || !presentation
-      MessageState(icon='search' title='Snap not found' message='This submission does not exist, or it belongs to a different account.')
-    else
-      article
+  ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
+    div(className='flex flex-col')
+      main(className='mx-auto w-full max-w-7xl px-4 pb-16 sm:px-8 sm:pb-24')
+        if !isAuthReady || submission === undefined
+          LoadingState
+        elseif !user
+          MessageState(icon='person' title='Sign in to view this snap' message='Use the account button above to sign in with the same Google account that created this submission.')
+        elseif loadError
+          MessageState(icon='alert-octagon-fill' title='We could not load this snap' message={loadError})
+        elseif !submission || !presentation
+          MessageState(icon='search' title='Snap not found' message='This submission does not exist, or it belongs to a different account.')
+        else
+          article
 
-        section(className='overflow-hidden rounded-lg border border-border/30 bg-card/20 shadow-xs')
-          div(className='relative overflow-hidden p-4')
-            div(className='relative flex justify-between gap-6 flex-row items-start')
-              div(className='min-w-0')
-                p(className='font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground') Snap submission
-                h1(className='mt-2 truncate font-poly text-2xl font-medium uppercase tracking-tight sm:text-3xl') #{submission.plateNumber.trim() || 'No plate'}
-                p(className='mt-2 text-sm text-muted-foreground') #{formatVehicle(submission)}
-              Badge(variant='outline' className={cn('h-8 gap-1.5 pe-2.5', presentation.badge)})
-                Icon(name={presentation.icon} className='size-3.5')
-                span #{presentation.label}
+            section(className='overflow-hidden rounded-lg border border-border/30 bg-card/20 shadow-xs')
+              div(className='relative overflow-hidden p-4')
+                div(className='relative flex justify-between gap-6 flex-row items-start')
+                  div(className='min-w-0')
+                    p(className='font-mono text-[9px] uppercase tracking-[0.18em] text-muted-foreground') Snap submission
+                    h1(className='mt-2 truncate font-poly text-2xl font-medium uppercase tracking-tight sm:text-3xl') #{submission.plateNumber.trim() || 'No plate'}
+                    p(className='mt-2 text-sm text-muted-foreground') #{formatVehicle(submission)}
+                  Badge(variant='outline' className={cn('h-8 gap-1 pe-2.5', presentation.badge)})
+                    Icon(name={presentation.icon} className='size-3.5')
+                    span #{presentation.label}
 
-          dl(className='border-t border-border/40 px-0 grid grid-cols-2 sm:grid-cols-4 sm:px-8')
-            DetailItem(label='Started' value={formatDate(submission.startedAt)})
-            DetailItem(label='Ended' value={formatDate(submission.endedAt)})
-            DetailItem(label='Mileage' value={formatMileage(submission.mileage)})
-            DetailItem(label='GPS accuracy' value={formatAccuracy(submission.bestAccuracyMeters)})
+              dl(className='border-t border-border/40 px-0 grid grid-cols-2 sm:grid-cols-4 sm:px-8')
+                DetailItem(label='Started' value={formatDate(submission.startedAt)})
+                DetailItem(label='Ended' value={formatDate(submission.endedAt)})
+                DetailItem(label='Mileage' value={formatMileage(submission.mileage)})
+                DetailItem(label='GPS accuracy' value={formatAccuracy(submission.bestAccuracyMeters)})
 
-        if submission.invalidationReason
-          section(role='status' className='mt-5 flex gap-3 rounded-lg border border-red-500/25 bg-red-500/5 px-4 py-4 text-sm text-red-800 dark:text-red-200')
-            Icon(name='alert-octagon-fill' className='mt-0.5 size-5 shrink-0')
-            div
-              p(className='font-medium') Why this snap was invalidated
-              p(className='mt-1 leading-6 opacity-80') #{submission.invalidationReason}
+            if submission.invalidationReason
+              section(role='status' className='mt-5 flex gap-3 rounded-lg border border-red-500/25 bg-red-500/5 px-4 py-4 text-sm text-red-800 dark:text-red-200')
+                Icon(name='alert-octagon-fill' className='mt-0.5 size-5 shrink-0')
+                div
+                  p(className='font-medium') Why this snap was invalidated
+                  p(className='mt-1 leading-6 opacity-80') #{submission.invalidationReason}
 
-        section(className='mt-10' aria-labelledby='snap-location-heading')
-          div(className='flex items-center gap-2')
-            Icon(name='location' className='size-4 text-muted-foreground')
-            h2(id='snap-location-heading' className='font-poly text-lg font-medium') Location
-          div(className='mt-3 rounded-lg border border-border/30 bg-card/20 px-5 py-4 shadow-xs')
-            p(className='text-sm leading-6') #{submission.address || 'No address was recorded.'}
-            p(className='mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground')
-              | IP country #{submission.countryCodeMatchesIpinfo === null ? 'not checked' : submission.countryCodeMatchesIpinfo ? 'matched' : 'did not match'}
+            section(className='mt-10' aria-labelledby='snap-location-heading')
+              div(className='flex items-center gap-2')
+                Icon(name='location' className='size-4 text-muted-foreground')
+                h2(id='snap-location-heading' className='font-poly text-lg font-medium') Location
+              div(className='mt-3 rounded-lg border border-border/30 bg-card/20 px-5 py-4 shadow-xs')
+                p(className='text-sm leading-6') #{submission.address || 'No address was recorded.'}
+                p(className='mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground')
+                  | IP country #{submission.countryCodeMatchesIpinfo === null ? 'not checked' : submission.countryCodeMatchesIpinfo ? 'matched' : 'did not match'}
 
-        section(className='mt-10' aria-labelledby='snap-photos-heading')
-          div(className='flex items-end justify-between gap-4')
-            div
-              p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Evidence
-              h2(id='snap-photos-heading' className='mt-1 font-poly text-lg font-medium') Submitted photos
-            p(className='text-xs text-muted-foreground') #{submission.photoCount} of 5
-          if submission.photos.length > 0
-            ul(className='mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3')
-              each photo in submission.photos key photo.slot
-                PhotoCard(photo={photo})
-          else
-            div(className='mt-4 grid min-h-36 place-items-center rounded-2xl border border-dashed border-border/60 bg-muted/30 px-6 text-center text-sm text-muted-foreground') No photos were submitted.
+            section(className='mt-10' aria-labelledby='snap-photos-heading')
+              div(className='flex items-end justify-between gap-4')
+                div
+                  p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Proofs
+                  h2(id='snap-photos-heading' className='mt-1 font-poly text-lg font-medium') Submitted photos
+                p(className='text-xs text-muted-foreground') #{submission.photoCount} of 5
+              if submission.photos.length > 0
+                ul(className='mt-4 grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5')
+                  each photo in submission.photos key photo.slot
+                    PhotoCard(photo={photo} previewUrl={previewUrls[photo.slot] ?? null} onOpen={setViewerPhotoId})
+              else
+                div(className='mt-4 grid min-h-36 place-items-center rounded-2xl border border-dashed border-border/60 bg-muted/30 px-6 text-center text-sm text-muted-foreground') No photos were submitted.
 
-        p(className='mt-10 text-center font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground') Last updated #{formatDate(submission.updatedAt)}
+            p(className='mt-10 text-center font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground') Last updated #{formatDate(submission.updatedAt)}
+
+      Footer(scrollPct={scrollPct})
+
+  if viewerPhotoId && viewerPhotos.length > 0
+    PhotoViewer(
+      ~ allowRotation
+      ~ initialPhotoId={viewerPhotoId}
+      ~ onOpenChange={(nextOpen) => { if (!nextOpen) setViewerPhotoId(null) }}
+      ~ open
+      ~ photos={viewerPhotos}
+      ~ title={viewerTitle}
+      ~ )

@@ -35,9 +35,14 @@ export function createConvexClient(token?: string, convexUrl?: string) {
   })
 }
 
+export function authenticateReadRequest(request: Request, convexUrl?: string) {
+  return {
+    client: createConvexClient(getBearerToken(request), convexUrl)
+  }
+}
+
 export async function authenticateRequest(request: Request, convexUrl?: string) {
-  const token = getBearerToken(request)
-  const client = createConvexClient(token, convexUrl)
+  const { client } = authenticateReadRequest(request, convexUrl)
 
   try {
     const userId = await client.mutation(api.users.m.ensureCurrent, {})

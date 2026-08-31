@@ -45,7 +45,7 @@ header(className='relative z-10 mx-auto flex h-16 w-full max-w-[1520px] items-ce
   nav(className='hidden items-center gap-[clamp(22px,3vw,42px)] md:flex' aria-label='Primary navigation')
     a(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' href='/?#discover') My Snaps
 
-  div(className='flex items-center gap-[6vw]')
+  div(className='flex items-center gap-4 md:gap-6')
     ThemeToggle
     if inSession
       UserMenu(user={user} hasAdminClaim={false} hasSnapAdminAccess={false})

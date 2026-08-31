@@ -8,8 +8,8 @@ import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
 
 module
-  type ProofSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
-  type ProofSubmissionStatus = ProofSubmission['status']
+  type SnapSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
+  type SnapSubmissionStatus = SnapSubmission['status']
   export interface SubmitListProps {
     authenticatedUserId: string | null
     className?: string
@@ -17,19 +17,18 @@ module
     isAuthLoading: boolean
   }
   const dateFormatter = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
-  const statusPresentation: Record<ProofSubmissionStatus, { badge: string; icon: string; iconFrame: string }> = {
-    active: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-blue-600 dark:text-blue-300' },
-    abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
-    // cancelled: { badge: 'border-mauve-500/20 bg-mauve-500/8 text-mauve-700 dark:text-mauve-300', icon: 'cancel', iconFrame: 'bg-mauve-500/10 text-mauve-600 dark:text-mauve-300' },
-    cancelled: { badge: 'border-red-500/20 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'cancel', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
-    completed: { badge: 'border-beach/25 bg-beach/8 text-beach dark:text-beach', icon: 'check-circle-fill', iconFrame: 'bg-beach/10 text-beach dark:text-beach' },
-    invalidated: { badge: 'border-red-500/25 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
-    pending: { badge: 'border-amber-500/25 bg-amber-500/8 text-amber-700 dark:text-amber-300', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
+  const statusPresentation: Record<SnapSubmissionStatus, { badge: string; icon: string; iconFrame: string }> = {
+    active: { badge: 'border-brand/25 bg-brand/8! text-brand! dark:bg-brand/10! dark:text-blue-400!', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-brand dark:text-blue-400' },
+    abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/8! text-zinc-700! dark:text-zinc-300!', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
+    cancelled: { badge: 'border-mauve-500/20 bg-mauve-500/10! text-mauve-700! dark:text-mauve-400!', icon: 'cancel', iconFrame: 'bg-mauve-500/10 text-mauve-600 dark:text-mauve-300' },
+    completed: { badge: 'border-beach/25 bg-beach! text-white! dark:bg-beach/10! dark:text-beach!', icon: 'check-circle-fill', iconFrame: '[&>svg]:size-8 bg-beach/10 text-beach dark:text-beach' },
+    invalidated: { badge: 'border-red-500/25 bg-red-500/8! text-red-700! dark:text-red-300!', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
+    pending: { badge: 'border-amber-500/25 bg-amber-500/8! text-amber-700! dark:text-amber-300!', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
   }
-  const vehicleLabel = (submission: ProofSubmission) => [submission.year, submission.make, submission.model].filter(Boolean).join(' ') || 'Vehicle details: N/A'
+  const vehicleLabel = (submission: SnapSubmission) => [submission.year, submission.make, submission.model].filter(Boolean).join(' ') || 'Vehicle details: N/A'
 
 component SubmissionRow
-  props { submission }: { submission: ProofSubmission }
+  props { submission }: { submission: SnapSubmission }
   setup
     const presentation = statusPresentation[submission.status]
     const timestamp = new Date(submission.startedAt)
@@ -43,7 +42,7 @@ component SubmissionRow
           Badge(variant='outline' className={cn('capitalize font-normal', presentation.badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
         p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
       time(dateTime={timestamp.toISOString()} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{dateFormatter.format(timestamp)}
-      Icon(name='down' className='-rotate-45 shrink-0 text-muted-foreground transition-transform group-hover/submission:translate-x-0.5')
+      Icon(name='down' className='size-3.5 -rotate-45 shrink-0 text-muted-foreground')
 
 component EmptyState
   props { isAuthenticated }: { isAuthenticated: boolean }
@@ -55,7 +54,7 @@ component EmptyState
 props { authenticatedUserId, className, isAuthenticated, isAuthLoading }: SubmitListProps
 
 setup
-  const [submissions, setSubmissions] = useState<ProofSubmission[] | undefined>(undefined)
+  const [submissions, setSubmissions] = useState<SnapSubmission[] | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(isAuthLoading || isAuthenticated)
   useEffect(() => {
     let cancelled = false
@@ -81,7 +80,7 @@ section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full p
           span Development in progress
           if isLoading
             Icon(name='velocity' className='-mt-0.5 size-6.5 opacity-50')
-  div(className={cn('overflow-hidden rounded-lg bg-muted/60 shadow-xs', {' border-[0.5px] border-border/50': submissions && submissions.length > 0})})
+  div(className={cn('overflow-hidden rounded-lg bg-muted/30 shadow-xs', {' border-[0.5px] border-border/50': submissions && submissions.length > 0})})
     if isLoading
       div(className='relative h-16 animate-pulse bg-mist-100 dark:bg-mist-400/10')
     elseif submissions && submissions.length > 0

@@ -20,5 +20,5 @@ export const getSnapSubmissionRouteId = (pathname: string) => {
   }
 }
 
-export const getSnapSubmissionPhotoPath = (snapId: Id<'snaps'>, slot: number) =>
+export const getSnapSubmissionPhotoPath = (snapId: string, slot: number) =>
   `/api/snaps/${encodeURIComponent(snapId)}/photos/${encodeURIComponent(slot)}`

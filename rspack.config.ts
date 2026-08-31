@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const root = path.dirname(fileURLToPath(import.meta.url))
+const localApiOrigin = process.env.LIVESNAPS_LOCAL_API_ORIGIN ?? 'http://localhost:8787'
 
 const publicEnvNames = [
   'PUBLIC_FIREBASE_API_KEY',
@@ -92,6 +93,13 @@ export default {
   ],
   devServer: {
     port: 3000,
-    historyApiFallback: true
+    historyApiFallback: true,
+    proxy: [
+      {
+        context: ['/api'],
+        target: localApiOrigin,
+        changeOrigin: true
+      }
+    ]
   }
 }

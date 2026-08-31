@@ -1,0 +1,422 @@
+module "use strong";
+
+import { Dialog } from '@octanejs/base-ui/dialog'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'octane'
+
+module
+  export interface PhotoViewerPhoto {
+    alt: string
+    description?: string
+    downloadName?: string
+    id: string
+    label: string
+    src: string
+    thumbnailSrc?: string
+    unoptimized?: boolean
+  }
+
+  export interface PhotoViewerActionContext {
+    index: number
+    photo: PhotoViewerPhoto
+    rotation: number
+    rotations: Readonly<Record<string, number>>
+  }
+
+  export interface PhotoViewerProps {
+    allowRotation?: boolean
+    initialPhotoId?: string
+    initialRotations?: Readonly<Record<string, number>>
+    onDownload?: (photo: PhotoViewerPhoto, index: number) => Promise<void> | void
+    onDownloadError?: (error: unknown, photo: PhotoViewerPhoto) => void
+    onOpenChange: (open: boolean) => void
+    onPhotoError?: (photo: PhotoViewerPhoto) => void
+    onPrimaryAction?: (context: PhotoViewerActionContext) => void
+    open: boolean
+    photos: readonly PhotoViewerPhoto[]
+    primaryActionLabel?: string
+    title: string
+  }
+
+  type PhotoLoadState = 'loading' | 'ready' | 'unavailable'
+
+  interface ViewerImageProps {
+    active: boolean
+    onError?: (photo: PhotoViewerPhoto) => void
+    photo: PhotoViewerPhoto
+    rotation: number
+  }
+
+  interface ViewerSlideProps {
+    activeIndex: number
+    index: number
+    onPhotoError?: (photo: PhotoViewerPhoto) => void
+    photo: PhotoViewerPhoto
+    photoCount: number
+    rotation: number
+    viewerId: string
+  }
+
+  interface ViewerThumbnailProps {
+    activeIndex: number
+    buttonRef: (element: HTMLButtonElement | null) => void
+    index: number
+    onPhotoError?: (photo: PhotoViewerPhoto) => void
+    onSelect: () => void
+    photo: PhotoViewerPhoto
+    photoCount: number
+    rotation: number
+    viewerId: string
+  }
+
+  interface PointerStart {
+    id: number
+    x: number
+    y: number
+  }
+
+  const EMPTY_ROTATIONS: Readonly<Record<string, number>> = {}
+  const SWIPE_THRESHOLD_PX = 50
+  const normalizeRotation = (rotation: number) => ((rotation % 360) + 360) % 360
+
+  const wrapIndex = (index: number, length: number) => {
+    if (length === 0) return 0
+    return ((index % length) + length) % length
+  }
+
+  const isTextEntryTarget = (target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) return false
+    return target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+  }
+
+  const isInteractiveTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return false
+    return Boolean(target.closest('button, a, input, textarea, select, [contenteditable="true"]'))
+  }
+
+  const downloadFromSource = (photo: PhotoViewerPhoto) => {
+    if (!photo.downloadName) return
+
+    const link = document.createElement('a')
+    link.href = photo.src
+    link.download = photo.downloadName
+    link.rel = 'noopener'
+    document.body.append(link)
+    link.click()
+    link.remove()
+  }
+
+component ViewerImage
+  props { active, onError, photo, rotation }: ViewerImageProps
+  setup
+    const [loadState, setLoadState] = useState<PhotoLoadState>('loading')
+    const isQuarterTurn = rotation % 180 !== 0
+    const loaded = loadState === 'ready'
+
+  div(className='relative size-full overflow-hidden [container-type:size]')
+    if loadState !== 'ready'
+      div(className='absolute inset-0 grid place-items-center text-white/45' role='status')
+        div(className='text-center')
+          Icon(name={loadState === 'loading' ? 'spinner-ring' : 'gallery'} className='mx-auto size-6')
+          span(className={loadState === 'loading' ? 'sr-only' : 'mt-3 block text-sm'}) #{loadState === 'loading' ? `Loading ${photo.label}` : `${photo.label} is unavailable`}
+    div(
+      ~ className='absolute left-1/2 top-1/2 motion-safe:transition-transform motion-safe:duration-200'
+      ~ style={{ height: isQuarterTurn ? '100cqw' : '100cqh', transform: `translate(-50%, -50%) rotate(${rotation}deg)`, width: isQuarterTurn ? '100cqh' : '100cqw' }}
+      ~ )
+      img(
+        ~ alt={photo.alt}
+        ~ decoding='async'
+        ~ draggable={false}
+        ~ fetchPriority={active ? 'high' : 'auto'}
+        ~ loading={active ? 'eager' : 'lazy'}
+        ~ onError={() => { setLoadState('unavailable'); onError?.(photo) }}
+        ~ onLoad={() => setLoadState('ready')}
+        ~ sizes='100vw'
+        ~ src={photo.src}
+        ~ className={cn('absolute inset-0 size-full object-contain transition-opacity duration-150', loaded ? 'opacity-100' : 'opacity-0')}
+        ~ )
+
+component ViewerSlide
+  props { activeIndex, index, onPhotoError, photo, photoCount, rotation, viewerId }: ViewerSlideProps
+  setup
+    const distance = Math.abs(index - activeIndex)
+    const isAdjacent = distance <= 1 || (photoCount > 2 && distance === photoCount - 1)
+    const isActive = index === activeIndex
+
+  article(id={`${viewerId}-slide-${index}`} role='tabpanel' aria-label={photoCount === 1 ? `${photo.label}, photo 1 of 1` : undefined} aria-labelledby={photoCount > 1 ? `${viewerId}-tab-${index}` : undefined} aria-hidden={!isActive} className='relative h-full min-w-full')
+    div(className='absolute inset-0 px-2 py-2 sm:px-16 sm:py-4')
+      if isAdjacent
+        ViewerImage(key={photo.src} active={isActive} onError={onPhotoError} photo={photo} rotation={rotation})
+
+component ViewerThumbnail
+  props { activeIndex, buttonRef, index, onPhotoError, onSelect, photo, photoCount, rotation, viewerId }: ViewerThumbnailProps
+  setup const isActive = index === activeIndex
+
+  button(
+    ~ ref={buttonRef}
+    ~ id={`${viewerId}-tab-${index}`}
+    ~ type='button'
+    ~ role='tab'
+    ~ data-photo-viewer-thumbnail
+    ~ aria-controls={`${viewerId}-slide-${index}`}
+    ~ aria-label={`${photo.label}, photo ${index + 1} of ${photoCount}`}
+    ~ aria-selected={isActive}
+    ~ tabIndex={isActive ? 0 : -1}
+    ~ onClick={onSelect}
+    ~ className={cn('relative size-14 shrink-0 touch-manipulation snap-center cursor-pointer overflow-hidden rounded-lg border-2 bg-zinc-900 transition-[border-color,opacity] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:size-16', isActive ? 'border-white opacity-100' : 'border-transparent opacity-55 hover:opacity-90')}
+    ~ )
+    span(aria-hidden={true} className='absolute inset-0 motion-safe:transition-transform motion-safe:duration-200' style={{ transform: `rotate(${rotation}deg)` }})
+      img(alt='' loading='lazy' onError={() => onPhotoError?.(photo)} sizes='64px' src={photo.thumbnailSrc ?? photo.src} className='absolute inset-0 size-full object-cover')
+    span(className='absolute inset-x-0 bottom-0 truncate bg-black/70 px-1 py-0.5 text-[9px] capitalize text-white') #{photo.label}
+
+props { allowRotation = true, initialPhotoId, initialRotations = EMPTY_ROTATIONS, onDownload, onDownloadError, onOpenChange, onPhotoError, onPrimaryAction, open, photos, primaryActionLabel = 'Select', title }: PhotoViewerProps
+setup
+  const initialIndex = Math.max(0, initialPhotoId ? photos.findIndex((photo) => photo.id === initialPhotoId) : 0)
+  const [activePhotoId, setActivePhotoId] = useState(() => photos[initialIndex]?.id ?? '')
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [rotations, setRotations] = useState<Record<string, number>>(() => Object.fromEntries(Object.entries(initialRotations).map(([id, rotation]) => [id, normalizeRotation(rotation)])))
+  const [statusMessage, setStatusMessage] = useState('')
+  const activeIndexRef = useRef(initialIndex)
+  const focusFrameRef = useRef<number | null>(null)
+  const pointerStartRef = useRef<PointerStart | null>(null)
+  const popupRef = useRef<HTMLDivElement | null>(null)
+  const thumbnailButtonsRef = useRef<Array<HTMLButtonElement | null>>([])
+  const viewerId = useId().replaceAll(':', '')
+
+  const requestedActiveIndex = photos.findIndex((photo) => photo.id === activePhotoId)
+  const activeIndex = requestedActiveIndex < 0 ? Math.min(initialIndex, Math.max(photos.length - 1, 0)) : requestedActiveIndex
+  const activePhoto = photos[activeIndex]
+  const activeRotation = activePhoto ? (rotations[activePhoto.id] ?? 0) : 0
+  const canDownload = Boolean(activePhoto && (onDownload || activePhoto.downloadName))
+  const trackStyle = useMemo(() => ({ transform: `translate3d(${-activeIndex * 100}%, 0, 0)` }), [activeIndex])
+
+  const selectPhoto = useCallback((index: number) => {
+    if (photos.length === 0) return null
+
+    const nextIndex = wrapIndex(index, photos.length)
+    const nextPhoto = photos[nextIndex]
+    activeIndexRef.current = nextIndex
+    setActivePhotoId(nextPhoto.id)
+    setStatusMessage('')
+    return nextIndex
+  }, [photos])
+
+  const selectPrevious = useCallback(() => selectPhoto(activeIndexRef.current - 1), [selectPhoto])
+  const selectNext = useCallback(() => selectPhoto(activeIndexRef.current + 1), [selectPhoto])
+
+  useEffect(() => {
+    activeIndexRef.current = activeIndex
+  }, [activeIndex])
+
+  useEffect(() => {
+    const thumbnail = thumbnailButtonsRef.current[activeIndex]
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    thumbnail?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest', inline: 'center' })
+  }, [activeIndex])
+
+  useEffect(() => () => {
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current)
+  }, [])
+
+  const rotateActivePhoto = useCallback((direction: 'clockwise' | 'counter-clockwise') => {
+    if (!activePhoto || !allowRotation) return
+
+    const delta = direction === 'clockwise' ? 90 : -90
+    setRotations((current) => ({
+      ...current,
+      [activePhoto.id]: normalizeRotation((current[activePhoto.id] ?? 0) + delta)
+    }))
+  }, [activePhoto, allowRotation])
+
+  const downloadPhoto = useCallback(async (index: number) => {
+    const photo = photos[index]
+    if (!photo || downloadingId || (!onDownload && !photo.downloadName)) return
+
+    setDownloadingId(photo.id)
+    setStatusMessage(`Downloading ${photo.label}`)
+
+    try {
+      if (onDownload) {
+        await onDownload(photo, index)
+      } else {
+        downloadFromSource(photo)
+      }
+      setStatusMessage(`Downloaded ${photo.label}`)
+    } catch (error) {
+      setStatusMessage(`Unable to download ${photo.label}`)
+      onDownloadError?.(error, photo)
+    } finally {
+      setDownloadingId(null)
+    }
+  }, [downloadingId, onDownload, onDownloadError, photos])
+
+  const downloadActivePhoto = useCallback(() => {
+    void downloadPhoto(activeIndexRef.current)
+  }, [downloadPhoto])
+
+  const runPrimaryAction = useCallback(() => {
+    if (!activePhoto || !onPrimaryAction) return
+    onPrimaryAction({ index: activeIndex, photo: activePhoto, rotation: activeRotation, rotations })
+  }, [activeIndex, activePhoto, activeRotation, onPrimaryAction, rotations])
+
+  const focusThumbnail = useCallback((index: number | null) => {
+    if (index === null) return
+    if (focusFrameRef.current !== null) window.cancelAnimationFrame(focusFrameRef.current)
+    focusFrameRef.current = window.requestAnimationFrame(() => {
+      focusFrameRef.current = null
+      thumbnailButtonsRef.current[index]?.focus({ preventScroll: true })
+    })
+  }, [])
+
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.altKey || event.ctrlKey || event.metaKey || isTextEntryTarget(event.target)) return
+
+    const target = event.target instanceof HTMLElement ? event.target : null
+    const startedInThumbnails = Boolean(target?.closest('[data-photo-viewer-thumbnail]'))
+    let handled = true
+
+    if (event.key === 'ArrowLeft' || event.key === 'Left' || event.key === 'h' || event.key === 'H') {
+      const nextIndex = selectPrevious()
+      focusThumbnail(startedInThumbnails ? nextIndex : null)
+    } else if (event.key === 'ArrowRight' || event.key === 'Right' || event.key === 'l' || event.key === 'L') {
+      const nextIndex = selectNext()
+      focusThumbnail(startedInThumbnails ? nextIndex : null)
+    } else if (startedInThumbnails && event.key === 'Home') {
+      focusThumbnail(selectPhoto(0))
+    } else if (startedInThumbnails && event.key === 'End') {
+      focusThumbnail(selectPhoto(photos.length - 1))
+    } else if ((event.key === 'r' || event.key === 'R') && allowRotation) {
+      rotateActivePhoto(event.shiftKey ? 'counter-clockwise' : 'clockwise')
+    } else if ((event.key === 'd' || event.key === 'D') && canDownload) {
+      downloadActivePhoto()
+    } else if ((event.key === 's' || event.key === 'S') && onPrimaryAction) {
+      runPrimaryAction()
+    } else {
+      handled = false
+    }
+
+    if (!handled) return
+    event.preventDefault()
+    event.stopPropagation()
+  }, [allowRotation, canDownload, downloadActivePhoto, focusThumbnail, onPrimaryAction, photos.length, rotateActivePhoto, runPrimaryAction, selectNext, selectPhoto, selectPrevious])
+
+  const handlePointerDown = useCallback((event: PointerEvent) => {
+    if ((event.pointerType === 'mouse' && event.button !== 0) || isInteractiveTarget(event.target)) return
+    pointerStartRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY }
+    ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+  }, [])
+
+  const handlePointerUp = useCallback((event: PointerEvent) => {
+    const start = pointerStartRef.current
+    pointerStartRef.current = null
+    if (!start || start.id !== event.pointerId) return
+
+    const deltaX = event.clientX - start.x
+    const deltaY = event.clientY - start.y
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) <= Math.abs(deltaY)) return
+    if (deltaX < 0) selectNext()
+    else selectPrevious()
+  }, [selectNext, selectPrevious])
+
+  const clearPointerStart = useCallback(() => {
+    pointerStartRef.current = null
+  }, [])
+
+  const hasMobileActions = Boolean(activePhoto && (allowRotation || canDownload || onPrimaryAction))
+  const showFooter = photos.length > 1 || hasMobileActions
+
+Dialog.Root(open={open} onOpenChange={onOpenChange})
+  Dialog.Portal
+    Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/80')
+    Dialog.Popup(
+      ~ ref={popupRef}
+      ~ initialFocus={() => popupRef.current}
+      ~ onKeyDownCapture={handleKeyDown}
+      ~ className='fixed inset-0 z-50 flex h-dvh w-screen flex-col gap-0 overflow-hidden overscroll-contain bg-zinc-950 p-0 text-white outline-none'
+      ~ )
+      Dialog.Title(className='sr-only') #{title}
+      Dialog.Description(className='sr-only') Fullscreen photo viewer. Swipe or use the left and right arrow keys to move between photos.
+
+      header(className='flex shrink-0 items-center gap-3 border-b border-white/10 bg-black/70 pb-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-xl sm:pb-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))]')
+        div(className='min-w-0 flex-1')
+          p(className='truncate font-poly font-medium text-white text-sm') #{title}
+          if activePhoto
+            p(className='mt-0.5 truncate text-2xs text-white/45')
+              span(className='capitalize') #{activePhoto.label}
+              span(className='mx-1' aria-hidden={true}) ·
+              span #{activeIndex + 1} of #{photos.length}
+              if activePhoto.description
+                fragment
+                  span(className='mx-1' aria-hidden={true}) ·
+                  span #{activePhoto.description}
+          else
+            p(className='mt-0.5 text-2xs text-white/50') No photos available
+
+        if activePhoto
+          div(className='hidden shrink-0 items-center gap-1 sm:flex')
+            if allowRotation
+              fragment
+                button(type='button' aria-keyshortcuts='Shift+R' aria-label='Rotate photo counter-clockwise' title='Rotate left (Shift + R)' onClick={() => rotateActivePhoto('counter-clockwise')} className='grid size-10 cursor-pointer place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white')
+                  Icon(name='rotate-ccw' className='size-5')
+                button(type='button' aria-keyshortcuts='R' aria-label='Rotate photo clockwise' title='Rotate right (R)' onClick={() => rotateActivePhoto('clockwise')} className='grid size-10 cursor-pointer place-items-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white')
+                  Icon(name='rotate-cw' className='size-5')
+            if canDownload
+              button(type='button' aria-keyshortcuts='D' aria-label='Download active photo' title='Download (D)' disabled={downloadingId !== null} onClick={downloadActivePhoto} className='grid size-10 cursor-pointer place-items-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-50')
+                Icon(name={downloadingId ? 'spinner-ring' : 'download-line'} className='size-5')
+            if onPrimaryAction
+              button(type='button' aria-keyshortcuts='S' onClick={runPrimaryAction} className='ml-1 h-9 cursor-pointer rounded-lg bg-white px-4 text-sm font-semibold text-black transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white') #{primaryActionLabel}
+
+        Dialog.Close(className='grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white' aria-label='Close photo viewer')
+          Icon(name='close-small' className='size-5')
+          span(className='sr-only') Close photo viewer
+
+      if activePhoto
+        section(
+          ~ className='relative min-h-0 flex-1 overflow-hidden bg-black touch-pan-y select-none'
+          ~ aria-label='Photo carousel'
+          ~ onPointerDown={handlePointerDown}
+          ~ onPointerUp={handlePointerUp}
+          ~ onPointerCancel={clearPointerStart}
+          ~ onLostPointerCapture={clearPointerStart}
+          ~ )
+          div(className='flex h-full motion-safe:transition-transform motion-safe:duration-200' style={trackStyle})
+            each photo, index in photos key photo.id
+              ViewerSlide(activeIndex={activeIndex} index={index} onPhotoError={onPhotoError} photo={photo} photoCount={photos.length} rotation={rotations[photo.id] ?? 0} viewerId={viewerId})
+          if photos.length > 1
+            fragment
+              button(type='button' aria-label='Previous photo' onClick={() => { selectPrevious() }} className='absolute left-[max(0.75rem,env(safe-area-inset-left))] top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-white/15 bg-black/45 text-white/60 hover:text-white backdrop-blur-md transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:grid')
+                Icon(name='arrow-left' className='size-4')
+              button(type='button' aria-label='Next photo' onClick={() => { selectNext() }} className='absolute right-[max(0.75rem,env(safe-area-inset-right))] top-1/2 z-20 hidden size-11 -translate-y-1/2 cursor-pointer place-items-center rounded-full border border-white/15 bg-black/45 text-white/60 hover:text-white backdrop-blur-md transition-colors hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:grid')
+                Icon(name='arrow-right' className='size-4')
+      else
+        div(className='grid min-h-0 flex-1 place-items-center bg-black px-6 text-center')
+          div(className='text-white/55')
+            Icon(name='gallery' className='mx-auto size-8')
+            p(className='mt-3 text-sm') There are no photos to display.
+
+      if showFooter
+        footer(className='flex flex-col items-center justify-center shrink-0 border-t border-white/10 bg-black/90 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-xl sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-3')
+          if hasMobileActions
+            div(className='w-fit mb-3 flex items-center justify-center gap-0 sm:hidden border border-white/10 rounded-3xl overflow-hidden')
+              if allowRotation
+                fragment
+                  button(type='button' aria-label='Rotate photo counter-clockwise' onClick={() => rotateActivePhoto('counter-clockwise')} className='grid h-10 w-12 touch-manipulation cursor-pointer place-items-center bg-white/5 text-white/70 hover:text-white active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white')
+                    Icon(name='rotate-ccw' className='size-5')
+                  button(type='button' aria-label='Rotate photo clockwise' onClick={() => rotateActivePhoto('clockwise')} className='grid h-10 w-12 touch-manipulation cursor-pointer place-items-center bg-white/5 text-white/70 active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white')
+                    Icon(name='rotate-cw' className='size-5')
+              if canDownload
+                button(type='button' aria-label='Download active photo' disabled={downloadingId !== null} onClick={downloadActivePhoto} className='grid h-10 w-12 touch-manipulation cursor-pointer place-items-center bg-white/5 text-white/70 active:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white disabled:cursor-wait disabled:opacity-50')
+                  Icon(name={downloadingId ? 'spinner-ring' : 'download'} className='size-5')
+              if onPrimaryAction
+                button(type='button' onClick={runPrimaryAction} className='h-11 touch-manipulation cursor-pointer rounded-lg bg-white px-5 font-semibold text-black active:bg-white/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white') #{primaryActionLabel}
+
+          if photos.length > 1
+            div(role='tablist' aria-label='Choose a photo' aria-orientation='horizontal' className='mx-auto flex max-w-4xl snap-x items-center gap-2 overflow-x-auto rounded-lg py-0.5 sm:justify-center')
+              each photo, index in photos key photo.id
+                ViewerThumbnail(activeIndex={activeIndex} buttonRef={(element) => { thumbnailButtonsRef.current[index] = element }} index={index} onPhotoError={onPhotoError} onSelect={() => selectPhoto(index)} photo={photo} photoCount={photos.length} rotation={rotations[photo.id] ?? 0} viewerId={viewerId})
+
+          p(className='mt-2 hidden text-center text-[10px] tracking-wider text-white/35 sm:block')
+            | Swipe or use ← → / H L to browse#{allowRotation ? ' · R to rotate' : ''}#{canDownload ? ' · D to download' : ''}#{onPrimaryAction ? ' · S to select' : ''}
+
+      p(className='sr-only' aria-live='polite' aria-atomic='true') #{statusMessage || (activePhoto ? `${activePhoto.label}, photo ${activeIndex + 1} of ${photos.length}` : '')}

@@ -457,15 +457,15 @@ export const icons = {
   },
   'rotate-ccw': {
     symbol:
-      '<path fill="currentColor" d="M13 4.07V1L8.45 5.55L13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93M7.1 18.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47m1.02-4.47L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47"/>',
-    viewBox: '0 0 24 24',
-    set: 'mdi'
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 4.55a8 8 0 0 0-6 14.9M9 15v5H4M18.37 7.16v.01M13 19.94v.01m3.84-1.58v.01m2.53-3.28v.01m.57-4.11v.01"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   },
   'rotate-cw': {
     symbol:
-      '<path fill="currentColor" d="m16.89 15.5l1.42 1.39c.9-1.16 1.45-2.5 1.62-3.89h-2.02c-.14.87-.48 1.72-1.02 2.5M13 17.9v2.02c1.39-.17 2.74-.71 3.9-1.61l-1.44-1.44c-.75.54-1.59.89-2.46 1.03m6.93-6.9a7.9 7.9 0 0 0-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47m-2.36-5.45L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10z"/>',
-    viewBox: '0 0 24 24',
-    set: 'mdi'
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 4.55a8 8 0 0 1 6 14.9M15 15v5h5M5.63 7.16v.01M4.06 11v.01m.57 4.09v.01m2.53 3.26v.01M11 19.94v.01"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   },
   'spinner-ferris': {
     symbol:
@@ -582,6 +582,12 @@ export const icons = {
   down: {
     symbol:
       '<path d="M9.097 9.904a1.46 1.46 0 0 1-2.194 0L4.215 6.97a.856.856 0 0 1 0-1.135.69.69 0 0 1 1.04 0L7.941 8.77a.076.076 0 0 0 .116 0l2.688-2.935a.69.69 0 0 1 1.039 0 .856.856 0 0 1 0 1.135z" transform-origin="0 0" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  download: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M7 11l5 5 5-5m-5-7v12"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   }

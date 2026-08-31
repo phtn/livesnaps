@@ -1,6 +1,7 @@
 import { api } from '../../convex/_generated/api'
 import {
   deleteR2Object,
+  getR2Object,
   putR2Object,
   type R2Config
 } from '../lib/r2/server'
@@ -9,11 +10,12 @@ import {
   buildSnapObjectKey,
   getSnapSlot,
   isSnapCaptureId,
+  isSnapObjectKey,
   isSnapUploadId,
   SNAP_IMAGE_MAX_BYTES,
   type SnapSlotIndex
 } from '../lib/r2/snap-images'
-import { authenticateRequest, RequestError } from './convex'
+import { authenticateReadRequest, authenticateRequest, RequestError } from './convex'
 
 export interface SnapPhotoRouteEnvironment {
   convexUrl?: string
@@ -141,6 +143,54 @@ async function saveSnapPhoto(request: Request, environment: SnapPhotoRouteEnviro
   }
 
   return json({ ok: true })
+}
+
+export async function handleSnapSubmissionPhotoPreviewRequest(
+  request: Request,
+  proofId: string,
+  slot: number,
+  environment: SnapPhotoRouteEnvironment = {}
+) {
+  try {
+    if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
+
+    const { client } = authenticateReadRequest(request, environment.convexUrl)
+    const objectKey = await client.query(api.snaps.q.getMinePhotoObjectKey, { proofId, slot })
+
+    if (!objectKey || !isSnapObjectKey(objectKey)) {
+      return json({ error: 'Photo not found.' }, 404)
+    }
+
+    const photoResponse = await getR2Object(objectKey, getR2Environment(environment))
+
+    if (!photoResponse.ok || !photoResponse.body) {
+      if (photoResponse.status === 404) return json({ error: 'Photo not found.' }, 404)
+      throw new Error(`R2 photo fetch failed with status ${photoResponse.status}.`)
+    }
+
+    const contentType = photoResponse.headers.get('content-type') || 'image/webp'
+    const contentLength = photoResponse.headers.get('content-length')
+    const etag = photoResponse.headers.get('etag')
+
+    return new Response(photoResponse.body, {
+      headers: {
+        'cache-control': 'private, max-age=86400',
+        'content-type': contentType,
+        ...(contentLength ? { 'content-length': contentLength } : {}),
+        ...(etag ? { etag } : {})
+      }
+    })
+  } catch (error) {
+    if (error instanceof RequestError) return json({ error: error.message }, error.status)
+    if (error instanceof Error && /unauthenticated|authentication/i.test(error.message)) {
+      return json({ error: 'Your sign-in session has expired. Sign in again.' }, 401)
+    }
+
+    return json(
+      { error: error instanceof Error ? error.message : 'Unable to load the proof image.' },
+      503
+    )
+  }
 }
 
 export async function handleSnapPhotoRequest(
