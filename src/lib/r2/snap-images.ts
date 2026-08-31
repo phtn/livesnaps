@@ -59,7 +59,7 @@ export const isSnapObjectKey = (value: string) =>
 
 export const getSnapImageUrl = (objectKey: string) => {
   if (!isSnapObjectKey(objectKey)) {
-    throw new Error('Invalid proof photo object key.')
+    throw new Error('Invalid snap photo object key.')
   }
 
   return `/api/r2/${objectKey.split('/').map(encodeURIComponent).join('/')}`

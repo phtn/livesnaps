@@ -2,16 +2,16 @@ import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
 import {
-  createProofFullReportDocument,
-  flattenProofAttributeFields,
-  type ProofFullReportDocument
+  createSnapFullReportDocument,
+  flattenSnapAttributeFields,
+  type SnapFullReportDocument
 } from './full-report'
 
-const proofId = 'proof_fixture_01' as Id<'proofs'>
+const snapId = 'snap_fixture_01' as Id<'snaps'>
 
-const createProof = (): Doc<'proofs'> => ({
+const createSnap = (): Doc<'snaps'> => ({
   _creationTime: Date.parse('2026-08-09T01:00:00.000Z'),
-  _id: proofId,
+  _id: snapId,
   email: 'ada@example.test',
   firebase_uid: 'firebase-ada',
   full_name: 'Ada Lovelace',
@@ -124,12 +124,12 @@ const createProof = (): Doc<'proofs'> => ({
           longitude: 121.02435,
           speed_meters_per_second: 0
         },
-        r2_key: 'proofs/upload-fixture/1-front-capture-front-01.webp',
+        r2_key: 'snaps/upload-fixture/1-front-capture-front-01.webp',
         size: 123_456,
         slot: 1
       }
     ],
-    storage_prefix: 'proofs/',
+    storage_prefix: 'snaps/',
     upload_id: 'upload-fixture'
   },
   mileage: 12_345,
@@ -141,7 +141,7 @@ const createProof = (): Doc<'proofs'> => ({
   year: 2024
 })
 
-const allReportValues = (report: ProofFullReportDocument) =>
+const allReportValues = (report: SnapFullReportDocument) =>
   report.blocks.flatMap((block) => [
     ...block.fields.map((field) => field.value),
     ...(block.kind === 'evidence' ? block.items.flatMap((item) => item.fields.map((field) => field.value)) : [])
@@ -149,10 +149,10 @@ const allReportValues = (report: ProofFullReportDocument) =>
 
 describe('full proof report reshaping', () => {
   test('maps the authoritative row into deduplicated semantic sections without losing stored data', () => {
-    const report = createProofFullReportDocument(createProof(), new Date('2026-08-09T02:00:00.000Z'))
+    const report = createSnapFullReportDocument(createSnap(), new Date('2026-08-09T02:00:00.000Z'))
     const values = allReportValues(report)
 
-    assert.equal(report.kind, 'proof-full-row-report')
+    assert.equal(report.kind, 'snap-full-row-report')
     assert.equal(report.metrics.find((metric) => metric.label === 'IP country match')?.value, 'Unknown')
     assert.equal(report.blocks.some((block) => block.kind === 'callout'), false)
 
@@ -177,10 +177,10 @@ describe('full proof report reshaping', () => {
       '98.0%',
       'None detected',
       'command-a-vision-07-2025',
-      'proofs/upload-fixture/1-front-capture-front-01.webp',
+      'snaps/upload-fixture/1-front-capture-front-01.webp',
       'proof-video-fixture.webm',
       'upload-fixture',
-      proofId,
+      snapId,
       '9007199254740993n',
       'bytes:3:000fff',
       'fixture-note'
@@ -190,13 +190,13 @@ describe('full proof report reshaping', () => {
   })
 
   test('surfaces genuine snapshot differences while treating the known null-to-false projection as an alias', () => {
-    const proof = createProof()
-    const report = createProofFullReportDocument({
-      ...proof,
-      location: proof.location
+    const snap = createSnap()
+    const report = createSnapFullReportDocument({
+      ...snap,
+      location: snap.location
         ? {
-            ...proof.location,
-            address: { ...proof.location.address, city: 'Pasig' }
+            ...snap.location,
+            address: { ...snap.location.address, city: 'Pasig' }
           }
         : undefined
     })
@@ -208,9 +208,9 @@ describe('full proof report reshaping', () => {
   })
 
   test('uses the compact location as an explicit fallback for legacy rows', () => {
-    const legacyProof = createProof()
-    delete legacyProof.location_session
-    const report = createProofFullReportDocument(legacyProof)
+    const legacySnap = createSnap()
+    delete legacySnap.location_session
+    const report = createSnapFullReportDocument(legacySnap)
     const location = report.blocks.find((block) => block.id === 'location')
 
     assert.ok(location && location.kind === 'section')
@@ -219,7 +219,7 @@ describe('full proof report reshaping', () => {
   })
 
   test('flattens nested Convex values with stable paths and lossless scalar encodings', () => {
-    const fields = flattenProofAttributeFields({ z: [Number.NaN, Number.POSITIVE_INFINITY], a: new Uint8Array([1, 2]).buffer })
+    const fields = flattenSnapAttributeFields({ z: [Number.NaN, Number.POSITIVE_INFINITY], a: new Uint8Array([1, 2]).buffer })
 
     assert.deepEqual(fields.map((field) => field.label), ['A', 'Z / Item 1', 'Z / Item 2'])
     assert.deepEqual(fields.map((field) => field.value), ['bytes:2:0102', 'NaN', 'Infinity'])

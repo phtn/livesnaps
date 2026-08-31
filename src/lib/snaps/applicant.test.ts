@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { resolveProofApplicant } from './applicant'
+import { resolveSnapApplicant } from './applicant'
 
 test('proof applicant identity comes from normalized authenticated profile claims', () => {
   assert.deepEqual(
-    resolveProofApplicant({
+    resolveSnapApplicant({
       email: '  Applicant@Example.com ',
       name: '  Applicant Name  ',
       subject: ' firebase-applicant-uid ',
@@ -20,10 +20,10 @@ test('proof applicant identity comes from normalized authenticated profile claim
 })
 
 test('proof applicant identity requires authentication, display name, email, and a Firebase UID', () => {
-  assert.throws(() => resolveProofApplicant(null), /Sign in/)
+  assert.throws(() => resolveSnapApplicant(null), /Sign in/)
   assert.throws(
     () =>
-      resolveProofApplicant({
+      resolveSnapApplicant({
         email: 'applicant@example.com',
         name: ' ',
         subject: 'firebase-applicant-uid',
@@ -33,7 +33,7 @@ test('proof applicant identity requires authentication, display name, email, and
   )
   assert.throws(
     () =>
-      resolveProofApplicant({
+      resolveSnapApplicant({
         email: 'invalid',
         name: 'Applicant',
         subject: 'firebase-applicant-uid',
@@ -43,7 +43,7 @@ test('proof applicant identity requires authentication, display name, email, and
   )
   assert.throws(
     () =>
-      resolveProofApplicant({
+      resolveSnapApplicant({
         email: 'applicant@example.com',
         name: 'Applicant',
         tokenIdentifier: 'firebase|applicant'

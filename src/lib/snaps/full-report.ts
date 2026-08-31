@@ -173,13 +173,13 @@ const dynamicScalar = (value: unknown): string => {
 const attributeLabel = (path: string[]) =>
   path.map((part) => (/^\[\d+\]$/.test(part) ? `Item ${Number(part.slice(1, -1)) + 1}` : humanize(part))).join(' / ')
 
-export const flattensnapAttributeFields = (value: unknown, path: string[] = []): SnapReportField[] => {
+export const flattenSnapAttributeFields = (value: unknown, path: string[] = []): SnapReportField[] => {
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return [{ label: attributeLabel(path) || 'Attributes', mono: true, span: 2, value: 'Empty list' }]
     }
 
-    return value.flatMap((item, index) => flattensnapAttributeFields(item, [...path, `[${index}]`]))
+    return value.flatMap((item, index) => flattenSnapAttributeFields(item, [...path, `[${index}]`]))
   }
 
   if (value && typeof value === 'object' && !(value instanceof ArrayBuffer)) {
@@ -191,7 +191,7 @@ export const flattensnapAttributeFields = (value: unknown, path: string[] = []):
       return [{ label: attributeLabel(path) || 'Attributes', mono: true, span: 2, value: 'Empty object' }]
     }
 
-    return entries.flatMap(([key, item]) => flattensnapAttributeFields(item, [...path, key]))
+    return entries.flatMap(([key, item]) => flattenSnapAttributeFields(item, [...path, key]))
   }
 
   return [
@@ -343,7 +343,7 @@ const canonicalLocationFields = (snap: Doc<'snaps'>): { description: string; fie
   }
 }
 
-export const createsnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = new Date()): SnapFullReportDocument => {
+export const createSnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = new Date()): SnapFullReportDocument => {
   const session = snap.location_session
   const status = session?.status ?? 'pending'
   const accuracy = session?.best_accuracy_meters ?? snap.location?.best_accuracy_meters ?? null
@@ -498,7 +498,7 @@ export const createsnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = n
   if (snap.metadata.attributes !== undefined) {
     blocks.push({
       description: 'Supplemental Convex values flattened into stable field paths without lossy JSON conversion.',
-      fields: flattensnapAttributeFields(snap.metadata.attributes),
+      fields: flattenSnapAttributeFields(snap.metadata.attributes),
       id: 'attributes',
       index: '08',
       kind: 'section',

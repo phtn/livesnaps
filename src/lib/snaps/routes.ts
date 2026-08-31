@@ -6,5 +6,5 @@ export const getApplicantProfilePath = (proofId: Id<'snaps'>) => `/l/applicants/
 
 export const getSnapSubmissionPath = (proofId: Id<'snaps'>) => `/p/submissions/${encodeURIComponent(proofId)}`
 
-export const getSnapsubmissionPhotoPath = (proofId: Id<'snaps'>, slot: number) =>
+export const getSnapSubmissionPhotoPath = (proofId: Id<'snaps'>, slot: number) =>
   `/api/snaps/${encodeURIComponent(proofId)}/photos/${encodeURIComponent(slot)}`

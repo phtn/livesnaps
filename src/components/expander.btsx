@@ -167,6 +167,7 @@ import type { api } from '../../convex/_generated/api'
 import { useConvexQuery } from '@/hooks/use-convex-query'
 import {Icon} from "@/lib/icons";
 import { DEFAULT_IMAGE_CAPTURE_SETTINGS, type ImageCaptureSettingsValues } from '@/lib/snaps/snap-settings'
+import { parseCaptureReading } from '@/lib/snaps/capture-reading'
 import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
 import  CapturedPhotos from './captured-photos.btsx'
 import { CAPTURE_SLOTS, CaptureSlotIndex, MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'

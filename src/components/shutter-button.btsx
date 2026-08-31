@@ -52,13 +52,14 @@ setup
   const isBusy = state === 'enabling-camera' || state === 'capturing'
   const isEnabled = state === 'ready-to-enable-camera' || state === 'ready-to-capture'
   const isCameraMode = state === 'waiting-to-capture' || state === 'ready-to-capture' || state === 'capturing' || state === 'complete'
-button(className={cn(viewportStyles.shutterButton, 'grid scale-45 size-32 place-items-center rounded-full border bg-beach border-white text-white',
+button(className={cn(viewportStyles.shutterButton, isCameraMode ? ['grid scale-45 size-32 place-items-center rounded-full border bg-beach border-white text-white',
   ~ 'dark:text-background dark:border-lime-100 dark:bg-lime-200',
   ~ 'dark:shadow-[0_20px_40px_oklch(0.939_0.128_124.56/0.15),0_0_0_12px_oklch(0.94_0.128_134.56/0.15)]',
   ~ 'active:dark:shadow-[0_20px_40px_oklch(0.939_0.128_124.56/0.15),0_0_0_4px_oklch(0.94_0.128_134.56/0.15)]',
   ~ 'shadow-[0_20px_40px_oklch(0.68_0.125_189.22/0.24),0_0_0_12px_oklch(0.76_0.115_189.22/0.15)]',
   ~ 'active:shadow-[0_20px_40px_oklch(0.68_0.125_189.22/0.24),0_0_0_4px_oklch(0.76_0.115_189.22/0.15)]',
-  ~ 'active:scale-42 transition-all duration-200')}
+  ~ 'active:scale-42 transition-all duration-200'] :
+  ~ 'flex h-12 cursor-pointer items-center justify-center gap-3 rounded-full border-0 bg-foreground px-6 text-background transition-[background-color,border-color,color,transform,box-shadow] duration-160 ease-[ease] disabled:cursor-not-allowed')}
   ~ data-state={state}
   ~ onClick={isCameraMode ? capturePhoto : enableCamera}
   ~ disabled={!isEnabled}

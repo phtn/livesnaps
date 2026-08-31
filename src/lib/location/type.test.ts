@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { isProofLocationCurrentAndAccurate, parseDeviceLocation, type DeviceLocation } from './type'
+import { isSnapLocationCurrentAndAccurate, parseDeviceLocation, type DeviceLocation } from './type'
 
 const location: DeviceLocation = {
   latitude: 14.5995,
@@ -36,7 +36,7 @@ test('device location parsing preserves every browser location field', () => {
 test('device location validation rejects impossible coordinates and stale or imprecise fixes', () => {
   assert.equal(parseDeviceLocation({ ...location, latitude: 91 }), null)
   assert.equal(parseDeviceLocation({ ...location, accuracy_meters: Number.NaN }), null)
-  assert.equal(isProofLocationCurrentAndAccurate(location, 20_000), true)
-  assert.equal(isProofLocationCurrentAndAccurate({ ...location, accuracy_meters: 21 }, 20_000), false)
-  assert.equal(isProofLocationCurrentAndAccurate(location, 40_000), false)
+  assert.equal(isSnapLocationCurrentAndAccurate(location, 20_000), true)
+  assert.equal(isSnapLocationCurrentAndAccurate({ ...location, accuracy_meters: 21 }, 20_000), false)
+  assert.equal(isSnapLocationCurrentAndAccurate(location, 40_000), false)
 })
