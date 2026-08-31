@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --local",
+    "dev": "wrangler dev --local --port 3000",
     "dev:client": "rspack dev --mode development",
     "build": "rspack build --mode production",
     "preview": "rspack dev --mode production",

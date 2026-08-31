@@ -50,7 +50,7 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
   --color-input: var(--input);
-  --color-destructive: var(--destructive);
+  --color-destructive: oklch(0.7039 0.1883 30.36);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-secondary-foreground: var(--secondary-foreground);

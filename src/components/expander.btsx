@@ -181,7 +181,7 @@ import ShutterButton from './shutter-button.btsx'
 import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
 import CameraStatusbar from './camera-statusbar.btsx'
 import { upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
-import { onError } from '@/lib/toast'
+import { onError, onInfo, onSuccess } from '@/lib/toast'
 import { createUuid } from '@/lib/uuid'
 
 props { cancelSession, completeSession, endCompletedSession, getCurrentIdToken, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
@@ -518,7 +518,7 @@ setup
     const bgUploadId = sessionUploadId
     const bgIsRetake = retakeSlotsRef.current.has(captureNumber)
 
-    // Background pipeline: optimize + location + upload + vision handling — does NOT block shutter
+    // Background pipeline: optimize + location + persistence — does NOT block shutter
     void (async () => {
       try {
         const locationPromise = isDebugMode ? Promise.resolve(null) : getCurrentLocation()
@@ -562,9 +562,11 @@ setup
 
         const file = outputFile
 
-        // Persist: fast server path (R2 + Convex) — vision runs via server `after` in background
+        // Debug captures stay local. The production path persists through R2 + Convex.
         const persistResult: PersistPhotoResult =
-          location || isDebugMode
+          isDebugMode
+            ? { vehicle: null, mileageKm: null, captureIntegrity: null }
+            : location
             ? await persistCapturedPhoto({
                 captureId: bgCaptureId,
                 capturedAt: bgCapturedAt,

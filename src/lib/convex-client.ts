@@ -1,10 +1,12 @@
 import { ConvexClient } from 'convex/browser'
-import { onIdTokenChanged } from 'firebase/auth'
+import { onAuthStateChanged } from 'firebase/auth'
 import type { api } from '../../convex/_generated/api'
 import { auth } from '@/lib/firebase'
+import { getSnapRuntimeMode } from '@/lib/snaps/debug'
 
 const url = import.meta.env.PUBLIC_CONVEX_URL
-export const convexClient = url ? new ConvexClient(url) : null
+const isDebugRuntime = getSnapRuntimeMode().debug
+export const convexClient = url && !isDebugRuntime ? new ConvexClient(url) : null
 
 const fetchAuthToken = async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
   const user = auth.currentUser
@@ -12,9 +14,9 @@ const fetchAuthToken = async ({ forceRefreshToken }: { forceRefreshToken: boolea
 }
 
 if (convexClient) {
-  onIdTokenChanged(auth, () => {
-    // Reconfigure on sign-in, token rotation, and sign-out. The fetcher returns
-    // null after sign-out, which resets Convex's authenticated state.
+  onAuthStateChanged(auth, () => {
+    // Reconfigure only on sign-in and sign-out. Convex owns token rotation;
+    // re-registering on every Firebase token change can create refresh races.
     convexClient.setAuth(fetchAuthToken)
   })
 }

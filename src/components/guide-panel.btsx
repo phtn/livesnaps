@@ -25,7 +25,7 @@ module
 props { activeCaptureIndex, capturedCount }: GuidePanelProps
 setup const isComplete = capturedCount >= MAX_CAPTURED_PHOTOS
 
-div(className='mt-2 flex shrink-0 scale-100 items-center overflow-hidden rounded-md border bg-white/60 font-okx text-base tracking-wide dark:bg-black/50 sm:scale-80')
+div(className='mt-2 flex shrink-0 scale-100 items-center overflow-hidden rounded-md border border-border/60 bg-white/60 font-okx text-base tracking-wide dark:bg-black/50 sm:scale-80')
   if isComplete
     div(className='flex w-18 items-center justify-center bg-slate-500/8 font-okx text-base tracking-wide backdrop-blur-3xl dark:bg-black/65')
       Icon(name='checkmark-circle' className='size-5')
@@ -33,14 +33,13 @@ div(className='mt-2 flex shrink-0 scale-100 items-center overflow-hidden rounded
     h3(className='flex w-18 select-none items-center justify-center bg-slate-500/8 font-okx text-base tracking-wide backdrop-blur-3xl dark:bg-black/65')
       span(className='py-1.75') Next
   if isComplete
-    h3(className='flex items-center space-x-1 rounded-sm border-x bg-beach/70 px-8 py-2 font-okx text-base font-medium italic tracking-wide shadow-md backdrop-blur-3xl dark:bg-lime-200 dark:text-background')
+    h3(className='flex items-center space-x-1 rounded-sm border-x border-border/60 bg-beach/70 px-8 py-2 font-okx text-base font-medium italic tracking-wide shadow-md backdrop-blur-3xl dark:bg-lime-200 dark:text-background')
       Icon(name='spinner-ring' className='size-5')
       span Finishing up...
   else
-    div(className='flex w-40 select-none items-center justify-center space-x-4 rounded-sm border-x bg-beach/70 py-2 shadow-md backdrop-blur-3xl dark:bg-lime-200')
-      span(className='font-okx text-base font-medium uppercase text-slate-800 dark:text-background') #{INSPECTION_LABELS[activeCaptureIndex]}
+    div(className='flex w-40 select-none items-center justify-center space-x-4 rounded-sm border-x border-border/60 bg-beach/70 py-2 shadow-md backdrop-blur-3xl dark:bg-lime-200')
+      span(className='font-sans text-base font-medium uppercase text-slate-800 dark:text-background') #{INSPECTION_LABELS[activeCaptureIndex]}
       div(className={cn('size-6 select-none', activeCaptureIndex === 4 && '-scale-x-100')})
-        Icon(name={ICONS[activeCaptureIndex]} className='size-6 text-slate-700 dark:text-background')
+        Icon(name={ICONS[activeCaptureIndex]} className='size-6 text-slate-700 dark:text-background mt-0')
   h3(className='flex w-18 items-center justify-center bg-slate-500/8 font-okx text-base tracking-wide backdrop-blur-3xl dark:bg-black/65')
     span(className='py-1.75') #{isComplete ? MAX_CAPTURED_PHOTOS : activeCaptureIndex} of #{MAX_CAPTURED_PHOTOS}
-
