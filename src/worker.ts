@@ -12,6 +12,9 @@ interface WorkerEnvironment {
 
 const SESSION_PATH = '/api/snaps/session'
 
+const isSpaNavigation = (request: Request) =>
+  request.method === 'GET' && request.headers.get('accept')?.includes('text/html')
+
 export default {
   async fetch(request: Request, env: WorkerEnvironment): Promise<Response> {
     if (new URL(request.url).pathname === SESSION_PATH) {
@@ -23,6 +26,9 @@ export default {
       return handleSnapSessionRequest(request, environment)
     }
 
-    return env.ASSETS.fetch(request)
+    const response = await env.ASSETS.fetch(request)
+    if (response.status !== 404 || !isSpaNavigation(request)) return response
+
+    return env.ASSETS.fetch(new Request(new URL('/', request.url), request))
   }
 }
