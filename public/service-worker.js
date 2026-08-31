@@ -1,4 +1,4 @@
-const CACHE_NAME = 'livesnaps-shell-v2'
+const CACHE_NAME = 'livesnaps-shell-v3'
 const IS_LOCAL_DEVELOPMENT = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname)
 const APP_SHELL = [
   '/',
@@ -36,6 +36,29 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+const fetchAndCache = async (request, cacheKey = request) => {
+  const response = await fetch(request)
+
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME)
+    await cache.put(cacheKey, response.clone())
+  }
+
+  return response
+}
+
+const cachedResponse = async (request, fallback) => {
+  const cached = await caches.match(request)
+  if (cached) return cached
+
+  if (fallback) {
+    const fallbackResponse = await caches.match(fallback)
+    if (fallbackResponse) return fallbackResponse
+  }
+
+  throw new Error(`No cached response is available for ${request.url}`)
+}
+
 self.addEventListener('fetch', (event) => {
   if (IS_LOCAL_DEVELOPMENT) return
 
@@ -44,31 +67,12 @@ self.addEventListener('fetch', (event) => {
 
   if (request.headers.get('accept')?.includes('text/html')) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone()
-            void caches.open(CACHE_NAME).then((cache) => cache.put('/', copy))
-          }
-          return response
-        })
-        .catch(() => caches.match('/'))
+      fetchAndCache(request, '/').catch(() => cachedResponse(request, '/'))
     )
     return
   }
 
   if (new URL(request.url).pathname.startsWith('/api/')) return
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone()
-          void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy))
-        }
-        return response
-      })
-    })
-  )
+  event.respondWith(fetchAndCache(request).catch(() => cachedResponse(request)))
 })

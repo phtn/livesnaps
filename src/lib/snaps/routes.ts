@@ -1,10 +1,24 @@
 import type { Id } from '../../../convex/_generated/dataModel'
 
-export const getSnapDetailPath = (proofId: Id<'snaps'>) => `/l/snaps/${encodeURIComponent(proofId)}`
+const SNAP_SUBMISSION_ROUTE_PATTERN = /^\/snaps\/([^/]+)\/?$/
 
-export const getApplicantProfilePath = (proofId: Id<'snaps'>) => `/l/applicants/${encodeURIComponent(proofId)}`
+export const getSnapDetailPath = (snapId: Id<'snaps'>) => `/admin/snaps/${encodeURIComponent(snapId)}`
 
-export const getSnapSubmissionPath = (proofId: Id<'snaps'>) => `/p/submissions/${encodeURIComponent(proofId)}`
+export const getApplicantProfilePath = (snapId: Id<'snaps'>) => `/applicants/${encodeURIComponent(snapId)}`
 
-export const getSnapSubmissionPhotoPath = (proofId: Id<'snaps'>, slot: number) =>
-  `/api/snaps/${encodeURIComponent(proofId)}/photos/${encodeURIComponent(slot)}`
+export const getSnapSubmissionPath = (snapId: Id<'snaps'>) => `/snaps/${encodeURIComponent(snapId)}`
+
+export const getSnapSubmissionRouteId = (pathname: string) => {
+  const encodedSnapId = SNAP_SUBMISSION_ROUTE_PATTERN.exec(pathname)?.[1]
+
+  if (!encodedSnapId) return null
+
+  try {
+    return decodeURIComponent(encodedSnapId)
+  } catch {
+    return null
+  }
+}
+
+export const getSnapSubmissionPhotoPath = (snapId: Id<'snaps'>, slot: number) =>
+  `/api/snaps/${encodeURIComponent(snapId)}/photos/${encodeURIComponent(slot)}`

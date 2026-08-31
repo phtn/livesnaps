@@ -4,20 +4,25 @@ import { Icon } from '@/lib/icons'
 import { getMySubmissions } from '@/lib/convex-client'
 import { getSnapSubmissionPath } from '@/lib/snaps/routes'
 import { cn } from '@/lib/utils'
-import { getCurrentUser, subscribeToAuthState } from '@/lib/firebase'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
 
 module
   type ProofSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
   type ProofSubmissionStatus = ProofSubmission['status']
-  export interface SubmitListProps { className?: string }
+  export interface SubmitListProps {
+    authenticatedUserId: string | null
+    className?: string
+    isAuthenticated: boolean
+    isAuthLoading: boolean
+  }
   const dateFormatter = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
   const statusPresentation: Record<ProofSubmissionStatus, { badge: string; icon: string; iconFrame: string }> = {
     active: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-blue-600 dark:text-blue-300' },
     abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
-    cancelled: { badge: 'border-zinc-500/20 bg-zinc-500/8 text-zinc-700 dark:text-zinc-300', icon: 'cancel', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300' },
-    completed: { badge: 'border-blue-500/25 bg-blue-500/8 text-blue-700 dark:text-blue-300', icon: 'check-circle-fill', iconFrame: 'bg-beach/10 text-beach dark:text-lime-200' },
+    // cancelled: { badge: 'border-mauve-500/20 bg-mauve-500/8 text-mauve-700 dark:text-mauve-300', icon: 'cancel', iconFrame: 'bg-mauve-500/10 text-mauve-600 dark:text-mauve-300' },
+    cancelled: { badge: 'border-red-500/20 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'cancel', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
+    completed: { badge: 'border-beach/25 bg-beach/8 text-beach dark:text-beach', icon: 'check-circle-fill', iconFrame: 'bg-beach/10 text-beach dark:text-beach' },
     invalidated: { badge: 'border-red-500/25 bg-red-500/8 text-red-700 dark:text-red-300', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
     pending: { badge: 'border-amber-500/25 bg-amber-500/8 text-amber-700 dark:text-amber-300', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
   }
@@ -47,21 +52,24 @@ component EmptyState
       Icon(name={isAuthenticated ? 're-up.ph' : 'spinner-ferris'} className='size-4 dark:text-lime-200 text-sand')
     p #{isAuthenticated ? '59% Complete' : '59% Complete'}
 
-props { className }: SubmitListProps
+props { authenticatedUserId, className, isAuthenticated, isAuthLoading }: SubmitListProps
 
 setup
-  const [user, setUser] = useState(getCurrentUser)
   const [submissions, setSubmissions] = useState<ProofSubmission[] | undefined>(undefined)
-  const [isLoading, setIsLoading] = useState(true)
-  const isAuthenticated = user !== null
-  useEffect(() => subscribeToAuthState(() => setUser(getCurrentUser())), [])
+  const [isLoading, setIsLoading] = useState(isAuthLoading || isAuthenticated)
   useEffect(() => {
     let cancelled = false
-    setIsLoading(isAuthenticated)
+
+    if (isAuthLoading) {
+      setIsLoading(true)
+      return () => { cancelled = true }
+    }
+
     if (!isAuthenticated) { setSubmissions([]); setIsLoading(false); return () => { cancelled = true } }
+    setIsLoading(true)
     void getMySubmissions().then((next) => { if (!cancelled) { setSubmissions(next); setIsLoading(false) } }).catch(() => { if (!cancelled) { setSubmissions([]); setIsLoading(false) } })
     return () => { cancelled = true }
-  }, [isAuthenticated])
+  }, [authenticatedUserId, isAuthenticated, isAuthLoading])
 
 section(aria-labelledby='latest-proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})
 

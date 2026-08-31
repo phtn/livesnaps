@@ -1,6 +1,7 @@
 import { createElement, createRoot } from 'octane'
 import ThemeProvider from './components/theme-provider.btsx'
 import { applyTheme, getPreferredTheme } from './lib/theme'
+import { getSnapSubmissionRouteId } from './lib/snaps/routes'
 import './style.css'
 
 const registerServiceWorker = () => {
@@ -17,9 +18,11 @@ const registerServiceWorker = () => {
   }
 
   window.addEventListener('load', () => {
-    void navigator.serviceWorker.register('/service-worker.js', { scope: '/' }).catch(() => {
-      // Service worker support is an enhancement; the app remains usable without it.
-    })
+    void navigator.serviceWorker
+      .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
+      .catch(() => {
+        // Service worker support is an enhancement; the app remains usable without it.
+      })
   })
 }
 
@@ -30,9 +33,18 @@ applyTheme(getPreferredTheme())
 registerServiceWorker()
 
 const root = createRoot(container)
+const snapId = getSnapSubmissionRouteId(window.location.pathname)
 
-void import('./App.btsx').then(({ default: App }) => {
-  root.render(ThemeProvider, {
-    children: createElement(App, { docsUrl: 'https://beast-docs.vercel.app' })
+if (snapId) {
+  void import('./pages/snap-submission-detail.btsx').then(({ default: SnapSubmissionDetail }) => {
+    root.render(ThemeProvider, {
+      children: createElement(SnapSubmissionDetail, { snapId })
+    })
   })
-})
+} else {
+  void import('./App.btsx').then(({ default: App }) => {
+    root.render(ThemeProvider, {
+      children: createElement(App, { docsUrl: 'https://beast-docs.vercel.app' })
+    })
+  })
+}

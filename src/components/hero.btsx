@@ -13,6 +13,7 @@ module
   const HERO_ENTER_ANIMATION = 'animate-in duration-180 ease-out motion-reduce:animate-none'
   const LIST_ENTER_ANIMATION = 'animate-in duration-180 ease-out motion-reduce:animate-none'
   export interface HeroProps {
+    authenticatedUserId: string | null
     error: string | null
     isAuthenticated: boolean
     isAuthLoading: boolean
@@ -25,7 +26,7 @@ module
     return caught.code === 'auth/popup-blocked' || caught.code === 'auth/popup-closed-by-user' || caught.code === 'auth/cancelled-popup-request' || /popup/i.test(caught.message ?? '')
   }
 
-props { error, isAuthenticated, isAuthLoading, isDebugMode, isStarting, onGetStarted }: HeroProps
+props { authenticatedUserId, error, isAuthenticated, isAuthLoading, isDebugMode, isStarting, onGetStarted }: HeroProps
 
 setup
   const [isSigningIn, setIsSigningIn] = useState(false)
@@ -105,4 +106,4 @@ div(className={cn('h-120 px-4 pt-6 md:h-140 md:px-20 lg:px-28 xl:px-32 2xl:px-36
         div(className={cn('absolute z-5 size-64 translate-y-6 rounded-full border bg-beach dark:bg-lime-200', isMobile && 'landscape:-right-2 landscape:size-58 landscape:translate-y-29')})
         div(className={cn('absolute z-5 size-56 translate-y-6 rounded-full border-4 border-dashed border-white dark:border-background', isMobile && 'landscape:right-0 landscape:size-52 landscape:translate-y-29')})
         Icon(name='sparkle' className={cn('absolute right-4 top-14 z-6 size-28 rotate-8 rounded-xl text-background', isMobile && 'landscape:-right-10 landscape:top-2 landscape:size-20')})
-  SubmitList(className={cn(LIST_ENTER_ANIMATION, 'delay-200')})
+  SubmitList(authenticatedUserId={authenticatedUserId} className={cn(LIST_ENTER_ANIMATION, 'delay-200')} isAuthenticated={isAuthenticated} isAuthLoading={isAuthLoading})

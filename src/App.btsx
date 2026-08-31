@@ -307,7 +307,7 @@ div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen 
     div(className='flex flex-col')
       div(className={cn(viewportStyles.pageContent, 'relative z-0', isExpanded && 'pointer-events-none')} inert={isExpanded})
         Suspense(fallback={Fallback})
-          LazyHero(error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})
+          LazyHero(authenticatedUserId={user?.uid ?? null} error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})
       LazyFooter(scrollPct={scrollPct})
 
   Expander(key={sessionUploadId ?? 'inactive-snap-session'} cancelSession={cancelVerificationSession} completeSession={completeVerificationSession} endCompletedSession={endCompletedSession} getCurrentIdToken={getCurrentIdToken} getCurrentLocation={getCurrentLocation} isDebugMode={runtimeMode.debug} isExpanded={isExpanded} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} sessionUploadId={sessionUploadId})

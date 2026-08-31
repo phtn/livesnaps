@@ -44,7 +44,11 @@ export default {
   entry: './src/main.ts',
   output: {
     clean: true,
-    publicPath: '/'
+    publicPath: '/',
+    filename: '[name].[contenthash:8].js',
+    chunkFilename: '[name].[contenthash:8].js',
+    cssFilename: '[name].[contenthash:8].css',
+    cssChunkFilename: '[name].[contenthash:8].css'
   },
   optimization: {
     splitChunks: {
