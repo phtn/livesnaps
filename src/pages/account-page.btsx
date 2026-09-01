@@ -132,7 +132,7 @@ component SignedOutState
 component SettingsSection
   props { children, description, eyebrow, icon, id, title }: SettingsSectionProps
   section(id={id} className='scroll-mt-24 overflow-hidden rounded-2xl border border-border/55 bg-card/55 shadow-xs backdrop-blur-sm' aria-labelledby={`${id}-title`})
-    header(className='border-b border-border/50 px-5 py-5 sm:px-6')
+    header(className='border-b border-border/50 p-4 sm:p-6')
       div(className='flex items-start gap-3')
         span(className='mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-border/55 bg-background/75 text-muted-foreground')
           Icon(name={icon} className='size-4')
@@ -140,7 +140,7 @@ component SettingsSection
           p(className='font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground') #{eyebrow}
           h2(id={`${id}-title`} className='mt-1 font-poly text-xl font-medium') #{title}
           p(className='mt-1 text-sm leading-6 text-muted-foreground') #{description}
-    div(className='px-5 py-5 sm:px-6 sm:py-6')
+    div(className='p-4 sm:p-6')
       | #{children}
 
 component InfoRow

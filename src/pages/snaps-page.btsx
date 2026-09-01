@@ -23,10 +23,6 @@ div(className={cn(viewportStyles.root, 'relative min-h-screen min-w-[320px] over
   Topbar
   ScrollArea(className={cn(viewportStyles.viewportBody, 'relative')})
     main(className='relative mx-auto min-h-full w-full max-w-6xl px-4 pb-20 pt-0 sm:px-6 sm:pt-6')
-      header(className='flex flex-col gap-5 border-b border-border/45 pb-7 sm:flex-row sm:items-end sm:justify-between')
-        div(className='max-w-2xl')
-          h1(className='mt-2 font-poly text-3xl font-medium tracking-tight sm:text-4xl') My Snaps
-
       SubmitList(
         ~ authenticatedUserId={user?.uid ?? null}
         ~ className='pt-8'

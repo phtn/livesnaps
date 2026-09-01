@@ -30,15 +30,15 @@ module
 
 component RouteItem
   props { icon, label, onNavigate, to }: RouteItemProps & { onNavigate: () => void }
-  Link(to={to} role='menuitem' onClick={onNavigate} className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground')
-    Icon(name={icon} className='size-4.5 text-muted-foreground')
-    span(className='text-base font-medium tracking-tight text-muted-foreground') #{label}
+  Link(to={to} role='menuitem' onClick={onNavigate} className='group/dropdown-menu-item relative flex w-full text-foreground/75 first:rounded-t-xl hover:text-foreground cursor-pointer items-center gap-3 rounded-lg px-3 py-4 text-left text-sm outline-hidden select-none hover:bg-accent focus:bg-accent focus:text-accent-foreground')
+    Icon(name={icon} className='size-4.5')
+    span(className='text-base font-medium tracking-tight') #{label}
 
 component Item
   props { item, onNavigate }: { item: ItemProps; onNavigate: (path: string) => void }
-  button(type='button' role='menuitem' className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground' onClick={() => onNavigate(item.path)})
-    Icon(name={item.icon} className='text-muted-foreground size-4.5')
-    span(className='font-medium text-muted-foreground text-base tracking-tight') #{item.label}
+  button(type='button' role='menuitem' className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-4 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground' onClick={() => onNavigate(item.path)})
+    Icon(name={item.icon} className='size-4.5')
+    span(className='font-medium text-base tracking-tight') #{item.label}
 
 props { user, hasAdminClaim, hasSnapAdminAccess }: UserMenuProps
 
@@ -102,7 +102,7 @@ div(ref={menuRef} className='relative z-100!')
     div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-sand/10 dark:hover:bg-sand/80 md:size-12')
       Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
   if isOpen
-    div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5')
+    div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='folder' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
@@ -116,5 +116,5 @@ div(ref={menuRef} className='relative z-100!')
         button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleSnapAdminNavigation} disabled={isNavigatingToSnapAdmin})
           Icon(name='rook' className='size-5 shrink-0')
           span(className='text-base font-medium tracking-tight') #{isNavigatingToSnapAdmin ? 'opening snaps admin' : 'snaps admin'}
-      div(className='-mx-1 my-1 h-px bg-border/50' role='separator')
-      SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-xl transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')
+      div(className='-mx-1 my-1 h-px bg-input' role='separator')
+      SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

@@ -26,7 +26,7 @@ setup
   }
 
 div(className='flex w-full flex-col')
-  button(type='button' disabled={isSigningOut} className={className ?? 'flex w-full items-center justify-center rounded-none transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60'} onClick={handleSignOut} aria-busy={isSigningOut})
+  button(type='button' disabled={isSigningOut} className={className ?? 'flex w-full items-center justify-center rounded-t-lg transition-colors hover:bg-accent disabled:cursor-wait disabled:opacity-60'} onClick={handleSignOut} aria-busy={isSigningOut})
     if withLabel
       span(className='px-4 text-base font-medium tracking-tight text-foreground') #{label ?? 'sign out'}
     else
