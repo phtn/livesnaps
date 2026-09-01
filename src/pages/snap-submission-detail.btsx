@@ -21,6 +21,10 @@ module
   type SnapPhoto = SnapSubmission['photos'][number]
 
   interface PageProps { snapId: string }
+  interface BreadcrumbsProps {
+    snapId: string
+    submission: SnapSubmission | null | undefined
+  }
   interface DetailItemProps { label: string; value: string }
   interface PhotoCardProps {
     onOpen: (photoId: string) => void
@@ -64,6 +68,46 @@ component DetailItem
     dt(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') #{label}
     dd(className='mt-1.5 break-words text-sm text-foreground') #{value}
 
+component BreadcrumbSeparator
+  li(className='flex shrink-0 items-center text-border' aria-hidden={true})
+    Icon(name='chevron-right' className='size-3.5')
+
+component Breadcrumbs
+  props { snapId, submission }: BreadcrumbsProps
+  setup
+    const presentation = submission ? statusPresentation[submission.status] : null
+    const currentLabel = submission
+      ? submission.plateNumber.trim() || 'Untitled snap'
+      : submission === undefined
+        ? 'Loading snap…'
+        : 'Snap details'
+    const currentTitle = submission ? `${currentLabel} · ${formatVehicle(submission)}` : `Snap ${snapId}`
+  nav(id='breadcrumbs' aria-label='Breadcrumb' className='sticky top-0 z-30 bg-background/82 shadow-[0_1px_0_rgb(255_255_255/0.03)] backdrop-blur-xl supports-[backdrop-filter]:bg-background/72')
+    div(className='mx-auto flex min-h-14 w-full max-w-7xl items-center justify-between gap-4 px-4 sm:min-h-16 sm:px-8')
+      ol(className='flex min-w-0 items-center gap-1.5 text-sm sm:gap-2')
+        li(className='shrink-0')
+          Link(
+            ~ to='/'
+            ~ hash='discover'
+            ~ className='inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+            ~ )
+            Icon(name='livesnaps' className='size-4 text-foreground' iconStyle='text-foreground')
+            span My Snaps
+        BreadcrumbSeparator
+        li(className='min-w-0' title={currentTitle})
+          span(className='flex h-8 min-w-0 items-center gap-2 rounded-full border border-border/40 bg-card/45 px-2.5 shadow-xs' aria-current='page')
+            span(className={cn('size-1.5 shrink-0 rounded-full', submission ? 'bg-beach shadow-[0_0_0_3px_rgb(89_182_184/0.12)] dark:bg-lime-200' : 'bg-muted-foreground/35')})
+            span(className='max-w-[9rem] truncate font-poly text-xs font-medium uppercase tracking-wide sm:max-w-[15rem] sm:text-sm') #{currentLabel}
+
+      if submission && presentation
+        div(className='hidden shrink-0 items-center gap-2 sm:flex')
+          span(className='hidden items-center gap-1.5 rounded-full border border-border/35 bg-card/35 px-2.5 py-1.5 text-xs text-muted-foreground lg:flex' title={`${submission.photoCount} submitted photos`})
+            Icon(name='camera-enhance' className='size-3.5')
+            span #{submission.photoCount} photos
+          if submission.startedAt !== null
+            time(datetime={new Date(submission.startedAt).toISOString()} className='hidden rounded-full border border-border/35 bg-card/35 px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground xl:block' title='Submission started') #{formatDate(submission.startedAt)}
+
+
 component PhotoCard
   props { onOpen, photo, previewUrl }: PhotoCardProps
   setup
@@ -79,7 +123,7 @@ component PhotoCard
       ~ className='relative grid aspect-square w-full place-items-center overflow-hidden bg-muted/70 text-left enabled:cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-wait'
       ~ )
       if previewUrl
-        img(src={previewUrl} alt={`${label} vehicle photo`} loading='lazy' decoding='async' className='size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]')
+        img(src={previewUrl} alt={`${label} vehicle photo`} loading='lazy' decoding='async' className='size-full aspect-auto object-contain object-center transition-transform duration-300 group-hover:scale-[1.02]')
       else
         div(className='grid size-14 place-items-center rounded-full border border-border/30 bg-background/75 text-muted-foreground transition-transform group-hover:scale-105')
           Icon(name='camera-enhance' className='size-7')
@@ -199,9 +243,10 @@ setup
 
 div(className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
   Topbar
-  ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
+  ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden pb-24')})
+    Breadcrumbs(snapId={snapId} submission={submission})
     div(className='flex flex-col')
-      main(className='mx-auto w-full max-w-7xl px-4 pb-16 sm:px-8 sm:pb-24')
+      main(className='mx-auto w-full max-w-7xl px-4 pb-16 pt-6 sm:px-8 sm:pb-24 sm:pt-8')
         if !isAuthReady || submission === undefined
           LoadingState
         elseif !user
@@ -246,14 +291,14 @@ div(className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidd
                 p(className='mt-2 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground')
                   | IP country #{submission.countryCodeMatchesIpinfo === null ? 'not checked' : submission.countryCodeMatchesIpinfo ? 'matched' : 'did not match'}
 
-            section(className='mt-10 min-h-24' aria-labelledby='snap-photos-heading')
+            section(className='my-10' aria-labelledby='snap-photos-heading')
               div(className='flex items-end justify-between gap-4')
                 div
                   p(className='font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Proofs
                   h2(id='snap-photos-heading' className='mt-1 font-poly text-lg font-medium') Submitted photos
                 p(className='text-xs text-muted-foreground') #{submission.photoCount} of 5
               if submission.photos.length > 0
-                ul(className='mt-4 grid gap-4 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5')
+                ul(className='mt-6 grid gap-1.5 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5')
                   each photo in submission.photos key photo.slot
                     PhotoCard(photo={photo} previewUrl={previewUrls[photo.slot] ?? null} onOpen={setViewerPhotoId})
               else
