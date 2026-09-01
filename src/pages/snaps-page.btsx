@@ -1,0 +1,37 @@
+import { useEffect } from 'octane'
+import { Link } from '@octanejs/tanstack-router'
+import SubmitList from '@/components/submit-list.btsx'
+import Topbar from '@/components/topbar.btsx'
+import { ScrollArea } from '@/components/ui/'
+import { Icon } from '@/lib/icons'
+import { useFirebaseUser } from '@/lib/firebase/auth'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
+
+setup
+  const { isLoading, user } = useFirebaseUser()
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'My Snaps — LiveSnapsNow'
+    return () => { document.title = previousTitle }
+  }, [])
+
+div(className={cn(viewportStyles.root, 'relative min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
+  div(className='pointer-events-none fixed inset-0 overflow-hidden' aria-hidden={true})
+    div(className='absolute -right-48 -top-64 size-152 rounded-full bg-beach/8 blur-3xl dark:bg-lime-200/3')
+    div(className='absolute -bottom-56 -left-48 size-144 rounded-full bg-mist-300/10 blur-3xl dark:bg-mist-300/5')
+  Topbar
+  ScrollArea(className={cn(viewportStyles.viewportBody, 'relative')})
+    main(className='relative mx-auto min-h-full w-full max-w-6xl px-4 pb-20 pt-0 sm:px-6 sm:pt-6')
+      header(className='flex flex-col gap-5 border-b border-border/45 pb-7 sm:flex-row sm:items-end sm:justify-between')
+        div(className='max-w-2xl')
+          h1(className='mt-2 font-poly text-3xl font-medium tracking-tight sm:text-4xl') My Snaps
+
+      SubmitList(
+        ~ authenticatedUserId={user?.uid ?? null}
+        ~ className='pt-8'
+        ~ eyebrow='Submission history'
+        ~ heading='All snaps'
+        ~ isAuthenticated={Boolean(user)}
+        ~ isAuthLoading={isLoading}
+        ~ )

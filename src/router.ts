@@ -25,10 +25,22 @@ const homeRoute = createRoute({
   component: lazyRoute(() => import('./App.btsx'))
 })
 
+const snapsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'snaps',
+  component: lazyRoute(() => import('./pages/snaps-page.btsx'))
+})
+
 const snapRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'snaps/$snapId',
   component: lazyRoute(() => import('./routes/snap-route.btsx'))
+})
+
+const accountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'account',
+  component: lazyRoute(() => import('./pages/account-page.btsx'))
 })
 
 const legalRoute = createRoute({
@@ -41,7 +53,7 @@ const legalRoute = createRoute({
   notFoundComponent: NotFound
 })
 
-const routeTree = rootRoute.addChildren([homeRoute, snapRoute, legalRoute])
+const routeTree = rootRoute.addChildren([homeRoute, snapsRoute, snapRoute, accountRoute, legalRoute])
 
 export const router = createRouter({
   routeTree,

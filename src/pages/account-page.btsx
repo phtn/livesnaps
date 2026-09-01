@@ -1,0 +1,379 @@
+import { useEffect, useState } from 'octane'
+import type { OctaneNode } from 'octane'
+import { updateProfile, type User } from 'firebase/auth'
+import { Link, useNavigate } from '@octanejs/tanstack-router'
+import Avatar from '@/components/ui/avatar.btsx'
+import Topbar from '@/components/topbar.btsx'
+import { ScrollArea } from '@/components/ui/'
+import { Icon, type IconName } from '@/lib/icons'
+import { resolveAccountProfileImageUrl } from '@/lib/r2/prefixes'
+import { signInWithGoogle, signOutUser, useFirebaseUser } from '@/lib/firebase/auth'
+import { useTheme } from '@/components/theme-provider.btsx'
+import { cn, getInitials } from '@/lib/utils'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
+
+module
+  type ProfileStatus = 'idle' | 'saving' | 'saved' | 'error'
+
+  interface AuthenticatedAccountProps {
+    customClaims: Record<string, unknown>
+    user: User
+  }
+
+  interface SettingsSectionProps {
+    children?: OctaneNode
+    description: string
+    eyebrow: string
+    icon: IconName
+    id: string
+    title: string
+  }
+
+  interface InfoRowProps {
+    children?: OctaneNode
+    icon: IconName
+    label: string
+  }
+
+  const navigationItems = [
+    { href: '#profile', label: 'Profile', icon: 'pencil-bold' },
+    { href: '#appearance', label: 'Appearance', icon: 'theme' },
+    { href: '#security', label: 'Security', icon: 'safe-shield' },
+    { href: '#data', label: 'Data', icon: 'download-line' }
+  ] as const satisfies ReadonlyArray<{ href: string; label: string; icon: IconName }>
+
+  const REDUCE_MOTION_STORAGE_KEY = 'livesnaps-reduce-motion'
+  const accountDateFormatter = new Intl.DateTimeFormat('en-PH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+  const accountDateTimeFormatter = new Intl.DateTimeFormat('en-PH', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+
+  const readReduceMotionPreference = () => {
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage.getItem(REDUCE_MOTION_STORAGE_KEY) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  const persistReduceMotionPreference = (reduced: boolean) => {
+    document.documentElement.dataset.reduceMotion = String(reduced)
+    try {
+      window.localStorage.setItem(REDUCE_MOTION_STORAGE_KEY, String(reduced))
+    } catch {
+      // The preference still applies for the current document when storage is unavailable.
+    }
+  }
+
+  const formatDate = (value?: string | null) =>
+    value ? accountDateFormatter.format(new Date(value)) : 'Not available'
+
+  const formatDateTime = (value?: string | null) =>
+    value ? accountDateTimeFormatter.format(new Date(value)) : 'Not available'
+
+  const getProviderLabel = (user: User) => {
+    const providerId = user.providerData[0]?.providerId
+    if (providerId === 'google.com') return 'Google'
+    if (providerId === 'password') return 'Email and password'
+    return providerId?.replace('.com', '') ?? 'Firebase'
+  }
+
+component PageBackdrop
+  div(className='pointer-events-none fixed inset-0 overflow-hidden' aria-hidden={true})
+    div(className='absolute -right-40 -top-48 size-128 rounded-full bg-mist-300/10 blur-3xl dark:bg-mist-300/5')
+    div(className='absolute -bottom-64 -left-48 size-152 rounded-full bg-mist-300/10 blur-3xl dark:bg-mist-300/5')
+    div(className='absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-size-[72px_72px] opacity-[0.035]')
+
+component LoadingState
+  main(className='relative mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[13rem_minmax(0,1fr)]' aria-busy={true} aria-label='Loading account settings')
+    div(className='hidden h-52 animate-pulse rounded-2xl bg-muted/50 lg:block')
+    div(className='space-y-5')
+      div(className='h-48 animate-pulse rounded-3xl bg-muted/60')
+      div(className='h-80 animate-pulse rounded-2xl bg-muted/40')
+
+component SignedOutState
+  setup
+    const [isSigningIn, setIsSigningIn] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const signIn = async () => {
+      if (isSigningIn) return
+      setError(null)
+      setIsSigningIn(true)
+      try {
+        await signInWithGoogle()
+      } catch (signInError) {
+        setError(signInError instanceof Error ? signInError.message : 'Unable to sign in.')
+      } finally {
+        setIsSigningIn(false)
+      }
+    }
+  main(className='relative mx-auto grid min-h-[calc(100%-1rem)] w-full max-w-3xl place-items-center px-4 py-10 sm:px-6')
+    section(className='w-full overflow-hidden rounded-3xl bg-card/75 p-7 text-center shadow-2xl shadow-foreground/5 backdrop-blur-xl sm:p-10' aria-labelledby='account-sign-in-title')
+      span(className='mx-auto grid size-14 place-items-center rounded-2xl bg-foreground text-background shadow-lg')
+        Icon(name='user-settings' className='size-6')
+      p(className='mt-6 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground') LiveSnapsNow account
+      h1(id='account-sign-in-title' className='mt-2 font-poly text-2xl font-medium sm:text-3xl') Your account, your workspace
+      p(className='mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground') Sign in to manage your profile, appearance preferences, security details, and portable account data.
+      button(type='button' disabled={isSigningIn} aria-busy={isSigningIn} onClick={() => { void signIn() }} className='mt-7 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-foreground px-6 text-sm font-semibold text-background shadow-lg transition hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-60')
+        if isSigningIn
+          Icon(name='spinner-ring' className='size-4')
+        else
+          Icon(name='goog' className='size-4')
+        span #{isSigningIn ? 'Opening Google…' : 'Continue with Google'}
+      if error
+        p(className='mt-4 text-sm text-destructive' role='alert') #{error}
+
+component SettingsSection
+  props { children, description, eyebrow, icon, id, title }: SettingsSectionProps
+  section(id={id} className='scroll-mt-24 overflow-hidden rounded-2xl border border-border/55 bg-card/55 shadow-xs backdrop-blur-sm' aria-labelledby={`${id}-title`})
+    header(className='border-b border-border/50 px-5 py-5 sm:px-6')
+      div(className='flex items-start gap-3')
+        span(className='mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-border/55 bg-background/75 text-muted-foreground')
+          Icon(name={icon} className='size-4')
+        div
+          p(className='font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground') #{eyebrow}
+          h2(id={`${id}-title`} className='mt-1 font-poly text-xl font-medium') #{title}
+          p(className='mt-1 text-sm leading-6 text-muted-foreground') #{description}
+    div(className='px-5 py-5 sm:px-6 sm:py-6')
+      | #{children}
+
+component InfoRow
+  props { children, icon, label }: InfoRowProps
+  div(className='grid gap-2 py-4 first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] sm:items-center')
+    div(className='flex items-center gap-3')
+      span(className='grid size-8 place-items-center rounded-lg bg-muted/60 text-muted-foreground')
+        Icon(name={icon} className='size-4')
+      span(className='text-sm text-muted-foreground') #{label}
+    span(className='break-all pl-11 text-sm font-medium sm:pl-0 sm:text-right') #{children}
+
+component ThemeChoice
+  props { active, icon, label, onClick, previewClassName }: { active: boolean; icon: IconName; label: string; onClick: () => void; previewClassName: string }
+  button(type='button' aria-pressed={active} onClick={onClick} className={cn('rounded-xl border p-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', active ? 'border-foreground/40 bg-foreground/4' : 'border-border/70 hover:bg-muted/40')})
+    div(className={cn('h-24 overflow-hidden rounded-lg p-3 ring-1 ring-black/10', previewClassName)})
+      div(className='flex items-center justify-between')
+        div(className='h-2 w-12 rounded-full bg-current opacity-20')
+        Icon(name={icon} className='size-5')
+      div(className='mt-6 grid grid-cols-[2rem_1fr] gap-2')
+        div(className='h-9 rounded-md bg-current opacity-10')
+        div(className='space-y-2 pt-1')
+          div(className='h-2 w-3/4 rounded-full bg-current opacity-25')
+          div(className='h-2 w-1/2 rounded-full bg-current opacity-15')
+    div(className='flex items-center justify-between px-1 pb-1 pt-3')
+      span(className='text-sm font-medium') #{label}
+      span(className={cn('size-2 rounded-full', active ? 'bg-positive' : 'bg-muted-foreground/25')})
+
+component AuthenticatedAccount
+  props { customClaims, user }: AuthenticatedAccountProps
+  setup
+    const { theme, setTheme } = useTheme()
+    const navigate = useNavigate()
+    const [displayName, setDisplayName] = useState(user.displayName ?? '')
+    const [photoUrl, setPhotoUrl] = useState(user.photoURL ?? '')
+    const [isEditingProfile, setIsEditingProfile] = useState(false)
+    const [profileStatus, setProfileStatus] = useState<ProfileStatus>('idle')
+    const [profileError, setProfileError] = useState<string | null>(null)
+    const [isSigningOut, setIsSigningOut] = useState(false)
+    const [signOutError, setSignOutError] = useState<string | null>(null)
+    const [reduceMotion, setReduceMotion] = useState(readReduceMotionPreference)
+    const displayedPhotoUrl = resolveAccountProfileImageUrl(photoUrl)
+    const claimEntries = Object.entries(customClaims)
+
+    useEffect(() => persistReduceMotionPreference(reduceMotion), [reduceMotion])
+
+    const saveProfile = async (event: SubmitEvent) => {
+      event.preventDefault()
+      if (profileStatus === 'saving') return
+      setProfileError(null)
+      setProfileStatus('saving')
+      try {
+        await updateProfile(user, {
+          displayName: displayName.trim() || null,
+          photoURL: photoUrl.trim() || null
+        })
+        await user.reload()
+        setIsEditingProfile(false)
+        setProfileStatus('saved')
+      } catch (error) {
+        setProfileError(error instanceof Error ? error.message : 'Unable to update your profile.')
+        setProfileStatus('error')
+      }
+    }
+
+    const cancelProfileEdit = () => {
+      setDisplayName(user.displayName ?? '')
+      setPhotoUrl(user.photoURL ?? '')
+      setProfileError(null)
+      setProfileStatus('idle')
+      setIsEditingProfile(false)
+    }
+
+    const exportAccountData = () => {
+      const accountData = {
+        exportedAt: new Date().toISOString(),
+        profile: {
+          uid: user.uid,
+          displayName: displayName.trim() || null,
+          email: user.email,
+          emailVerified: user.emailVerified,
+          photoURL: photoUrl.trim() || null,
+          providers: user.providerData.map(({ displayName: providerName, email, phoneNumber, photoURL, providerId }) => ({
+            displayName: providerName,
+            email,
+            phoneNumber,
+            photoURL,
+            providerId
+          })),
+          createdAt: user.metadata.creationTime,
+          lastSignInAt: user.metadata.lastSignInTime
+        },
+        access: customClaims,
+        preferences: { reduceMotion, theme }
+      }
+      const url = URL.createObjectURL(new Blob([JSON.stringify(accountData, null, 2)], { type: 'application/json' }))
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = 'livesnapsnow-account-data.json'
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 0)
+    }
+
+    const signOut = async () => {
+      if (isSigningOut) return
+      setSignOutError(null)
+      setIsSigningOut(true)
+      try {
+        await signOutUser()
+        await navigate({ to: '/', replace: true })
+      } catch (error) {
+        setSignOutError(error instanceof Error ? error.message : 'Unable to sign out right now.')
+      } finally {
+        setIsSigningOut(false)
+      }
+    }
+
+  main(className='relative mx-auto w-full max-w-6xl px-4 pb-20 pt-5 sm:px-6 sm:pt-8')
+    section(id='profile' className='scroll-mt-24 overflow-hidden p-5 sm:p-7' aria-labelledby='account-profile-title')
+      div(className='flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between')
+        div(className='flex min-w-0 items-center gap-4 sm:gap-5')
+          Avatar(imageUrl={displayedPhotoUrl} alt={displayName || 'Profile image'} fallback={getInitials(displayName)} className='size-16 border-0 shadow-lg ring-4 ring-background sm:size-20')
+          div(className='min-w-0')
+            p(className='font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground') #{user.email ?? 'No email address'}
+            h1(id='account-profile-title' className='mt-1 truncate font-poly text-xl font-medium tracking-tight sm:text-2xl') #{displayName || 'Your account'}
+            div(className='mt-2 flex flex-wrap items-center gap-2')
+        div(className='hidden _flex shrink-0 items-center gap-2')
+          span(className='hidden text-right sm:block')
+            span(className='block font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground') Joined
+            span(className='mt-1 block text-xs font-medium') #{formatDate(user.metadata.creationTime)}
+          button(type='button' onClick={() => setIsEditingProfile((editing) => !editing)} className='hidden h-9 items-center gap-2 rounded-full border border-border/60 bg-background/70 px-4 text-sm font-medium transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
+            Icon(name={isEditingProfile ? 'close-small' : 'pencil-bold'} className='size-4')
+            span #{isEditingProfile ? 'Close' : 'Edit profile'}
+
+      if isEditingProfile
+        form(className='mt-6 grid gap-4 border-t border-border/50 pt-6' onSubmit={saveProfile})
+          div(className='grid gap-4 md:grid-cols-2')
+            label(className='space-y-2 text-xs font-medium')
+              span Display name
+              input(name='displayName' autoComplete='name' value={displayName} onInput={(event) => { setDisplayName(event.currentTarget.value); setProfileStatus('idle') }} className='h-11 w-full rounded-xl border border-border bg-background/75 px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring')
+            label(className='space-y-2 text-xs font-medium')
+              span Profile image URL
+              input(name='photoUrl' type='url' inputMode='url' autoComplete='url' value={photoUrl} onInput={(event) => { setPhotoUrl(event.currentTarget.value); setProfileStatus('idle') }} placeholder='https://…' className='h-11 w-full rounded-xl border border-border bg-background/75 px-3 text-sm outline-none transition focus-visible:ring-2 focus-visible:ring-ring')
+          div(className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between')
+            p(className={cn('text-xs', profileError ? 'text-destructive' : profileStatus === 'saved' ? 'text-positive' : 'text-muted-foreground')} aria-live='polite') #{profileError ?? (profileStatus === 'saved' ? 'Profile updated.' : 'Changes update your Firebase profile.')}
+            div(className='flex gap-2')
+              button(type='button' onClick={cancelProfileEdit} disabled={profileStatus === 'saving'} className='h-9 rounded-full border border-border px-4 text-sm font-medium transition hover:bg-muted disabled:opacity-50') Cancel
+              button(type='submit' disabled={profileStatus === 'saving'} className='inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-85 disabled:cursor-wait disabled:opacity-60')
+                if profileStatus === 'saving'
+                  Icon(name='spinner-ring' className='size-4')
+                else
+                  Icon(name='check' className='size-4')
+                span #{profileStatus === 'saving' ? 'Saving…' : 'Save profile'}
+
+    div(className='mt-6 grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]')
+      aside(className='hidden lg:sticky lg:top-6 lg:block')
+        nav(className='space-y-1 rounded-2xl border border-border/45 bg-card/45 p-2 backdrop-blur-sm' aria-label='Account settings')
+          each item in navigationItems key item.href
+            a(href={item.href} className='group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
+              Icon(name={item.icon} className='size-4')
+              span(className='flex-1') #{item.label}
+              Icon(name='chevron-right' className='size-3.5 opacity-0 transition-opacity group-hover:opacity-60')
+
+      div(className='min-w-0 space-y-5')
+        SettingsSection(id='appearance' eyebrow='Preferences' icon='theme' title='Appearance & motion' description='Personalize LiveSnapsNow while keeping the interface comfortable to use.')
+          div(className='grid gap-3 grid-cols-2')
+            ThemeChoice(active={theme === 'light'} icon='theme' label='Light' previewClassName='bg-[#f6f5f2] text-[#202020]' onClick={() => setTheme('light')})
+            ThemeChoice(active={theme === 'dark'} icon='theme' label='Dark' previewClassName='bg-[#18181b] text-[#f4f4f5]' onClick={() => setTheme('dark')})
+          div(className='hidden _flex mt-5 items-center gap-3 rounded-xl border border-border/70 bg-muted/25 p-4')
+            span(className='grid size-9 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
+              Icon(name='velocity' className='size-5')
+            div(className='min-w-0 flex-1')
+              p(className='text-sm font-medium') Reduce interface motion
+              p(className='mt-1 text-xs leading-5 text-muted-foreground') Minimizes transitions, animated reveals, and decorative motion across this device.
+            button(type='button' role='switch' aria-checked={reduceMotion} aria-label='Reduce interface motion' onClick={() => setReduceMotion((reduced) => !reduced)} className={cn('relative h-7 w-12 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', reduceMotion ? 'border-beach bg-beach dark:border-lime-200 dark:bg-lime-200/70' : 'border-border bg-muted')})
+              span(className={cn('absolute top-1 size-5 rounded-full bg-white shadow-sm transition-transform', reduceMotion ? 'translate-x-5' : 'translate-x-1')})
+
+        SettingsSection(id='security' eyebrow='Account' icon='safe-shield' title='Security' description='Review the identity provider and activity associated with this account.')
+          div(className='divide-y divide-border/60')
+            InfoRow(icon='email-body' label='Email address')
+              span #{user.email ?? 'Not provided'} · #{user.emailVerified ? 'Verified' : 'Not verified'}
+            InfoRow(icon='safe-shield' label='Sign-in provider')
+              span #{getProviderLabel(user)}
+            InfoRow(icon='clock' label='Last sign-in')
+              span #{formatDateTime(user.metadata.lastSignInTime)}
+            InfoRow(icon='user-settings' label='Firebase UID')
+              code(className='font-mono text-xs') #{user.uid}
+            if claimEntries.length > 0
+              InfoRow(icon='user-settings' label='Access roles')
+                span(className='flex flex-wrap justify-end gap-1.5')
+                  each entry in claimEntries key entry[0]
+                    code(className={cn('rounded-full border border-border/55 px-2 py-1 font-mono text-[9px] uppercase tracking-wide', entry[1] ? 'text-foreground' : 'text-muted-foreground opacity-50')}) #{entry[0]}
+          div(className='mt-5 flex flex-col gap-3 rounded-xl bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between')
+            div
+              p(className='text-sm font-medium') End this session
+              p(className='mt-1 text-xs text-muted-foreground') You’ll return to the sign-in screen on this device.
+            button(type='button' disabled={isSigningOut} aria-busy={isSigningOut} onClick={() => { void signOut() }} className='inline-flex h-9 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted disabled:cursor-wait disabled:opacity-60')
+              span #{isSigningOut ? 'Signing out…' : 'Sign out'}
+              Icon(name={isSigningOut ? 'spinner-ring' : 'arrow-right'} className='size-4')
+          if signOutError
+            p(className='mt-3 text-sm text-destructive' role='alert') #{signOutError}
+
+        SettingsSection(id='data' eyebrow='Portability' icon='download-line' title='Data privacy' description='Download a portable snapshot of the account information available on this device.')
+          div(className='flex flex-col gap-4 rounded-xl bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between')
+            div(className='flex items-start gap-3')
+              span(className='mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
+                Icon(name='json' className='size-4')
+              div
+                p(className='text-sm font-medium') Export account data
+                p(className='mt-1 max-w-lg text-xs leading-5 text-muted-foreground') Includes your profile, sign-in provider, account dates, access roles, and current preferences. Authentication tokens are never included.
+            button(type='button' onClick={exportAccountData} className='inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
+              Icon(name='download' className='size-4')
+              span Download JSON
+
+        div(className='flex items-center justify-between p-4 h-10' )
+
+
+setup
+  const { customClaims, isLoading, user } = useFirebaseUser()
+  useEffect(() => {
+    const previousTitle = document.title
+    document.title = 'Account — LiveSnapsNow'
+    return () => { document.title = previousTitle }
+  }, [])
+
+div(className={cn(viewportStyles.root, 'relative min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
+  PageBackdrop
+  Topbar
+  ScrollArea(className={cn(viewportStyles.viewportBody, 'relative')})
+    if isLoading
+      LoadingState
+    elseif !user
+      SignedOutState
+    else
+      AuthenticatedAccount(key={user.uid} customClaims={customClaims} user={user})

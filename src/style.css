@@ -2,6 +2,19 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+html[data-reduce-motion='true'] {
+  scroll-behavior: auto !important;
+}
+
+html[data-reduce-motion='true'] *,
+html[data-reduce-motion='true'] *::before,
+html[data-reduce-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @font-face {

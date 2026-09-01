@@ -5,6 +5,7 @@ import { buildSnapAdminHandoffUrl } from '@/lib/routing/snap-admin-subdomain'
 import { cn, getInitials } from '@/lib/utils'
 import type { User } from 'firebase/auth'
 import { useEffect, useRef, useState } from 'octane'
+import { Link } from '@octanejs/tanstack-router'
 import Avatar from './ui/avatar.btsx'
 import SignOut from './signout.btsx'
 
@@ -21,9 +22,21 @@ module
     icon: IconName
   }
 
+  interface RouteItemProps {
+    to: '/account' | '/snaps'
+    label: string
+    icon: IconName
+  }
+
+component RouteItem
+  props { icon, label, onNavigate, to }: RouteItemProps & { onNavigate: () => void }
+  Link(to={to} role='menuitem' onClick={onNavigate} className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground')
+    Icon(name={icon} className='size-4.5 text-muted-foreground')
+    span(className='text-base font-medium tracking-tight text-muted-foreground') #{label}
+
 component Item
   props { item, onNavigate }: { item: ItemProps; onNavigate: (path: string) => void }
-  button(type='button' role='menuitem' className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground' onClick={() => onNavigate(item.path)})
+  button(type='button' role='menuitem' className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg p-3 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground' onClick={() => onNavigate(item.path)})
     Icon(name={item.icon} className='text-muted-foreground size-4.5')
     span(className='font-medium text-muted-foreground text-base tracking-tight') #{item.label}
 
@@ -84,14 +97,14 @@ setup
     }
   }
 
-div(ref={menuRef} className='relative')
+div(ref={menuRef} className='relative z-100!')
   button(type='button' aria-haspopup='menu' aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
     div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-sand/10 dark:hover:bg-sand/80 md:size-12')
       Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
   if isOpen
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/5')
-      Item(item={{ path: '/a', label: 'account', icon: 'user' }} onNavigate={navigate})
-      Item(item={{ path: '/submits', label: 'my snaps', icon: 'folder' }} onNavigate={navigate})
+      RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
+      RouteItem(to='/snaps' label='my snaps' icon='folder' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
         fragment
           Item(item={{ path: '/r', label: 're-up', icon: 're-up.ph' }} onNavigate={navigate})

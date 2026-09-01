@@ -87,8 +87,8 @@ component Breadcrumbs
       ol(className='flex min-w-0 items-center gap-1.5 text-sm sm:gap-2')
         li(className='shrink-0')
           Link(
-            ~ to='/'
-            ~ hash='discover'
+            ~ to='/snaps'
+            ~ hash='top'
             ~ className='inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
             ~ )
             Icon(name='livesnaps' className='size-4 text-foreground' iconStyle='text-foreground')
