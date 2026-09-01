@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'octane'
+import { memo, useEffect, useRef, useState } from 'octane'
 import { Link } from '@octanejs/tanstack-router'
 import Badge from '@/components/ui/badge.btsx'
 import { Icon } from '@/lib/icons'
@@ -10,6 +10,10 @@ import type { api } from '../../convex/_generated/api'
 module
   type SnapSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
   type SnapSubmissionStatus = SnapSubmission['status']
+  type SubmissionRequest = {
+    promise: Promise<SnapSubmission[]>
+    userId: string
+  }
   export interface SubmitListProps {
     authenticatedUserId: string | null
     className?: string
@@ -80,6 +84,7 @@ props { authenticatedUserId, className, eyebrow = 'Activity', heading = 'Your sn
 setup
   const [submissions, setSubmissions] = useState<SnapSubmission[] | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(isAuthLoading || isAuthenticated)
+  const requestRef = useRef<SubmissionRequest | null>(null)
   useEffect(() => {
     let cancelled = false
 
@@ -88,9 +93,21 @@ setup
       return () => { cancelled = true }
     }
 
-    if (!isAuthenticated) { setSubmissions([]); setIsLoading(false); return () => { cancelled = true } }
+    if (!isAuthenticated || !authenticatedUserId) {
+      requestRef.current = null
+      setSubmissions([])
+      setIsLoading(false)
+      return () => { cancelled = true }
+    }
+
+    let request = requestRef.current
+    if (!request || request.userId !== authenticatedUserId) {
+      request = { promise: getMySubmissions(), userId: authenticatedUserId }
+      requestRef.current = request
+    }
+
     setIsLoading(true)
-    void getMySubmissions().then((next) => { if (!cancelled) { setSubmissions(next); setIsLoading(false) } }).catch(() => { if (!cancelled) { setSubmissions([]); setIsLoading(false) } })
+    void request.promise.then((next) => { if (!cancelled) { setSubmissions(next); setIsLoading(false) } }).catch(() => { if (!cancelled) { setSubmissions([]); setIsLoading(false) } })
     return () => { cancelled = true }
   }, [authenticatedUserId, isAuthenticated, isAuthLoading])
 
