@@ -1,18 +1,23 @@
+import { lazy, Suspense } from 'octane'
 import { Outlet } from '@octanejs/tanstack-router'
 import { isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
-import AdminPage from '@/pages/admin-page.btsx'
+import Pending from './pending.btsx'
 
 module
   // Paths that render without the admin shell, and so without its session gate.
   // `/admin-snaps-lab` is a fixture-only UI surface: it runs no query and shows
   // no real data, so it stays reachable while iterating on the table.
   const UNGATED_ADMIN_PATHS = ['/admin-handoff', '/admin-snaps-lab']
+  // Lazy: the admin shell (resizable panels, vaul drawer, etc.) only matters
+  // on the admin subdomain and shouldn't ship in the main visitor bundle.
+  const LazyAdminPage = lazy(() => import('@/pages/admin-page.btsx'))
 
 setup
   const isAdminHost = typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname)
   const isUngatedPath = typeof window !== 'undefined' && UNGATED_ADMIN_PATHS.includes(window.location.pathname)
 
 if isAdminHost && !isUngatedPath
-  AdminPage
+  Suspense(fallback={Pending})
+    LazyAdminPage
 else
   Outlet
