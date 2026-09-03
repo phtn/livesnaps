@@ -67,8 +67,11 @@ export interface DataTableQueryState {
   sorting: SortingState
 }
 
-export interface DataTableFilterListProps<T extends RowData> {
-  columns: Column<typeof features, T, unknown>[]
+// Generic over the feature set: the shared `features` above is one table's
+// configuration, but a filter list is rendered against whichever features its
+// own table was built with (e.g. `snapsFeatures`).
+export interface DataTableFilterListProps<T extends RowData, TFeatures extends TableFeatures = typeof features> {
+  columns: Column<TFeatures, T, unknown>[]
   columnFilters: ColumnFiltersState
   onReset: () => void
 }

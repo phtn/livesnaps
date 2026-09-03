@@ -98,6 +98,7 @@
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-brand: oklch(0.6112 0.2095 267.78);
+  --color-active: var(--active);
 }
 
 :root {
@@ -148,6 +149,7 @@
   --invert-foreground: var(--color-zinc-50);
   --beach: oklch(0.793 0.108 189.22);
   --sand: oklch(0.711 0.18 38.83);
+  --active: oklch(0.6278 0.204 254.62);
 }
 
 .dark {
@@ -197,6 +199,7 @@
   --positive: oklch(0.72 0.17 155.61);
   --beach: oklch(0.793 0.108 189.22);
   --sand: oklch(0.711 0.18 38.83);
+  --active: oklch(0.6278 0.204 254.62);
 }
 
 html {

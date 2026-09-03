@@ -59,6 +59,12 @@ export default {
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.btsx', '.mdx'],
+    // `@octanejs/day-picker` ships TypeScript sources that import with explicit
+    // `.js` extensions (NodeNext style). Without this mapping those specifiers
+    // resolve against the non-existent emitted files and the package fails.
+    extensionAlias: {
+      '.js': ['.ts', '.tsx', '.js']
+    },
     alias: {
       '@': srcDir
     }

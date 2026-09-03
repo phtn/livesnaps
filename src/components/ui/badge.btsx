@@ -2,7 +2,7 @@ import type { OctaneNode } from 'octane'
 import { cn } from '@/lib/utils'
 
 module
-  export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link'
+  export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link' | 'plain'
   export interface BadgeProps {
     children?: OctaneNode
     className?: string
@@ -10,18 +10,24 @@ module
   }
 
   export const badgeVariants: Record<BadgeVariant, string> = {
-    default: 'bg-primary text-primary-foreground dark:bg-success/50 dark:text-white [a]:hover:bg-primary/80',
-    secondary: 'bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
-    destructive: 'bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20',
-    outline: 'border-border bg-input/30 text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
-    ghost: 'hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
-    link: 'text-primary underline-offset-4 hover:underline'
+    default: 'border-transparent bg-primary text-primary-foreground dark:bg-success/50 dark:text-white [a]:hover:bg-primary/80',
+    secondary: 'border-transparent bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80',
+    destructive: 'border-transparent bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20',
+    outline: 'border border-transparent bg-input/30 text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground',
+    ghost: 'border-transparent hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50',
+    link: 'border-transparent text-primary underline-offset-4 hover:underline',
+    // Contributes no colour of its own. `cn` is plain clsx, so a variant that
+    // sets a background, text, or border colour would collide with whatever the
+    // caller passes in `className` and the winner would come down to the order
+    // Tailwind happens to emit those utilities in. Use this when the caller owns
+    // the full palette.
+    plain: ''
   }
 
 props { children, className, variant = 'default' }: BadgeProps
 
 setup
-  const badgeClass = cn('group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-1.75 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!', badgeVariants[variant], className)
+  const badgeClass = cn('group/badge inline-flex h-6 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border px-1.75 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!', badgeVariants[variant], className)
 
 span(data-slot='badge' className={badgeClass})
   | #{children}

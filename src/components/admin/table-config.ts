@@ -1,6 +1,7 @@
 import {
   aggregationFn_mean,
   aggregationFn_sum,
+  columnFacetingFeature,
   columnFilteringFeature,
   columnGroupingFeature,
   columnOrderingFeature,
@@ -9,6 +10,8 @@ import {
   columnSizingFeature,
   columnVisibilityFeature,
   createExpandedRowModel,
+  createFacetedRowModel,
+  createFacetedUniqueValues,
   createFilteredRowModel,
   createGroupedRowModel,
   createPaginatedRowModel,
@@ -31,6 +34,10 @@ import {
 export const snapsFeatures = tableFeatures({
   columnFilteringFeature,
   globalFilteringFeature,
+  // Faceting powers the filter list's option counts (`getFacetedUniqueValues`).
+  columnFacetingFeature,
+  facetedRowModel: createFacetedRowModel(),
+  facetedUniqueValues: createFacetedUniqueValues(),
   filteredRowModel: createFilteredRowModel(),
   filterFns: {
     arrHas: filterFn_arrHas,

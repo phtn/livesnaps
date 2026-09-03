@@ -69,8 +69,8 @@ div(className='relative w-full min-w-0 md:w-auto mx-3')
     ~ inputMode='search'
     ~ aria-label='Search'
     ~ )
-  div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-2 text-foreground/80 peer-disabled:opacity-50')
-    Icon(name='slash' aria-hidden='true' className='size-5')
+  div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-foreground/80 peer-disabled:opacity-50')
+    Icon(name='slash' aria-hidden='true' className='size-6')
   if hasValue
     button(
       ~ type='button'

@@ -1,123 +1,65 @@
-import DataTable from "../components/ui/table/DataTable.btsx";
-import { useConvexQuery } from '@/hooks/use-convex-query'
-import { api } from 'convex/_generated'
-import { useFirebaseUser } from '@/lib/firebase/auth'
-import SnapPhotoViewer from '@/components/photo-viewer'
-
-import { snapsFeatures, type SnapRow } from '@/components/admin/table-config'
-import { createColumnHelper } from '@octanejs/tanstack-table'
-
-
-module
-  const columnHelper = createColumnHelper<typeof snapFeatures, SnapRow>()
-  const cols = columnHelper.columns([
-    columnHelper.display({
-      id: 'plateNumber',
-      header: 'Plate',
-      size: 120,
-      enableColumnFilter: false,
-      enableHiding: false,
-      enableSorting: false,
-    }),
-    columnHelper.accessor('fullName', { header: 'Applicant', size: 276, sortFn: 'text', enableColumnFilter: false }),
-    columnHelper.accessor('location', { header: 'Location', size: 300, sortFn: 'text', enableColumnFilter: false }),
-    columnHelper.accessor('photos', { header: 'Photos', size: 300, sortFn: 'text', filterFn: 'arrHas', enableColumnFilter: true }),
-    columnHelper.accessor('countryCodeMatchesIpinfo', { header: 'IPCm', size: 150, sortFn: 'text', filterFn: 'arrHas', enableColumnFilter: true }),
-    columnHelper.accessor('email', { header: 'Email', size: 300, sortFn: 'basic', filterFn: 'text', enableColumnFilter: true }),
-    columnHelper.accessor('status', { header: 'Status', size: 200, sortFn: 'basic', filterFn: 'text', enableColumnFilter: true }),
-    columnHelper.accessor('handler', { header: 'Handler', size: 200, sortFn: 'basic', filterFn: 'text', enableColumnFilter: true }),
-    columnHelper.accessor('verification_status', { header: 'Verification', size: 200, sortFn: 'basic', filterFn: 'text', enableColumnFilter: true }),
-    columnHelper.accessor('updatedAt', {
-      header: 'Updated',
-      size: 300,
-      sortFn: 'basic',
-      filterFn: 'inDateRange',
-      enableColumnFilter: true,
-      enableGlobalFilter: false,
-    }),
-  ])
-  type SnapRow = AdminSnapListItem
-  // type BadgeVariant = VariantProps<typeof badgeVariants>['variant']
-
-
-  const EMPTY_SNAPS: SnapRow[] = []
-
-  const DEFAULT_COLUMN_VISIBILITY = {
-    email: false,
-    firebaseUid: false,
-    phone: false,
-    uploadId: false
-  }
-
-  const statusIconMap: Record<ProofRow['status'], IconName> = {
-    active: 'bolt',
-    cancelled: 'circle-minus',
-    abandoned: 'alert-diamond-fill',
-    completed: 'check-circle-fill',
-    invalidated: 'alert-octagon-fill',
-    pending: 'spinner-ferris'
-  }
-
-  const statusDotClassName: Record<ProofRow['status'], string> = {
-    active: 'bg-blue-500 dark:bg-blue-500',
-    abandoned: 'bg-mauve-200 text-mauve-800 dark:bg-mauve-800 dark:text-mauve-100',
-    cancelled: 'bg-taupe-200 text-taupe-800 dark:bg-taupe-800 dark:text-taupe-100',
-    completed: 'bg-emerald-500 dark:bg-emerald-600/80',
-    invalidated: 'bg-mist-200 text-mist-800 dark:bg-mist-800 dark:text-mist-100',
-    pending: 'bg-amber-400'
-  }
-
-  const formatExportDate = (timestamp: number) => new Date(timestamp).toISOString()
-
-  type OpenProofPhotoViewer = (proofId: ProofRow['_id']) => void
-  type OpenProofReportViewer = (proofId: ProofRow['_id']) => void
-  type ExportProofReport = (proofId: ProofRow['_id']) => Promise<void>
-
+import { useCallback, useMemo, useState } from 'octane'
+import { useAdminSnaps } from '@/hooks/use-admin-snaps'
+import { buildSnapGallery, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import DataTable from '@/components/ui/table/DataTable.btsx'
+import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
+import PhotoViewer from '@/components/photo-viewer.btsx'
+import ErrorPage from '@/components/error.btsx'
+// import SnapsFilterList from '@/components/admin/SnapsFilterList.btsx'
 
 props {}: {}
 setup
-  const convex = useConvex()
-  const { isAuthenticated, isLoading: isConvexAuthLoading } = useConvexAuth()
-  const { hasSnapAdminAccess, isLoading: isFirebaseAuthLoading } = useFirebaseUser()
-  const canLoadSnaps = !isConvexAuthLoading && !isFirebaseAuthLoading && isAuthenticated && hasSnapAdminAccess
-  const snaps = useConvexQuery(api.snaps.q.listForAdmin, canLoadSnaps ? { limit: Snap_LIST_LIMIT } : 'skip')
+  // Reads go through the Worker, which is protected by the admin session
+  // cookie and re-mints an ID token for Convex server-side. The browser on the
+  // admin origin has no Firebase client identity, so it cannot query Convex.
+  const { error, isLoading, lastUpdatedAt, refresh, snaps } = useAdminSnaps(SNAP_LIST_LIMIT)
+  const rows = snaps ?? EMPTY_SNAPS
+  // A poll failure keeps the last good rows, so the table stays up and the
+  // error reads as "stale" rather than replacing everything.
+  const hasRows = snaps !== undefined
+  const freshnessLabel = lastUpdatedAt ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
+
   const [activePhotoSnapId, setActivePhotoSnapId] = useState<SnapRow['_id'] | null>(null)
-  const [activeReportSnapId, setActiveReportSnapId] = useState<SnapRow['_id'] | null>(null)
-  const activePhotoSnap = snaps?.find((snap) => snap._id === activePhotoSnapId)
-  const gallery =
-    activePhotoSnap && activePhotoSnap.photos.length > 0
-      ? {
-          photos: activePhotoSnap.photos,
-          title: activePhotoSnap.plateNumber
-          ? `Snap photos · ${activePhotoSnap.plateNumber}`
-          : `Snap photos · ${activePhotoSnap.uploadId}`,
-          uploadId: activePhotoSnap.uploadId
-        }
-      : null
+  const gallery = buildSnapGallery(rows.find((snap) => snap._id === activePhotoSnapId))
+  const viewerPhotos = useMemo(() => (gallery ? toViewerPhotos(gallery.photos) : []), [gallery?.uploadId])
 
-  const exportSnapReport = useCallback<ExportSnapReport>(
-    async (snapId) => {
-    const snap = await convex.query(api.snaps.q.getForAdmin, { snapId })
+  const closePhotoViewer = useCallback((open: boolean) => {
+    if (!open) setActivePhotoSnapId(null)
+  }, [])
 
-    if (!snap) {
-        throw new Error('This snap no longer exists.')
-      }
-
-      if (snap.metadata.photos.length === 0) {
-        throw new Error('A full row report requires at least one snap photo.')
-      }
-
-      await downloadSnapFullReport(snap)
-    },
-    [convex]
-  )
 main(className='p-8')
   p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
   h1(className='mt-3 font-poly text-3xl font-medium') Snaps
   div(className='p-6')
-    DataTable(
-      ~ data={snaps ?? EMPTY_SNAPS}
-      ~ columns={columns}
-      ~ initialPageSize={50}
-      ~ pageSizeOptions={[50, 100, 200]}
+    if isLoading && !hasRows
+      p(className='text-sm text-muted-foreground') Loading snaps…
+    elseif error && !hasRows
+      ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
+    else
+      fragment
+        div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
+          if error
+            span(className='text-destructive') #{error} — showing the last successful load.
+          else
+            span #{freshnessLabel}
+          button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
+        DataTable(
+          ~ title='Snaps'
+          ~ eyebrow='Search + sort + filter'
+          ~ data={rows}
+          ~ columns={snapColumns}
+          ~ filterList={SnapFilterList}
+          ~ getRowId={(row) => row._id}
+          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+          ~ initialPageSize={50}
+          ~ pageSizes={PAGE_SIZES}
+          ~ emptyTitle='No snaps'
+          ~ emptyDescription='Try a shorter query or clear the search.'
+          ~ )
+  if gallery
+    PhotoViewer(
+      ~ open={true}
+      ~ photos={viewerPhotos}
+      ~ title={gallery.title}
+      ~ onOpenChange={closePhotoViewer}
       ~ )

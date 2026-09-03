@@ -45,6 +45,14 @@ const adminSnapsRoute = createRoute({
   component: lazyRoute(() => import('./pages/admin-snaps-page.btsx'))
 })
 
+// Fixture-backed UI surface. Deliberately outside the admin session gate; it
+// renders generated rows and issues no queries.
+const adminSnapsLabRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-snaps-lab',
+  component: lazyRoute(() => import('./pages/admin-snaps-lab-page.btsx'))
+})
+
 const adminWorkspaceRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin-workspace',
@@ -96,6 +104,7 @@ const routeTree = rootRoute.addChildren([
   adminHandoffRoute,
   adminOverviewRoute,
   adminSnapsRoute,
+  adminSnapsLabRoute,
   adminWorkspaceRoute,
   adminSettingsRoute,
   citadelRoute,

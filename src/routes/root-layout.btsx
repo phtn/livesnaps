@@ -2,11 +2,17 @@ import { Outlet } from '@octanejs/tanstack-router'
 import { isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
 import AdminPage from '@/pages/admin-page.btsx'
 
+module
+  // Paths that render without the admin shell, and so without its session gate.
+  // `/admin-snaps-lab` is a fixture-only UI surface: it runs no query and shows
+  // no real data, so it stays reachable while iterating on the table.
+  const UNGATED_ADMIN_PATHS = ['/admin-handoff', '/admin-snaps-lab']
+
 setup
   const isAdminHost = typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname)
-  const isAdminHandoff = typeof window !== 'undefined' && window.location.pathname === '/admin-handoff'
+  const isUngatedPath = typeof window !== 'undefined' && UNGATED_ADMIN_PATHS.includes(window.location.pathname)
 
-if isAdminHost && !isAdminHandoff
+if isAdminHost && !isUngatedPath
   AdminPage
 else
   Outlet

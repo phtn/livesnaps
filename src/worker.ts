@@ -5,6 +5,7 @@ import {
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
 import { handleAdminSession } from './server/admin-auth-routes'
+import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
 import { handleGodsSession } from './server/gods-auth-routes'
 
 interface WorkerEnvironment {
@@ -25,6 +26,8 @@ const SESSION_PATH = '/api/snaps/session'
 const ADMIN_SESSION_PATH = '/api/admin/session'
 const GODS_SESSION_PATH = '/api/gods/session'
 const PHOTO_PATH = '/api/proofs'
+const ADMIN_SNAPS_PATH = '/api/admin/snaps'
+const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 
 const isSpaNavigation = (request: Request) =>
@@ -58,6 +61,26 @@ export default {
 
     if (pathname === GODS_SESSION_PATH) {
       return handleGodsSession(request)
+    }
+
+    const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
+
+    if (pathname === ADMIN_SNAPS_PATH) {
+      return handleAdminSnapList(request, { convexUrl })
+    }
+
+    const adminSnapDetailMatch = ADMIN_SNAP_DETAIL_PATH.exec(pathname)
+
+    if (adminSnapDetailMatch) {
+      let snapId: string
+
+      try {
+        snapId = decodeURIComponent(adminSnapDetailMatch[1])
+      } catch {
+        return Response.json({ error: 'The snap ID is invalid.' }, { status: 400 })
+      }
+
+      return handleAdminSnapDetail(request, snapId, { convexUrl })
     }
 
     if (pathname === PHOTO_PATH) {

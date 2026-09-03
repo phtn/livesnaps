@@ -1,26 +1,25 @@
-import { Calendar } from '@/components/table/data/calendar'
-import {Faceted, FacetedBadgeList,FacetedContent,FacetedEmpty,FacetedGroup,FacetedItem,FacetedList,FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
-import { Button } from '@/components/ui'
-import { Button as BaseButton } from '@octanejs/base-ui/button'
-import { multiSelectFilterFn, type ColumnConfig } from '@/components/table/create-column'
-import { getFilterValueLabel, getFilterValueToken } from '@/components/table/filter-utils'
-import { Input } from '@/components/ui/input'
-import  Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
-import { filterFn_inDateRange } from '@octanejs/tanstack-table'
+import { useId, useMemo, useState } from 'octane'
 import { format } from 'date-fns'
-import { useId, useMemo, useState, type PointerEvent as OctanePointerEvent } from 'octane'
-
-import { type DataTableFilterListProps } from '@/components/ui/table/types'
+import Faceted, { FacetedBadgeList, FacetedContent, FacetedEmpty, FacetedGroup, FacetedItem, FacetedList, FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
+import Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
+import Input from '@/components/ui/input.btsx'
+import { Button } from '@/components/ui'
+import { getFilterValueLabel, getFilterValueToken } from '@/components/ui/table/hyper/filter-utils'
+import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { cn } from '@/lib/utils'
-import { ClassName } from '@/types'
-import {accuracyScoreRangeFilterFn,  createInclusiveDateRangeFilterValue,  createRangeFilterValue,  getRangeBounds,  getRangeDate,  getRangeInputValue,  isOpenRangeBound} from './snaps-filter-ranges'
+import type { ClassName } from '@/types'
+import type { snapsFeatures } from './table-config'
+import { IPC_MATCH_TOKENS } from './snap-columns'
+import { createInclusiveDateRangeFilterValue, createRangeFilterValue, getRangeBounds, getRangeDate, getRangeInputValue, isOpenRangeBound } from './snaps-filter-ranges'
 
 module
   type SnapRow = AdminSnapListItem
 
-  const Snap_STATUS_FILTERS: SnapRow['status'][] = [
+  // Matches the `status` union in `snapListItemSchema`; `pending` is the
+  // fallback `listForAdmin` applies when a snap has no location session.
+  const SNAP_STATUS_FILTERS: SnapRow['status'][] = [
     'pending',
     'active',
     'abandoned',
@@ -29,10 +28,12 @@ module
     'invalidated'
   ]
 
+  type SnapFilterProps = DataTableFilterListProps<SnapRow, typeof snapsFeatures>
+  type SnapFilterColumn = SnapFilterProps['columns'][number]
+
   type SnapFilterDefinitionBase = {
-    id: Extract<keyof SnapRow, string>
+    id: string
     label: string
-    filterFn: NonNullable<ColumnConfig<SnapRow>['filterFn']>
   }
 
   type SnapFacetedFilterDefinition = SnapFilterDefinitionBase & {
@@ -52,58 +53,41 @@ module
     variant: 'date-range'
   }
 
-  type SnapFilterDefinition =
-    | SnapFacetedFilterDefinition
-    | SnapNumberRangeFilterDefinition
-    | SnapDateRangeFilterDefinition
+  type SnapFilterDefinition = SnapFacetedFilterDefinition | SnapNumberRangeFilterDefinition | SnapDateRangeFilterDefinition
 
-    type SnapFilterOption = {
+  type SnapFilterOption = {
     count: number
     label: string
     value: string
   }
 
-  const formatStatusFilterValue = (value: unknown) =>
+  const titleCase = (value: unknown) =>
     String(value)
       .replace(/[-_]/g, ' ')
       .replace(/\b\w/g, (character) => character.toUpperCase())
 
+  const IPC_MATCH_LABELS: Record<string, string> = {
+    match: 'Verified',
+    mismatch: 'Mismatch',
+    unknown: 'Not measured'
+  }
+
+  // Every `id` here must name a real column, otherwise the filter silently
+  // disappears. `snap-columns.ts` is the source of truth for that list.
   const DEFAULT_FILTERABLE = [
-    {
-      id: 'status',
-      label: 'Status',
-      variant: 'faceted',
-      filterFn: multiSelectFilterFn,
-      values: SNAP_STATUS_FILTERS,
-      getValueLabel: formatStatusFilterValue
-    },
-    { id: 'make', label: 'Make', variant: 'faceted', filterFn: multiSelectFilterFn },
-    { id: 'model', label: 'Model', variant: 'faceted', filterFn: multiSelectFilterFn },
+    { id: 'status', label: 'Status', variant: 'faceted', values: SNAP_STATUS_FILTERS, getValueLabel: titleCase },
+    { id: 'make', label: 'Make', variant: 'faceted' },
+    { id: 'model', label: 'Model', variant: 'faceted' },
     {
       id: 'countryCodeMatchesIpinfo',
       label: 'IPC match',
       variant: 'faceted',
-      filterFn: multiSelectFilterFn,
-      values: [true, false],
-      getValueLabel: (value: unknown) => (value === true ? 'Verified' : 'Mismatch')
+      values: IPC_MATCH_TOKENS,
+      getValueLabel: (value: unknown) => IPC_MATCH_LABELS[String(value)] ?? titleCase(value)
     },
-    {
-      id: 'bestAccuracyMeters',
-      label: 'Accuracy score',
-      variant: 'number-range',
-      filterFn: accuracyScoreRangeFilterFn,
-      min: 0,
-      step: 1.0
-    },
-    {
-      id: 'createdAt',
-      label: 'Created',
-      variant: 'date-range',
-      filterFn: filterFn_inDateRange
-    }
+    { id: 'bestAccuracyMeters', label: 'Accuracy', variant: 'number-range', min: 0, step: 1 },
+    { id: 'createdAt', label: 'Created', variant: 'date-range' }
   ] as const satisfies readonly SnapFilterDefinition[]
-
-  type SnapFilterColumn = DataTableFilterListProps<SnapRow>['columns'][number]
 
   const getSnapFilterOptions = (
     column: SnapFilterColumn,
@@ -118,16 +102,12 @@ module
       if (!token) continue
 
       countByValue.set(token, (countByValue.get(token) ?? 0) + count)
-      if (!rawValueByToken.has(token)) {
-        rawValueByToken.set(token, rawValue)
-      }
+      if (!rawValueByToken.has(token)) rawValueByToken.set(token, rawValue)
     }
 
     for (const selectedValue of selectedValues) {
       const token = getFilterValueToken(selectedValue)
-      if (token && !rawValueByToken.has(token)) {
-        rawValueByToken.set(token, selectedValue)
-      }
+      if (token && !rawValueByToken.has(token)) rawValueByToken.set(token, selectedValue)
     }
 
     const optionSource = definition.values ?? Array.from(rawValueByToken.values())
@@ -145,69 +125,44 @@ module
     }
 
     const resolvedOptions = Array.from(options.values())
-    return definition.values
-      ? resolvedOptions
-      : resolvedOptions.sort((left, right) => left.label.localeCompare(right.label))
-  }
-
-  const DEFAULT_FILTERABLE_BY_ID: ReadonlyMap<string, SnapFilterDefinition> = new Map(
-    DEFAULT_FILTERABLE.map((definition) => [definition.id, definition])
-  )
-
-  export const withDefaultFilterableColumns = (columns: ColumnConfig<SnapRow>[]): ColumnConfig<SnapRow>[] => {
-    const columnIds = new Set(columns.map((column) => column.id))
-
-    for (const definition of DEFAULT_FILTERABLE) {
-      if (!columnIds.has(definition.id)) {
-        throw new Error(`Default snap filter "${definition.id}" does not have a matching column.`)
-      }
-    }
-
-    return columns.map((column) => {
-      const definition = DEFAULT_FILTERABLE_BY_ID.get(column.id)
-      const enableFiltering = Boolean(definition)
-
-      return {
-        ...column,
-        enableFiltering,
-        filterFn: definition ? (column.filterFn ?? definition.filterFn) : column.filterFn
-      }
-    })
+    // A declared value list is already in a meaningful order; a derived one is not.
+    return definition.values ? resolvedOptions : resolvedOptions.sort((left, right) => left.label.localeCompare(right.label))
   }
 
   const getDateRangeLabel = (from: Date | undefined, to: Date | undefined) => {
     if (!from) return to ? `Through ${format(to, 'MMM d, yyyy')}` : 'Any date'
     if (!to) return `From ${format(from, 'MMM d, yyyy')}`
     if (from.toDateString() === to.toDateString()) return format(from, 'MMM d, yyyy')
-    if (from.getFullYear() === to.getFullYear()) {
-      return `${format(from, 'MMM d')} – ${format(to, 'MMM d, yyyy')}`
-    }
-    return `${format(from, 'MMM d, yyyy')} – ${format(to, 'MMM d, yyyy')}`
+    if (from.getFullYear() === to.getFullYear()) return `${format(from, 'MMM d')} - ${format(to, 'MMM d, yyyy')}`
+    return `${format(from, 'MMM d, yyyy')} - ${format(to, 'MMM d, yyyy')}`
   }
 
-  const handleNestedPopoverPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
-    const target = event.target
-    if (!(target instanceof HTMLElement)) return
-    if (target.hasPointerCapture(event.pointerId)) {
-      target.releasePointerCapture(event.pointerId)
-    }
+  // `<input type="date">` wants `yyyy-MM-dd` in local time; `toISOString()`
+  // would shift the day backwards for negative UTC offsets.
+  const toDateInputValue = (date: Date | undefined) => (date ? format(date, 'yyyy-MM-dd') : '')
 
-    if (event.button === 0 && event.ctrlKey === false && event.pointerType === 'mouse') {
-      event.preventDefault()
-    }
+  const toDateInputDate = (value: string) => {
+    if (!value) return undefined
+    const parsed = new Date(`${value}T00:00:00`)
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed
   }
+
+  const dateInputClassName =
+    'h-6 w-full min-w-0 rounded-sm bg-background px-1 font-okx text-xs [&::-webkit-calendar-picker-indicator]:opacity-50'
 
   const triggerClassName: ClassName =
-    ' bg-background hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
+    'bg-background hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
   const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
+
   const getActiveFilterCount = (definition: SnapFilterDefinition, value: unknown) => {
     if (definition.variant === 'faceted') {
-      return Array.isArray(value) ? value.length : value === undefined ? 0 : 1
+      return Array.isArray(value) ? (value.length > 0 ? 1 : 0) : value === undefined ? 0 : 1
     }
 
     const [min, max] = getRangeBounds(value)
     return isOpenRangeBound(min) && isOpenRangeBound(max) ? 0 : 1
   }
+
   type SnapFacetedFilterProps = {
     column: SnapFilterColumn
     definition: SnapFacetedFilterDefinition
@@ -221,85 +176,78 @@ module
     fieldLabelId: string
     rawFilterValue: unknown
   }
+
   type SnapDateRangeFilterProps = {
     column: SnapFilterColumn
     fieldLabelId: string
     rawFilterValue: unknown
   }
 
+  type SnapFilterFieldProps = {
+    baseId: string
+    columnsById: Map<string, SnapFilterColumn>
+    definition: SnapFilterDefinition
+    rawFilterValue: unknown
+  }
+
 component SnapFacetedFilter
-  props {column, definition, fieldLabelId, rawFilterValue }: SnapFacetedFilterProps
+  props { column, definition, fieldLabelId, rawFilterValue }: SnapFacetedFilterProps
   setup
-    const selectedValues = Array.isArray(rawFilterValue)
-      ? rawFilterValue
-      : rawFilterValue === undefined
-        ? []
-        : [rawFilterValue]
+    const selectedValues = Array.isArray(rawFilterValue) ? rawFilterValue : rawFilterValue === undefined ? [] : [rawFilterValue]
     const selectedTokens = [...new Set(selectedValues.map(getFilterValueToken).filter(Boolean))]
     const options = getSnapFilterOptions(column, definition, selectedValues)
-
-
 
   Faceted(
     ~ multiple={true}
     ~ value={selectedTokens}
     ~ onValueChange={(value) => column.setFilterValue(value?.length ? value : undefined)}
     ~ )
-    FacetedTrigger(
-      ~ aria-labelledby={fieldLabelId}
-      ~ disabled={options.length === 0}
-      ~ render={Button(aria-label={fieldLabelId} disabled={disabled} className={triggerClassName})})
+    FacetedTrigger(aria-labelledby={fieldLabelId} disabled={options.length === 0} className={cn('h-8 w-full rounded-md px-2', triggerClassName)})
       FacetedBadgeList(
         ~ options={options}
         ~ max={1}
         ~ placeholder={options.length > 0 ? 'Any' : 'No values'}
         ~ className='min-w-0 flex-nowrap overflow-hidden'
-        ~ badgeClassName=''
         ~ )
-
-    FacetedContent(className={cn('w-54')})
+    FacetedContent(className={cn('w-54', contentClassName)})
       FacetedList
         FacetedEmpty No values found.
-          FacetedGroup
-            each option in options key option.value
-              FacetedItem(value={option.value} className='pe-0')
-                div(className='flex w-full items-center justify-between')
-                  span(className='truncate') #{option.label}
-                  span(className={cn('font-mono text-base text-foreground/40', {
-                    ~ 'text-indigo-400 dark:text-indigo-300': option.count > 0
-                    ~ })})
-                  |  #{option.count}
+        FacetedGroup
+          each option in options key option.value
+            FacetedItem(value={option.value} className='pe-0')
+              div(className='flex w-full items-center justify-between gap-2')
+                span(className='truncate') #{option.label}
+                span(className={cn('font-mono text-xs text-foreground/40', { 'text-indigo-400 dark:text-indigo-300': option.count > 0 })}) #{option.count}
 
 component SnapNumberRangeFilter
-  props {column,definition,fieldLabelId,rawFilterValue }: SnapNumberRangeFilterProps
+  props { column, definition, fieldLabelId, rawFilterValue }: SnapNumberRangeFilterProps
   setup
     const [rawMin, rawMax] = getRangeBounds(rawFilterValue)
-    const min =
-      rawFilterValue === undefined && definition.min !== undefined ? String(definition.min) : getRangeInputValue(rawMin)
+    const min = rawFilterValue === undefined && definition.min !== undefined ? String(definition.min) : getRangeInputValue(rawMin)
     const max = getRangeInputValue(rawMax)
     const minInputId = `${fieldLabelId}-min`
     const maxInputId = `${fieldLabelId}-max`
-    const handleMinChange = (event) => {
-      const nextMin = event.currentTarget.value
+    const handleMinChange = (event: Event) => {
+      const nextMin = (event.currentTarget as HTMLInputElement).value
       column.setFilterValue((currentValue: unknown) => {
         const [, currentMax] = getRangeBounds(currentValue)
         return createRangeFilterValue(nextMin, getRangeInputValue(currentMax))
       })
     }
-    const handleMaxChange = (event) => {
-      const nextMax = event.currentTarget.value
+    const handleMaxChange = (event: Event) => {
+      const nextMax = (event.currentTarget as HTMLInputElement).value
       column.setFilterValue((currentValue: unknown) => {
         const [currentMin] = getRangeBounds(currentValue)
         const currentMinValue =
-          currentValue === undefined && definition.min !== undefined
-            ? String(definition.min)
-            : getRangeInputValue(currentMin)
+          currentValue === undefined && definition.min !== undefined ? String(definition.min) : getRangeInputValue(currentMin)
         return createRangeFilterValue(currentMinValue, nextMax)
       })
     }
+    const numberInputClassName =
+      'h-7 bg-background rounded-sm w-12 font-okx text-xs text-center px-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 
-  div(aria-labelledby={fieldLabelId} className='flex items-center justify-between gap-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:focus-ring-indigo-400 bg-background hover:bg-indigo-600/5 rounded-md border w-full ps-2' )
-    Label(htmlFor={minInputId} className='tracking-widest font-mono text-xs opacity-70') MIN
+  div(aria-labelledby={fieldLabelId} className='flex h-8 items-center justify-between gap-1.5 rounded-md border-2 border-border/25 bg-background ps-2 hover:bg-indigo-600/5')
+    label(htmlFor={minInputId} className='font-mono text-xs tracking-widest opacity-70') MIN
     Input(
       ~ id={minInputId}
       ~ type='number'
@@ -310,135 +258,124 @@ component SnapNumberRangeFilter
       ~ value={min}
       ~ placeholder='Min'
       ~ aria-label={`${definition.label} minimum`}
-      ~ className='h-7 bg-background rounded-sm w-10 font-okx text-xs text-center px-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-      ~ onChange={handleMinChange})
-
-      span(aria-hidden='true' className='text-xs text-muted-foreground') &middot;
-      Label(htmlFor={maxInputId} className='tracking-widest font-mono text-xs opacity-70') MAX
-      Input(
-        ~ id={maxInputId}
-        ~ type='number'
-        ~ inputMode='decimal'
-        ~ min={definition.min}
-        ~ max={definition.max}
-        ~ step={definition.step ?? 'any'}
-        ~ value={max}
-        ~ placeholder=''
-        ~ aria-label={`${definition.label} maximum`}
-        ~ className='h-7 bg-background rounded-sm w-10 font-okx text-xs px-0 text-center [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
-        ~ onChange={handleMaxChange})
+      ~ className={numberInputClassName}
+      ~ onChange={handleMinChange}
+      ~ )
+    span(aria-hidden='true' className='text-xs text-muted-foreground') &middot;
+    label(htmlFor={maxInputId} className='font-mono text-xs tracking-widest opacity-70') MAX
+    Input(
+      ~ id={maxInputId}
+      ~ type='number'
+      ~ inputMode='decimal'
+      ~ min={definition.min}
+      ~ max={definition.max}
+      ~ step={definition.step ?? 'any'}
+      ~ value={max}
+      ~ placeholder='Max'
+      ~ aria-label={`${definition.label} maximum`}
+      ~ className={numberInputClassName}
+      ~ onChange={handleMaxChange}
+      ~ )
 
 component SnapDateRangeFilter
-  props {column, fieldLabelId, rawFilterValue}: SnapDateRangeFilterProps
+  props { column, fieldLabelId, rawFilterValue }: SnapDateRangeFilterProps
   setup
     const [rawFrom, rawTo] = getRangeBounds(rawFilterValue)
     const from = getRangeDate(rawFrom)
     const to = getRangeDate(rawTo)
-    const triggerId = `${fieldLabelId}-trigger`
-    const calendarId = `${fieldLabelId}-calendar`
+    const fromInputId = `${fieldLabelId}-from`
+    const toInputId = `${fieldLabelId}-to`
+    const handleFromChange = (event: Event) => {
+      const next = (event.currentTarget as HTMLInputElement).value
+      column.setFilterValue(createInclusiveDateRangeFilterValue(toDateInputDate(next), to))
+    }
+    const handleToChange = (event: Event) => {
+      const next = (event.currentTarget as HTMLInputElement).value
+      column.setFilterValue(createInclusiveDateRangeFilterValue(from, toDateInputDate(next)))
+    }
 
-  Popover
-    PopoverTrigger(render={Button(id={triggerId} type='button' variant='outline' size='sm' aria-controls={calendarId} aria-labelledby={fieldLabelId} className={cn('h-8 min-w-0 justify-start overflow-hidden rounded-md px-2 font-normal [&>svg]:size-3.5', !from && !to && 'text-muted-foreground text-sm', triggerClassName)} onPointerDown={handleNestedPopoverPointerDown})})
-      Icon( name='calendar' className='')
-      span(className='truncate') #{getDateRangeLabel(from, to)}
-    PopoverContent(
-      ~id={calendarId}
-      ~sideOffset={6}
-      ~align='start'
-      ~className={cn('w-auto p-0 rounded-lg border', contentClassName)}
-      ~onFocus={() => document.getElementById(triggerId)?.focus({ preventScroll: true })})
-      Calendar(
-        ~mode='range'
-        ~aria-label='Select Created date range'
-        ~selected={from || to ? { from, to } : undefined}
-        ~defaultMonth={from ?? to}
-        ~onSelect={(date) => column.setFilterValue(createInclusiveDateRangeFilterValue(date?.from, date?.to))}
-        ~numberOfMonths={2}
-        ~autoFocus)
+  div(aria-labelledby={fieldLabelId} className='flex h-8 items-center gap-1 rounded-md border-2 border-border/25 bg-background px-1.5 hover:bg-indigo-600/5')
+    Icon(name='calendar' className='size-3.5 shrink-0 opacity-60')
+    Input(
+      ~ id={fromInputId}
+      ~ type='date'
+      ~ value={toDateInputValue(from)}
+      ~ aria-label='Created from'
+      ~ title={getDateRangeLabel(from, to)}
+      ~ className={dateInputClassName}
+      ~ onChange={handleFromChange}
+      ~ )
+    span(aria-hidden='true' className='text-xs text-muted-foreground') &middot;
+    Input(
+      ~ id={toInputId}
+      ~ type='date'
+      ~ value={toDateInputValue(to)}
+      ~ aria-label='Created to'
+      ~ className={dateInputClassName}
+      ~ onChange={handleToChange}
+      ~ )
 
-component Definition
-  props {columnsById, definitionId, baseId, rawFilterValue}: { columnsById: Map<string, Column>, definition: SnapFilterDefinition, baseId: string, rawFilterValue: string}
+component SnapFilterField
+  props { baseId, columnsById, definition, rawFilterValue }: SnapFilterFieldProps
   setup
     const column = columnsById.get(definition.id)
     const fieldLabelId = `${baseId}-${definition.id}-label`
-  if (!column)
-    null
-  else
-    div(key={definitionId} className='grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-2')
-      span(id={fieldLabelId} className='truncate font-okx text-sm capitalize') #{definition.label}
-        if definitionVariant === 'faceted'
-          SnapFacetedFilter(
-            ~ column={column}
-            ~ definition={definition}
-            ~ fieldLabelId={fieldLabelId}
-            ~ rawFilterValue={rawFilterValue})
-        elseif definition.variant === 'number-range'
-          SnapNumberRangeFilter(
-            ~ column={column}
-            ~ definition={definition}
-            ~ fieldLabelId={fieldLabelId}
-            ~rawFilterValue={rawFilterValue})
-        else
-          SnapDateRangeFilter(column={column} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
 
-
-component SnapFilterList
-  props { columns, columnFilters, onReset }: DataTableFilterListProps<SnapRow>
-  setup
-    const [open, setOpen] = useState(false)
-    const baseId = useId()
-    const labelId = `${baseId}-label`
-    const descriptionId = `${baseId}-description`
-    const columnsById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns])
-    const filterValuesById = useMemo(
-      () => new Map(columnFilters.map((filter) => [filter.id, filter.value] as const)),
-      [columnFilters]
-    )
-    const activeFilterCount = DEFAULT_FILTERABLE.reduce((total, definition) => {
-      const value = filterValuesById.get(definition.id)
-      return total + getActiveFilterCount(definition, value)
-    }, 0)
-
-    const buttonClass = cn(
-      'relative h-7.5 flex items-center justify-center gap-1',
-      'rounded-xs text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5',
-      'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
-      'hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
-      'active:bg-foreground/10 dark:active:bg-indigo-100/5',
-      'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1',
-      { 'md:ps-2 md:pe:2.5 gap-0 ': activeFilterCount > 0 }
-    )
-
-  Popover( open={open} onOpenChange={setOpen})
-    PopoverTrigger(render={BaseButton} className={buttonClass})
-      if activeFilterCount > 0
-        span(className='bg-indigo-500 font-okx md:-ml-0.5 w-6 rounded-xs font-semibold text-white dark:text-background dark:bg-indigo-300')
-          if activeFilterCount > 99 ? '99+' : activeFilterCount}
-            span 99+
-          else
-            activeFilterCount
+  if column
+    div(className='grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2')
+      span(id={fieldLabelId} className='truncate font-okx text-sm') #{definition.label}
+      if definition.variant === 'faceted'
+        SnapFacetedFilter(column={column} definition={definition} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
+      elseif definition.variant === 'number-range'
+        SnapNumberRangeFilter(column={column} definition={definition} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
       else
-        Icon(name='filter' className='size-4 opacity-70')
-        span(className='hidden opacity-80 md:inline') Filter
+        SnapDateRangeFilter(column={column} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
 
-    PopoverContent(
-        ~aria-describedby={descriptionId}
-        ~aria-labelledby={labelId}
-        ~align='start'
-        ~sideOffset={3}
-        ~className='w-80 gap-2 p-0 rounded-md border bg-zinc-200/80 backdrop-blur-3xl dark:bg-zinc-900/80')
-        div(className='flex flex-col gap-1 border-b border-dashed py-2 px-3')
-          h4(id={labelId} className='font-okx text-sm text-muted-foreground select-none') Add Filter
-        if open
-          div(className='space-y-2 p-3')
-            each definition in DEFAULT_FILTERABLE key definition.id
-              Definition(columnsById={columnsById} definition={definition} baseId={baseId} rawFilterValue={filterValuesById.get(definition.id)})
-        else
-          null
-        if activeFilterCount > 0
-          div(className='flex justify-end border-t border-dashed p-1')
-            Button(type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md')
-              Icon( name='cancel')
-              span Reset Filters
-        else
-          null
+props { columns, columnFilters, onReset }: SnapFilterProps
+setup
+  const [open, setOpen] = useState(false)
+  const baseId = useId()
+  const labelId = `${baseId}-label`
+  const descriptionId = `${baseId}-description`
+  const columnsById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns])
+  const filterValuesById = useMemo(() => new Map(columnFilters.map((filter) => [filter.id, filter.value] as const)), [columnFilters])
+  const activeFilterCount = DEFAULT_FILTERABLE.reduce(
+    (total, definition) => total + getActiveFilterCount(definition, filterValuesById.get(definition.id)),
+    0
+  )
+  const activeFilterLabel = activeFilterCount > 99 ? '99+' : String(activeFilterCount)
+
+  const buttonClass = cn(
+    'relative h-7.5 flex items-center justify-center gap-1',
+    'rounded-xs text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5',
+    'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
+    'hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
+    'active:bg-foreground/10 dark:active:bg-indigo-100/5',
+    'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1'
+  )
+
+Popover(open={open} onOpenChange={setOpen})
+  PopoverTrigger(type='button' aria-label='Filter' className={buttonClass})
+    if activeFilterCount > 0
+      span(className='rounded-xs bg-indigo-500 px-1.5 font-okx font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
+    else
+      Icon(name='filter' className='size-4 opacity-70')
+    span(className='hidden opacity-80 md:inline') Filter
+  PopoverContent(
+    ~ aria-describedby={descriptionId}
+    ~ aria-labelledby={labelId}
+    ~ align='start'
+    ~ sideOffset={3}
+    ~ className='w-80 gap-2 rounded-md border bg-zinc-200/80 p-0 backdrop-blur-3xl dark:bg-zinc-900/80'
+    ~ )
+    div(className='flex flex-col gap-1 border-b border-dashed px-3 py-2')
+      h4(id={labelId} className='select-none font-okx text-sm text-muted-foreground') Add Filter
+      p(id={descriptionId} className='sr-only') Filter the snaps table by status, vehicle, location match, accuracy, or creation date.
+    div(className='space-y-2 p-3')
+      each definition in DEFAULT_FILTERABLE key definition.id
+        SnapFilterField(baseId={baseId} columnsById={columnsById} definition={definition} rawFilterValue={filterValuesById.get(definition.id)})
+    if activeFilterCount > 0
+      div(className='flex justify-end border-t border-dashed p-1')
+        Button(type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md')
+          Icon(name='cancel' className='size-3.5')
+          span Reset Filters

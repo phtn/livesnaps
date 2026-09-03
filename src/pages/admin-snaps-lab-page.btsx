@@ -1,0 +1,71 @@
+import { useCallback, useMemo, useState } from 'octane'
+import { createSnapFixtures } from '@/components/admin/snap-fixtures'
+import { buildSnapGallery, DEFAULT_COLUMN_VISIBILITY, PAGE_SIZES, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import DataTable from '@/components/ui/table/DataTable.btsx'
+import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
+import PhotoViewer from '@/components/photo-viewer.btsx'
+
+module
+  const FIXTURE_COUNTS = [10, 60, 250]
+  type ExtraProps = {
+    rows: SnapRow[]
+    fixtureCount: number
+    setFixtureCount: (count: number) => void
+    openFirstGallery: VoidFunction
+  }
+component Extra
+  props {rows, fixtureCount, setFixtureCount, openFirstGallery}: ExtraProps
+  div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
+    span #{rows.length} fixture rows
+    each count in FIXTURE_COUNTS key count
+      button(
+        ~ type='button'
+        ~ className={count === fixtureCount ? 'underline underline-offset-4 text-foreground' : 'underline underline-offset-4'}
+        ~ onClick={() => setFixtureCount(count)}
+        ~ ) #{count}
+    button(type='button' className='underline underline-offset-4' onClick={openFirstGallery}) Open photo viewer
+
+props {}: {}
+setup
+  // Fixtures only: no fetch, no Convex, no admin session. This page exists so
+  // table and viewer UI can be iterated on without a signed-in admin.
+  const [fixtureCount, setFixtureCount] = useState(60)
+  const rows = useMemo<SnapRow[]>(() => createSnapFixtures(fixtureCount), [fixtureCount])
+
+  const [activePhotoSnapId, setActivePhotoSnapId] = useState<SnapRow['_id'] | null>(null)
+  const gallery = buildSnapGallery(rows.find((snap) => snap._id === activePhotoSnapId))
+  const viewerPhotos = useMemo(() => (gallery ? toViewerPhotos(gallery.photos) : []), [gallery?.uploadId])
+
+  const closePhotoViewer = useCallback((open: boolean) => {
+    if (!open) setActivePhotoSnapId(null)
+  }, [])
+
+  const openFirstGallery = useCallback(() => {
+    const withPhotos = rows.find((snap) => snap.photos.length > 0)
+    if (withPhotos) setActivePhotoSnapId(withPhotos._id)
+  }, [rows])
+
+main(className='')
+  div(className='flex items-center gap-2')
+  div(className='p-6')
+
+    DataTable(
+      ~ eyebrow='Fixture data'
+      ~ data={rows}
+      ~ columns={snapColumns}
+      ~ filterList={SnapFilterList}
+      ~ getRowId={(row) => row._id}
+      ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+      ~ initialPageSize={50}
+      ~ pageSizes={PAGE_SIZES}
+      ~ emptyTitle='No snaps'
+      ~ emptyDescription='Try a shorter query or clear the search.'
+      ~ )
+      Extra(rows={rows} fixtureCount={fixtureCount} setFixtureCount={setFixtureCount} openFirstGallery={openFirstGallery})
+  if gallery
+    PhotoViewer(
+      ~ open={true}
+      ~ photos={viewerPhotos}
+      ~ title={gallery.title}
+      ~ onOpenChange={closePhotoViewer}
+      ~ )

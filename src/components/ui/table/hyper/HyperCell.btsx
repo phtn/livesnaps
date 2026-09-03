@@ -24,7 +24,7 @@ td(
   ~ data-column-pinned={pinnedColumnLayout?.position || undefined}
   ~ inert={!isVisible}
   ~ style={getPinnedColumnStyle(pinnedColumnLayout)}
-  ~ className={cn('overflow-hidden p-0 [&:last-child>div]:py-0 border-b border-r border-sidebar-border first:border-l-0',
+  ~ className={cn('overflow-hidden p-0 [&:last-child>div]:py-0 border-b border-r border-border border-dotted first:border-l-0',
     ~ {
       ~ 'sticky z-10 transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none': pinnedColumnLayout,
       ~ 'border-r border-sidebar-border': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start',

@@ -1,0 +1,22 @@
+import Badge from '@/components/ui/badge.btsx'
+import { Icon, type IconName } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+
+module
+  /** The shape the presentation maps in `./data` provide. */
+  export interface StatusPresentation {
+    className: string
+    icon: IconName
+    label: string
+  }
+
+  export interface StatusBadgeProps {
+    presentation: StatusPresentation
+  }
+
+props { presentation }: StatusBadgeProps
+// `plain` so the badge contributes no colour of its own: the presentation map
+// owns border, background, and text together.
+Badge(variant='plain' className={cn('rounded-sm border ps-0.5 py-0.75', presentation.className)})
+  Icon(name={presentation.icon} className='size-3.75')
+  span(className='font-mono text-xs uppercase') #{presentation.label}

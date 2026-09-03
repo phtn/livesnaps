@@ -10,6 +10,9 @@ import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
 import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
 import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
 import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
+import { snapsFeatures } from '@/components/admin/table-config'
+import type { DataTableFilterListProps } from '@/components/ui/table/types'
+import type { OctaneNode } from 'octane'
 
 module
   /**
@@ -23,6 +26,12 @@ module
     emptyDescription?: string
     emptyTitle?: string
     eyebrow?: string
+    /**
+     * Optional filter-list component rendered beside the column picker. It
+     * receives the leaf columns, the current column-filter state, and a reset
+     * callback, so the table stays unaware of any particular entity's filters.
+     */
+    filterList?: (props: DataTableFilterListProps<any, typeof snapsFeatures>) => unknown
     getRowId?: (row: any, index: number) => string
     initialColumnPinning?: ColumnPinningState
     initialColumnVisibility?: ColumnVisibilityState
@@ -30,6 +39,7 @@ module
     initialSorting?: SortingState
     pageSizes?: number[]
     title?: string
+    children?: OctaneNode
   }
 
   const DEFAULT_PAGE_SIZES = [50, 100, 250, 500]
@@ -41,17 +51,21 @@ props {
   ~ emptyDescription = 'Try a shorter query or clear the search.',
   ~ emptyTitle = 'No matching rows',
   ~ eyebrow = 'Search + sort + select',
+  ~ filterList,
   ~ getRowId,
   ~ initialColumnPinning = DEFAULT_PINNING,
   ~ initialColumnVisibility = {},
   ~ initialPageSize,
   ~ initialSorting = [],
   ~ pageSizes = DEFAULT_PAGE_SIZES,
-  ~ title = 'Data table'}: Props
+  ~ children,
+  ~ title = ''}: Props
 
 setup
 
 
+  // Capitalised alias so the template can render the prop as a component.
+  const FilterList = filterList
   const safePageSizes = pageSizes.length > 0 ? pageSizes : DEFAULT_PAGE_SIZES
   const [globalFilter, setGlobalFilter] = useState('')
   const [columnFilters, setColumnFilters] = useState([])
@@ -110,24 +124,35 @@ setup
     [table, table.state.columnPinning, table.state.columnVisibility],
   )
   const selectedCount = Object.keys(table.state.rowSelection).length
+  const handleResetFilters = () => {
+    setColumnFilters([])
+    setPagination((current) => ({ ...current, pageIndex: 0 }))
+  }
   const handleSearchChange = (event: Event) => table.setGlobalFilter((event.currentTarget as HTMLInputElement).value)
 
-section(className='relative rounded-[0.95em] border border-input/70 bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
-  Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
+section(className='relative overflow-hidden rounded-sm border border-slate-400 bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+  Header(title={title} description='Browse, sort, filter, and select your data.')
 
-  div(className='flex min-h-12 items-center justify-between pb-3 max-[680px]:flex-col max-[680px]:items-start')
-    ColumnView(
-      ~ cols={table.getAllLeafColumns()}
-      ~ columnVisibility={table.state.columnVisibility}
-      ~ onColumnVisibilityChange={table.setColumnVisibility}
-      ~ columnOrder={table.state.columnOrder}
-      ~ onColumnOrderChange={table.setColumnOrder}
-      ~ )
-    div(className='flex items-center gap-2.5 font-mono text-sm text-muted-foreground/60')
-      span #{selectedCount} selected
+  div(className='flex min-h-12 items-center justify-between px-1 pb-2 max-[680px]:flex-col max-[680px]:items-start')
+    div(className='flex items-center gap-1')
+      ColumnView(
+        ~ cols={table.getAllLeafColumns()}
+        ~ columnVisibility={table.state.columnVisibility}
+        ~ onColumnVisibilityChange={table.setColumnVisibility}
+        ~ columnOrder={table.state.columnOrder}
+        ~ onColumnOrderChange={table.setColumnOrder}
+        ~ )
+      if FilterList
+        FilterList(
+          ~ columns={table.getAllLeafColumns()}
+          ~ columnFilters={columnFilters}
+          ~ onReset={handleResetFilters}
+          ~ )
+    div(className='flex items-center gap-2.5 font-mono text-sm text-muted-foreground/70')
+      span(className='uppercase text-sm') #{selectedCount} selected
       Search(value={globalFilter} onChange={handleSearchChange})
 
-  div(className='h-[612px] w-full overflow-auto scrollbar-track-slate-200 scrollbar-thumb-background scrollbar-thin')
+  div(className='h-[612px] w-full overflow-auto scrollbar-track-slate-200 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
     HyperTable(
       ~ table={table}
       ~ title={title}
@@ -155,7 +180,7 @@ section(className='relative rounded-[0.95em] border border-input/70 bg-backgroun
               b #{emptyTitle}
               span #{emptyDescription}
 
-  footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-input/50 bg-sidebar p-3 text-xs font-semibold')
+  footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-input/50 dark:bg-sidebar p-3 text-xs font-semibold')
     SelectOctane(
       ~ className='py-0 [&_svg]:size-4 text-xs]'
       ~ menuPlacement='top'
@@ -164,7 +189,8 @@ section(className='relative rounded-[0.95em] border border-input/70 bg-backgroun
       ~ options={safePageSizes.map((size) => ({ value: String(size), label: String(size) }))}
       ~ direction='up'
       ~ )
-    div(className='flex items-center gap-4')
+    fragment #{children}
+    div(className='flex items-center gap-4 md:gap-8')
       p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
       div(className='flex overflow-hidden rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='First page' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}) ⏮
