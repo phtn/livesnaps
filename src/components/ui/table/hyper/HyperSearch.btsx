@@ -1,4 +1,4 @@
-import { Input } from '@/components/ui'
+import Input from '@/components/ui/input.btsx'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import type { Column, RowData } from '@octanejs/tanstack-table'

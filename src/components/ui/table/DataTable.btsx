@@ -1,14 +1,14 @@
 import { functionalUpdate, useTable } from '@octanejs/tanstack-table'
-import type { ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
+import type {  ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
 import { useMemo, useState } from 'octane'
 import { Button, Header } from '@/components/ui/'
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import { TableBody, TableCell, TableRow } from '@/components/ui/table'
+import Header from '@/components/ui/header.btsx'
 import HyperRow from '@/components/ui/table/hyper/HyperRow.btsx'
 import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
 import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
 import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
-import { snapsFeatures } from '@/components/admin/table-config'
 import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
 
 module
@@ -50,6 +50,8 @@ props {
   ~ title = 'Data table'}: Props
 
 setup
+
+
   const safePageSizes = pageSizes.length > 0 ? pageSizes : DEFAULT_PAGE_SIZES
   const [globalFilter, setGlobalFilter] = useState('')
   const [columnFilters, setColumnFilters] = useState([])

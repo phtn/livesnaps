@@ -39,21 +39,19 @@ export type Industry = (typeof industries)[number]
 export type Plan = (typeof plans)[number]
 export type AccountStatus = (typeof statuses)[number]
 
-export interface PerformanceRow {
-  id: string
-  account: string
-  contact: string
+export interface SnapRow {
+  plate: string
+  fullName: string
+  location: string
+  photos: string
   email: string
-  region: string
-  industry: Industry
-  plan: Plan
-  status: AccountStatus
+  countryCodeMatchesIpinfo: string
+  status: string
   revenue: number
-  seats: number
-  health: number
-  latency: number
-  events: number
+  handler: string
+  verification_status: string
   updatedAt: number
+  createdAt: number
 }
 
 export interface AnalyticsRow {

@@ -8,7 +8,7 @@ import {isColumnVisible} from './visibility.ts'
 import HyperCell from './HyperCell.btsx'
 import type { RowDropPosition } from './reorder'
 import type {features} from './features.ts'
-import {Checkbox} from '../../../ui'
+import Checkbox from '@/components/ui/checkbox.btsx'
 
 module
   interface RenderRowProps<T extends RowData> {

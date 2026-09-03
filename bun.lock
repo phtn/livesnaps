@@ -14,6 +14,7 @@
         "@octanejs/base-ui": "0.1.50",
         "@octanejs/cmdk": "^0.1.35",
         "@octanejs/day-picker": "^0.0.18",
+        "@octanejs/dnd-kit": "^0.1.47",
         "@octanejs/mdx": "0.1.49",
         "@octanejs/motion": "^0.1.51",
         "@octanejs/nuqs": "^0.1.41",
@@ -432,6 +433,8 @@
     "@octanejs/cmdk": ["@octanejs/cmdk@0.1.35", "", { "dependencies": { "@octanejs/radix": "0.1.51" }, "peerDependencies": { "octane": "^0.1.51 || ^0.2.0" } }, "sha512-PzHvkHL0jfPqLRaeytZ1MBSTKMOHeS2C8aQYvEPz20lAcwSEUQZun8H53wX3RNMYzuyw5LoVPa1gPF+VuCSlLQ=="],
 
     "@octanejs/day-picker": ["@octanejs/day-picker@0.0.18", "", { "dependencies": { "@date-fns/tz": "^1.4.1", "date-fns": "^4.1.0" }, "peerDependencies": { "octane": "^0.1.51 || ^0.2.0" } }, "sha512-hL3lMpkOKaiL0PvAzcskoZN4oAzGUoUt6qCJq10lPUupQYYWM9W99g4lixLtE9ZSWTBnFf+gjXubqRjrIqFckQ=="],
+
+    "@octanejs/dnd-kit": ["@octanejs/dnd-kit@0.1.47", "", { "dependencies": { "@dnd-kit/abstract": "0.5.0", "@dnd-kit/collision": "0.5.0", "@dnd-kit/dom": "0.5.0", "@dnd-kit/state": "0.5.0" }, "peerDependencies": { "octane": "^0.1.51 || ^0.2.0" } }, "sha512-ZlZKpvm8hY6EG8/+cNOKYPpfktBm5eK0GW9ec0iHCLXx3zNhclAHpcQniMP4bIBGtjdc8YTm1/8D3WE8AcNAZA=="],
 
     "@octanejs/floating-ui": ["@octanejs/floating-ui@0.1.51", "", { "dependencies": { "@floating-ui/dom": "^1.8.0", "@floating-ui/utils": "^0.2.12", "tabbable": "^6.5.0" }, "peerDependencies": { "octane": "^0.1.51 || ^0.2.0" } }, "sha512-wE33bE3yMOwRKV2mgIeO0Mewaka6JtbMEr+tJ/k6ptzaWswDNllWjG+XVXXIjuN66NhjsgJn0vgqBQQnMlodhg=="],
 

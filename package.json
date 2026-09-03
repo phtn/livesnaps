@@ -25,6 +25,7 @@
     "@octanejs/base-ui": "0.1.50",
     "@octanejs/cmdk": "^0.1.35",
     "@octanejs/day-picker": "^0.0.18",
+    "@octanejs/dnd-kit": "^0.1.47",
     "@octanejs/mdx": "0.1.49",
     "@octanejs/motion": "^0.1.51",
     "@octanejs/nuqs": "^0.1.41",
