@@ -1,0 +1,43 @@
+import { Menu as MenuPrimitive } from "@octanejs/base-ui/menu"
+import { cn } from "@/lib/utils"
+
+module
+  interface MenuItem {
+    id: string
+    label: string
+    content: unknown
+    value?: string
+  }
+
+  interface MenuProps {
+    items: MenuItem[]
+    children?: unknown
+    side?: "top" | "bottom" | "left" | "right" | "inline-end" | "inline-start"
+    align?: "start" | "center" | "end"
+    sideOffset?: number
+    triggerClassName?: string
+    popupClassName?: string
+  }
+
+  export type { MenuItem, MenuProps }
+
+props { children, items, side = "bottom", align = "center", sideOffset = 8, triggerClassName, popupClassName }: MenuProps
+
+MenuPrimitive.Root
+  MenuPrimitive.Trigger(
+    ~ className={cn("flex items-center justify-center gap-1.5 rounded-md border border-border text-base font-normal text-foreground select-none active:bg-background data-popup-open:bg-background", triggerClassName)}
+    ~ )
+    | #{children ?? "Menu"}
+  MenuPrimitive.Portal
+    MenuPrimitive.Positioner(
+      ~ positionMethod="fixed"
+      ~ side={side}
+      ~ align={align}
+      ~ sideOffset={sideOffset}
+      ~ className="z-60 outline-hidden"
+      ~ )
+      MenuPrimitive.Popup(
+        ~ className={cn("z-60 origin-(--transform-origin) rounded-md py-0 bg-background/10 backdrop-blur-3xl shadow-lg shadow-gray-200 border border-foreground/20 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:shadow-none", popupClassName)}
+        ~ )
+        each item in items key item.id
+          MenuPrimitive.Item(label={item.label}) #{item.content}

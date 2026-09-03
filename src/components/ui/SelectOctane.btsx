@@ -1,0 +1,40 @@
+import SelectBase from '@octanejs/select'
+import makeAnimated from '@octanejs/select/animated'
+import CreatableSelect from '@octanejs/select/creatable'
+import AsyncCreatableSelect from '@octanejs/select/async-creatable'
+import type { SingleValue } from '@octanejs/select'
+import type { ClassName } from '../../types'
+import { cn } from '@/lib/utils'
+
+
+module
+  type Option = {
+    value: string
+    label: string
+  }
+
+  // type SelectBaseProps = Parameters<typeof SelectBase<Option, false>>[0]
+
+  // type SelectOctaneProps = SelectBase.SelectProps // Omit<SelectBaseProps, 'onChange' | 'options' | 'value'> & {
+  //   onChange: (value: string) => void
+  //   options: readonly Option[]
+  //   value: string
+  //   className?: ClassName
+  // }
+
+  export { makeAnimated, CreatableSelect, AsyncCreatableSelect }
+  export type { Option, SelectOctaneProps }
+
+props { options, value, onChange, className, ...selectProps }: SelectBase.SelectProps
+setup
+  const selectedOption = options.find((option) => option.value === value) ?? null
+  const handleChange = (option: SingleValue<Option>) => onChange(option?.value ?? '')
+
+fragment
+  SelectBase(
+    ~ {...selectProps}
+    ~ options={options}
+    ~ value={selectedOption}
+    ~ onChange={handleChange}
+    ~ className={cn('relative z-50',className)}
+    ~ )

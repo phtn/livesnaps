@@ -1,0 +1,171 @@
+import { functionalUpdate, useTable } from '@octanejs/tanstack-table'
+import type { ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
+import { useMemo, useState } from 'octane'
+import { Button, Header } from '@/components/ui/'
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
+import { TableBody, TableCell, TableRow } from '@/components/ui/table'
+import HyperRow from '@/components/ui/table/hyper/HyperRow.btsx'
+import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
+import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
+import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
+import { explorerFeatures } from '@/components/admin/table-config'
+import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
+
+module
+  /**
+   * A client-side table for arbitrary record-shaped data. Column definitions are
+   * intentionally supplied by the consumer so this component has no knowledge
+   * of a particular API, entity, or field name.
+   */
+  interface Props {
+    columns: any[]
+    data: ReadonlyArray<any>
+    emptyDescription?: string
+    emptyTitle?: string
+    eyebrow?: string
+    getRowId?: (row: any, index: number) => string
+    initialColumnPinning?: ColumnPinningState
+    initialColumnVisibility?: ColumnVisibilityState
+    initialPageSize?: number
+    initialSorting?: SortingState
+    pageSizes?: number[]
+    title?: string
+  }
+
+  const DEFAULT_PAGE_SIZES = [50, 100, 250, 500]
+  const DEFAULT_PINNING: ColumnPinningState = { start: [], end: [] }
+
+props {
+  ~ columns,
+  ~ data,
+  ~ emptyDescription = 'Try a shorter query or clear the search.',
+  ~ emptyTitle = 'No matching rows',
+  ~ eyebrow = 'Search + sort + select',
+  ~ getRowId,
+  ~ initialColumnPinning = DEFAULT_PINNING,
+  ~ initialColumnVisibility = {},
+  ~ initialPageSize,
+  ~ initialSorting = [],
+  ~ pageSizes = DEFAULT_PAGE_SIZES,
+  ~ title = 'Data table'}: Props
+
+setup
+  const safePageSizes = pageSizes.length > 0 ? pageSizes : DEFAULT_PAGE_SIZES
+  const [globalFilter, setGlobalFilter] = useState('')
+  const [columnFilters, setColumnFilters] = useState([])
+  const [columnOrder, setColumnOrder] = useState([])
+  const [columnPinning, setColumnPinning] = useState(initialColumnPinning)
+  const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility)
+  const [sorting, setSorting] = useState(initialSorting)
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: safePageSizes.includes(initialPageSize ?? safePageSizes[0])
+      ? initialPageSize ?? safePageSizes[0]
+      : safePageSizes[0],
+  })
+
+  const table = useTable(
+    {
+      key: title,
+      features: explorerFeatures,
+      data,
+      columns,
+      globalFilterFn: 'includesString',
+      getRowId: getRowId ?? ((row, index) => String(row.id ?? row._id ?? index)),
+      state: { columnFilters, columnOrder, columnPinning, columnVisibility, globalFilter, pagination, sorting },
+      onColumnFiltersChange: (updater) => {
+        setColumnFilters(functionalUpdate(updater, columnFilters))
+        setPagination((current) => ({ ...current, pageIndex: 0 }))
+      },
+      onColumnOrderChange: setColumnOrder,
+      onColumnPinningChange: setColumnPinning,
+      onColumnVisibilityChange: setColumnVisibility,
+      onGlobalFilterChange: (updater) => {
+        setGlobalFilter(String(functionalUpdate(updater, globalFilter) ?? ''))
+        setPagination((current) => ({ ...current, pageIndex: 0 }))
+      },
+      onPaginationChange: setPagination,
+      onSortingChange: setSorting,
+    },
+    (state) => ({
+      columnFilters: state.columnFilters,
+      columnOrder: state.columnOrder,
+      columnPinning: state.columnPinning,
+      columnVisibility: state.columnVisibility,
+      globalFilter: state.globalFilter,
+      pagination: state.pagination,
+      rowSelection: state.rowSelection,
+      sorting: state.sorting,
+    }),
+  )
+  const visibleRows = table.getRowModel().rows
+  const pinnedColumnLayouts = useMemo(
+    () => getPinnedColumnLayouts(
+      orderColumnsByPinning(table.getAllLeafColumns(), table.state.columnPinning),
+      table.state.columnPinning,
+      table.state.columnVisibility,
+    ),
+    [table, table.state.columnPinning, table.state.columnVisibility],
+  )
+  const selectedCount = Object.keys(table.state.rowSelection).length
+  const handleSearchChange = (event: Event) => table.setGlobalFilter((event.currentTarget as HTMLInputElement).value)
+
+section(className='relative rounded-[0.95em] border border-input/70 bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+  Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
+
+  div(className='flex min-h-12 items-center justify-between pb-3 max-[680px]:flex-col max-[680px]:items-start')
+    ColumnView(
+      ~ cols={table.getAllLeafColumns()}
+      ~ columnVisibility={table.state.columnVisibility}
+      ~ onColumnVisibilityChange={table.setColumnVisibility}
+      ~ columnOrder={table.state.columnOrder}
+      ~ onColumnOrderChange={table.setColumnOrder}
+      ~ )
+    div(className='flex items-center gap-2.5 font-mono text-sm text-muted-foreground/60')
+      span #{selectedCount} selected
+      Search(value={globalFilter} onChange={handleSearchChange})
+
+  div(className='h-[612px] w-full overflow-auto scrollbar-track-slate-200 scrollbar-thumb-background scrollbar-thin')
+    HyperTable(
+      ~ table={table}
+      ~ title={title}
+      ~ columnPinning={table.state.columnPinning}
+      ~ columnVisibility={table.state.columnVisibility}
+      ~ selectAllChecked={table.getIsAllPageRowsSelected()}
+      ~ onSelectAllChange={table.getToggleAllPageRowsSelectedHandler()}
+      ~ )
+      TableBody
+        each row in visibleRows key row.id
+          HyperRow(
+            ~ row={row}
+            ~ isActive={false}
+            ~ isEditing={false}
+            ~ isPinned={false}
+            ~ isSelected={row.getIsSelected()}
+            ~ showSelectColumn={table.getColumn('select') !== undefined}
+            ~ columnPinning={table.state.columnPinning}
+            ~ columnVisibility={table.state.columnVisibility}
+            ~ pinnedColumnLayouts={pinnedColumnLayouts}
+            ~ )
+        empty
+          TableRow
+            TableCell(className='h-[300px]! text-center! text-[#8b9188]!' colSpan={table.getVisibleLeafColumns().length})
+              b #{emptyTitle}
+              span #{emptyDescription}
+
+  footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-input/50 bg-sidebar p-3 text-xs font-semibold')
+    SelectOctane(
+      ~ className='py-0 [&_svg]:size-4 text-xs]'
+      ~ menuPlacement='top'
+      ~ value={String(table.state.pagination.pageSize)}
+      ~ onChange={(event) => table.setPageSize(Number((event.currentTarget as HTMLSelectElement).value))}
+      ~ options={safePageSizes.map((size) => ({ value: String(size), label: String(size) }))}
+      ~ direction='up'
+      ~ )
+    div(className='flex items-center gap-4')
+      p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
+      div(className='flex overflow-hidden rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
+        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='First page' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}) ⏮
+        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Previous page' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}) ⯇
+        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Next page' disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}) ⯈
+        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Last page' disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}) ⏭

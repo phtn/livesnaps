@@ -1,0 +1,40 @@
+import { Popover as PopoverPrimitive } from "@octanejs/base-ui/popover"
+import { cn } from "@/lib/utils"
+
+
+component PopoverTrigger
+  props {...props}: PopoverPrimitive.Trigger.Props
+  fragment
+    PopoverPrimitive.Trigger(data-slot="popover-trigger" {...props})
+
+component PopoverContent
+  props {className, align, alignOffset, side, sideOffset, ...props}: PopoverPrimitive.Content.Props & Pick<PopoverPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">
+  fragment
+    PopoverPrimitive.Portal
+      PopoverPrimitive.Positioner(align={align} alignOffset={alignOffset} side={side} sideOffset={sideOffset} className="isolate z-50")
+        PopoverPrimitive.Popup(
+          ~ data-slot="popover-content"
+          ~ className={cn("z-50 flex w-72 origin-(--transform-origin) flex-col gap-4 rounded-2xl bg-popover p-4 text-sm text-popover-foreground shadow-2xl ring-1 ring-foreground/5 outline-hidden duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=inline-end]:slide-in-from-left-2 data-[side=inline-start]:slide-in-from-right-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95", className)} {...props})
+
+component PopoverTitle
+  props {className, ...props}: PopoverPrimitive.Title.Props
+  fragment
+    PopoverPrimitive.Title(data-slot="popover-title" className={cn("text-base font-medium", className)} {...props})
+
+component PopoverDescription
+  props {className, ...props}: PopoverPrimitive.Description.Props
+  fragment
+    PopoverPrimitive.Description(data-slot="popover-description" className={cn("text-muted-foreground", className)} {...props})
+
+module
+  type PopoverProps = Parameters<typeof PopoverPrimitive.Root>[0]
+  type PopoverTriggerProps = Parameters<typeof PopoverPrimitive.Trigger>[0]
+  type PopoverContentProps = Parameters<typeof PopoverPrimitive.Popup>[0] &
+    Pick<Parameters<typeof PopoverPrimitive.Positioner>[0], "align" | "alignOffset" | "side" | "sideOffset">
+
+  export { PopoverTrigger, PopoverContent, PopoverTitle, PopoverDescription }
+  export type { PopoverProps, PopoverTriggerProps, PopoverContentProps }
+
+props {...props}: PopoverPrimitive.Root.Props
+fragment
+  PopoverPrimitive.Root(data-slot="popover" {...props})

@@ -84,16 +84,15 @@ module
     lg: 16,
   } as const satisfies Record<ButtonSize, number>
 
-  const BUTTON_SPINNER_CLASSES = {
-    sm: "size-3.5",
-    md: "size-4",
-    lg: "size-4.5",
-  } as const satisfies Record<ButtonSize, string>
+  const BUTTON_SPINNER_SIZES = {
+    sm: 16,
+    md: 20,
+    lg: 24,
+  } as const satisfies Record<ButtonSize, number>
 
   const BUTTON_BASE_CLASS = "group relative isolate inline-flex min-w-0 shrink-0 touch-manipulation select-none appearance-none items-center justify-center overflow-hidden border-0 align-middle text-sm font-semibold leading-5 tracking-tight transition-all duration-250 ease-out focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 motion-reduce:transition-none active:scale-[0.97] aria-disabled:scale-100"
   const BUTTON_CONTENT_CLASS = "relative z-10 inline-flex min-w-0 items-center justify-center gap-6 whitespace-nowrap transition-[transform,opacity] duration-300 ease-out group-active:opacity-95 group-disabled:scale-100 group-disabled:opacity-100 group-aria-disabled:opacity-100 motion-reduce:transform-none motion-reduce:transition-none"
   const BUTTON_LIGHT_OVERLAY_CLASS = "pointer-events-none absolute inset-0 rounded-[inherit] bg-white/30 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 group-disabled:opacity-0 group-aria-disabled:opacity-0 motion-reduce:transition-none"
-  const BUTTON_SPINNER_CLASS = "shrink-0 rounded-full border-[1.5px] border-current border-r-transparent motion-reduce:animate-none"
 
   const BUTTON_VARIANT_CLASSES = {
     default: "bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4]",
@@ -111,7 +110,7 @@ module
 
 component Spinner
   props { size }: Pick<ContentProps, "size">
-  span(className={cn(BUTTON_SPINNER_CLASS, BUTTON_SPINNER_CLASSES[size])} aria-hidden={true})
+  Icon(name="spinner-ring" size={BUTTON_SPINNER_SIZES[size]})
 
 component Content
   props { size, variant, label, icon, iconPosition, pending, children }: ContentProps

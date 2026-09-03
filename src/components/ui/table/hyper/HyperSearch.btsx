@@ -1,0 +1,81 @@
+import { Input } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import type { Column, RowData } from '@octanejs/tanstack-table'
+import { useEffect, useEffectEvent, useId, useRef } from 'octane'
+import type { JSX } from 'octane/jsx-runtime'
+import type { features } from './features'
+import { TABLE_QUERY_LIMITS } from './parsers'
+
+module
+  type InputProps = JSX.IntrinsicElements['input']
+  type RefObject<T> = { current: T | null }
+
+  interface Props {
+    col?: Column<typeof features, RowData, unknown>
+    onChange: NonNullable<InputProps['onInput']>
+    onClear?: () => void
+    ref?: RefObject<HTMLInputElement>
+    value: string
+  }
+
+
+props { col, value, onChange, onClear, ref }: Props
+setup
+  const id = useId()
+  const fallbackRef = useRef<HTMLInputElement | null>(null)
+  const inputRef = ref ?? fallbackRef
+  const hasValue = value.trim().length > 0 || Boolean(col?.getFilterValue?.()?.toString())
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented) return
+
+    const target = event.target
+    const isTyping =
+      target instanceof HTMLElement
+      && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+
+    if (event.key === '/' && !isTyping && inputRef.current && document.activeElement !== inputRef.current) {
+      event.preventDefault()
+      inputRef.current.focus()
+    }
+  })
+
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => document.removeEventListener('keydown', onKeyDown, true)
+  }, [])
+
+  const handleClick = () => {
+    col?.setFilterValue('')
+    onClear?.()
+    inputRef.current?.focus()
+  }
+
+div(className='relative w-full min-w-0 md:w-auto mx-3')
+  Input(
+    ~ id={id}
+    ~ ref={inputRef}
+    ~ className={cn(
+    ~   'peer h-9 w-full min-w-0 rounded-xs border-none ps-3 outline-0 md:w-48 md:min-w-60',
+    ~   'placeholder:text-foreground/80 placeholder:select-none placeholder:ps-0.75',
+    ~   'font-sans text-sm bg-sidebar/80 opacity-60 focus:opacity-100 focus:placeholder:text-foreground/60',
+    ~   hasValue && 'pe-10 opacity-100',
+    ~ )}
+    ~ value={value}
+    ~ onInput={onChange}
+    ~ maxLength={TABLE_QUERY_LIMITS.searchCharacters}
+    ~ placeholder='Search'
+    ~ type='search'
+    ~ inputMode='search'
+    ~ aria-label='Search'
+    ~ )
+  div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-2 text-foreground/80 peer-disabled:opacity-50')
+    Icon(name='slash' aria-hidden='true' className='size-5')
+  if hasValue
+    button(
+      ~ type='button'
+      ~ className='hidden absolute inset-y-0 inset-e-0 flex h-full w-9 items-center justify-center rounded-e-md text-muted-foreground/80 transition-[color,box-shadow] outline-none hover:text-foreground focus:z-10 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50'
+      ~ aria-label='Clear filter'
+      ~ onClick={handleClick}
+      ~ )
+      Icon(name='close' size={16} aria-hidden='true')

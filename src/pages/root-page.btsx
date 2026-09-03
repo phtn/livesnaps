@@ -1,10 +1,10 @@
-import AdminPage from './admin-page.btsx'
+import AdminOverviewPage from './admin-overview-page.btsx'
 import App from '../App.btsx'
 
 setup
   const isAdminHost = typeof window !== 'undefined' && window.location.hostname.toLowerCase().startsWith('admin.')
 
 if isAdminHost
-  AdminPage
+  AdminOverviewPage
 else
   App

@@ -1,0 +1,18 @@
+import type { JSX } from 'octane/jsx-runtime'
+
+module
+  type NativeTableRowProps = JSX.IntrinsicElements['tr']
+
+  type Props = Omit<NativeTableRowProps, 'class' | 'className'> & {
+    className?: NativeTableRowProps['className']
+  }
+
+  const baseClassName = 'bg-background transition-colors duration-100 hover:bg-sidebar/50'
+
+props { children, className, ...rowProps }: Props
+
+tr(
+  ~ {...rowProps}
+  ~ className={[baseClassName, className]}
+  ~ )
+  | #{children}

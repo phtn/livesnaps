@@ -1,0 +1,18 @@
+import type { JSX } from 'octane/jsx-runtime'
+
+module
+  type NativeTableBodyProps = JSX.IntrinsicElements['tbody']
+
+  type Props = Omit<NativeTableBodyProps, 'class' | 'className'> & {
+    className?: NativeTableBodyProps['className']
+  }
+
+  const baseClassName = '[&_tr:last-child_td]:border-b-0'
+
+props { children, className, ...bodyProps }: Props
+
+tbody(
+  ~ {...bodyProps}
+  ~ className={[baseClassName, className]}
+  ~ )
+  | #{children}

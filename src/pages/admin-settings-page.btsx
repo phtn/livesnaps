@@ -1,0 +1,3 @@
+main(className='p-8')
+  p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
+  h1(className='mt-3 font-poly text-3xl font-medium') Settings

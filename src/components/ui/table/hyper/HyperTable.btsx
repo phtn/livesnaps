@@ -1,0 +1,145 @@
+import type { ColumnPinningState, ColumnVisibilityState, OctaneTable, SortingState } from '@octanejs/tanstack-table'
+import { useMemo } from 'octane'
+import { cn } from '@/lib/utils'
+import Checkbox from '../../Checkbox.btsx'
+import { TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import ColumnSort from './ColumnSort.btsx'
+import type { PinnedColumnLayout } from './column-pinning'
+import { getColumnSize, getPinnedColumnLayouts, getPinnedColumnStyle, orderColumnsByPinning } from './column-pinning'
+import { isColumnVisible } from './visibility'
+
+module
+  interface Props {
+    children?: unknown
+    columnPinning: ColumnPinningState
+    columnVisibility: ColumnVisibilityState
+    loading?: boolean
+    onSelectAllChange?: (event: Event) => void
+    selectAllChecked?: boolean
+    selectColumnId?: string
+    table: OctaneTable<any, any, any>
+    title?: string
+  }
+
+  interface ColumnDefinitionProps {
+    column: any
+    columnVisibility: ColumnVisibilityState
+  }
+
+  interface HeaderCellProps {
+    columnVisibility: ColumnVisibilityState
+    header: any
+    onSelectAllChange?: (event: Event) => void
+    pinnedColumnLayout?: PinnedColumnLayout
+    selectAllChecked: boolean
+    selectColumnId: string
+    sorting: SortingState
+  }
+
+component ColumnDefinition
+  props { column, columnVisibility }: ColumnDefinitionProps
+  setup
+    const visible = isColumnVisible(column.id, columnVisibility, column.getCanHide())
+    const width = visible ? getColumnSize(column) : 0
+
+  col(
+    ~ data-column-visible={visible}
+    ~ className='transition-[width] duration-200 ease-out motion-reduce:transition-none'
+    ~ style={{ width }}
+    ~ )
+
+component HeaderCell
+  props { columnVisibility, header, onSelectAllChange, pinnedColumnLayout, selectAllChecked, selectColumnId, sorting }: HeaderCellProps
+  setup
+    const visible = header.column
+      .getLeafColumns()
+      .some((column) => isColumnVisible(column.id, columnVisibility, column.getCanHide()))
+    const sort = sorting.find((entry) => entry.id === header.column.id)
+    const sorted = sort ? (sort.desc ? 'desc' : 'asc') : false
+    const headerClassName = cn(
+      'h-7 overflow-hidden px-1 font-okx text-xs font-medium tracking-tight md:h-8 md:text-sm',
+      pinnedColumnLayout && 'sticky z-30 bg-[#dadee2] transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none dark:bg-[#1d2129]',
+      pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start' && 'shadow-[4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
+      pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end' && 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
+      !visible && 'pointer-events-none'
+    )
+    const contentClassName = cn(
+      'flex h-full min-w-0 items-center overflow-hidden px-3 ps-2 transition-opacity duration-150 ease-out motion-reduce:transition-none',
+      visible ? 'opacity-100 delay-75' : 'opacity-0 delay-0'
+    )
+
+  TableHead(
+    ~ aria-hidden={visible ? undefined : true}
+    ~ aria-sort={visible && header.column.getCanSort() ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
+    ~ colspan={header.colSpan}
+    ~ data-column-pinned={pinnedColumnLayout?.position || undefined}
+    ~ data-column-visible={visible}
+    ~ inert={!visible}
+    ~ scope='col'
+    ~ style={getPinnedColumnStyle(pinnedColumnLayout)}
+    ~ className={headerClassName}
+    ~ )
+    div(className={contentClassName})
+      if header.column.id === selectColumnId && onSelectAllChange
+        Checkbox(
+          ~ aria-label='Select all rows on this page'
+          ~ checked={selectAllChecked}
+          ~ onChange={onSelectAllChange}
+          ~ )
+      else
+        ColumnSort(header={header} sorted={sorted})
+
+component HiddenHeaderCell
+  TableHead(
+    ~ aria-hidden='true'
+    ~ colSpan={1}
+    ~ inert
+    ~ className='h-7 pointer-events-none opacity-0 md:h-8'
+    ~ )
+
+props { children, columnPinning, columnVisibility, loading = false, onSelectAllChange, selectAllChecked = false, selectColumnId = 'select', table, title }: Props
+
+setup
+  const layout = useMemo(() => {
+    const orderedLeafColumns = orderColumnsByPinning(table.getAllLeafColumns(), columnPinning)
+    const pinnedColumnLayouts = getPinnedColumnLayouts(orderedLeafColumns, columnPinning, columnVisibility)
+    const visibleTableSize = orderedLeafColumns.reduce(
+      (total, column) =>
+        total + (isColumnVisible(column.id, columnVisibility, column.getCanHide()) ? getColumnSize(column) : 0),
+      0,
+    )
+    const headersByColumnId = new Map(
+      table.getHeaderGroups().flatMap((headerGroup) =>
+        headerGroup.headers.map((header) => [header.column.id, header] as const),
+      ),
+    )
+
+    return { headersByColumnId, orderedLeafColumns, pinnedColumnLayouts, visibleTableSize }
+  }, [table, columnPinning, columnVisibility])
+
+table(
+  ~ data-slot='table'
+  ~ aria-busy={loading}
+  ~ aria-label={title ?? 'Data table'}
+  ~ className='w-fit min-w-full table-fixed border-separate border-spacing-0 whitespace-nowrap caption-bottom text-sm transition-[width] duration-200 ease-out motion-reduce:transition-none md:min-w-4xl'
+  ~ style={{ width: layout.visibleTableSize }}
+  ~ )
+  colgroup
+    each column in layout.orderedLeafColumns key column.id
+      ColumnDefinition(column={column} columnVisibility={columnVisibility})
+  TableHeader(className='w-full')
+    TableRow(className='sticky top-0 z-20 h-7 bg-slate-300/30 backdrop-blur-3xl md:h-8 dark:bg-slate-400/20')
+      each column in layout.orderedLeafColumns key column.id
+        if layout.headersByColumnId.has(column.id)
+          HeaderCell(
+            ~ header={layout.headersByColumnId.get(column.id)}
+            ~ sorting={table.state.sorting}
+            ~ columnVisibility={columnVisibility}
+            ~ pinnedColumnLayout={layout.pinnedColumnLayouts.get(column.id)}
+            ~ selectColumnId={selectColumnId}
+            ~ selectAllChecked={selectAllChecked}
+            ~ onSelectAllChange={onSelectAllChange}
+            ~ )
+        if !layout.headersByColumnId.has(column.id)
+          HiddenHeaderCell
+  | #{children}

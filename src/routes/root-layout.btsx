@@ -1,0 +1,12 @@
+import { Outlet } from '@octanejs/tanstack-router'
+import { isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
+import AdminPage from '@/pages/admin-page.btsx'
+
+setup
+  const isAdminHost = typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname)
+  const isAdminHandoff = typeof window !== 'undefined' && window.location.pathname === '/admin-handoff'
+
+if isAdminHost && !isAdminHandoff
+  AdminPage
+else
+  Outlet

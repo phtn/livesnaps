@@ -1,0 +1,18 @@
+import type { JSX } from 'octane/jsx-runtime'
+
+module
+  type NativeTableHeadProps = JSX.IntrinsicElements['th']
+
+  type Props = Omit<NativeTableHeadProps, 'class' | 'className'> & {
+    className?: NativeTableHeadProps['className']
+  }
+
+  const baseClassName = 'sticky top-0 z-[2] h-[40px] border-y border-r border-sidebar-border bg-sidebar px-2 py-0 text-left tracking-[0.1em] text-muted-foreground backdrop-blur-sm'
+
+props { children, className, ...headProps }: Props
+
+th(
+  ~ {...headProps}
+  ~ className={[baseClassName, className]}
+  ~ )
+  | #{children}

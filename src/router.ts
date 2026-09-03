@@ -9,6 +9,7 @@ import type { RouteComponent } from '@octanejs/tanstack-router'
 import { isLegalDocumentSlug } from '@/lib/legal/documents'
 import NotFound from '@/routes/not-found.btsx'
 import Pending from '@/routes/pending.btsx'
+import RootLayout from '@/routes/root-layout.btsx'
 
 // The 0.1.48 binding's runtime preload contract accepts an optional promise,
 // while its RouteComponent type requires one. Keep that version-specific gap here.
@@ -16,6 +17,7 @@ const lazyRoute = (importer: () => Promise<unknown>) =>
   lazyRouteComponent(importer) as unknown as RouteComponent
 
 const rootRoute = createRootRoute({
+  component: RootLayout,
   notFoundComponent: NotFound
 })
 
@@ -29,6 +31,30 @@ const adminHandoffRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin-handoff',
   component: lazyRoute(() => import('./routes/admin-handoff.btsx'))
+})
+
+const adminOverviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-overview',
+  component: lazyRoute(() => import('./pages/admin-overview-page.btsx'))
+})
+
+const adminSnapsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-snaps',
+  component: lazyRoute(() => import('./pages/admin-snaps-page.btsx'))
+})
+
+const adminWorkspaceRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-workspace',
+  component: lazyRoute(() => import('./pages/admin-workspace-page.btsx'))
+})
+
+const adminSettingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-settings',
+  component: lazyRoute(() => import('./pages/admin-settings-page.btsx'))
 })
 
 const citadelRoute = createRoute({
@@ -68,6 +94,10 @@ const legalRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   homeRoute,
   adminHandoffRoute,
+  adminOverviewRoute,
+  adminSnapsRoute,
+  adminWorkspaceRoute,
+  adminSettingsRoute,
   citadelRoute,
   snapsRoute,
   snapRoute,

@@ -1,0 +1,80 @@
+import {cn} from '@/lib/utils'
+import type { ColumnPinningState, Row, RowData, ColumnVisibilityState as VisibilityState } from '@octanejs/tanstack-table'
+import { TableCell, TableRow } from '../index.ts'
+
+import {orderCellsByColumnPinning} from './column-pinning.ts'
+import type {PinnedColumnLayout} from './column-pinning.ts'
+import {isColumnVisible} from './visibility.ts'
+import HyperCell from './HyperCell.btsx'
+import type { RowDropPosition } from './reorder'
+import type {features} from './features.ts'
+import {Checkbox} from '../../../ui'
+
+module
+  interface RenderRowProps<T extends RowData> {
+    row: Row<typeof features, T>
+    dropPosition?: RowDropPosition | null
+    isActive: boolean
+    isDragging?: boolean
+    isEditing: boolean
+    isPinned: boolean
+    isSelected: boolean
+    showSelectColumn: boolean
+    columnPinning: ColumnPinningState
+    columnVisibility: VisibilityState
+    pinnedColumnLayouts: ReadonlyMap<string, PinnedColumnLayout>
+    onDragOver?: (event: DragEvent<HTMLTableRowElement>, rowId: string) => void
+    onDrop?: (event: DragEvent<HTMLTableRowElement>, rowId: string) => void
+  }
+
+props { row, dropPosition, isActive, isDragging, isEditing, isPinned, isSelected, showSelectColumn, columnPinning, columnVisibility, pinnedColumnLayouts, onDragOver, onDrop }: RenderRowProps
+
+setup
+  const handleRowClick = (event: MouseEvent) => {
+    const target = event.target as HTMLTableRowElement
+    if (
+          target instanceof HTMLElement &&
+          target.closest('button, input, select, textarea, a, form, label, [role="button"], [role="menuitem"]')
+        ) {
+          return
+        }
+
+        if (showSelectColumn && row.getCanSelect()) {
+          row.toggleSelected()
+        }
+
+  }
+  const isHighlighted = isEditing || isActive
+  const cells = orderCellsByColumnPinning(row.getAllCells(), columnPinning)
+
+TableRow(data-state={isSelected ? 'selected' : undefined}
+  ~ data-drop-position={dropPosition ?? undefined}
+  ~ data-reorder-row-id={row.id}
+  ~ className={cn('group/row h-8 text-foreground bg-surface active:bg-background/20 dark:hover:bg-background/80', {
+      ~ 'dark:bg-blue-200/50': isHighlighted,
+      ~ 'bg-active hover:bg-brand/15 last:rounded-tr-2xl dark:bg-brand/20': isSelected && !isHighlighted,
+      ~ 'bg-sky-300/20 hover:bg-brand/10 dark:bg-background/20 dark:hover:bg-background/30': isPinned && !isHighlighted && !isSelected,
+      ~ 'cursor-pointer': showSelectColumn && row.getCanSelect(),
+      ~ 'relative z-10 bg-background/95': isDragging,
+      ~ 'border-t-2 border-t-primary': dropPosition === 'before',
+      ~ 'border-b-2 border-b-primary': dropPosition === 'after',
+      ~ })}
+  ~ onClick={handleRowClick}
+  ~ onDragOver={onDragOver ? (event) => onDragOver(event, row.id) : undefined}
+  ~ onDrop={onDrop ? (event) => onDrop(event, row.id) : undefined}
+  ~ )
+  each cell in cells key cell.id
+    if cell.column.id === 'select' && showSelectColumn
+      TableCell(className='border-r border-sidebar-border')
+        Checkbox(
+          ~ aria-label={`Select ${row.id}`}
+          ~ checked={row.getIsSelected()}
+          ~ onChange={row.getToggleSelectedHandler()}
+          ~ )
+    else
+      HyperCell(
+        ~ cell={cell}
+        ~ isEditing={isSelected || showSelectColumn || isHighlighted}
+        ~ isVisible={isColumnVisible(cell.column.id, columnVisibility, cell.column.getCanHide?.() ?? true)}
+        ~ pinnedColumnLayout={pinnedColumnLayouts.get(cell.column.id)}
+        ~ )
