@@ -1,29 +1,26 @@
 import { Calendar } from '@/components/table/data/calendar'
 import {Faceted, FacetedBadgeList,FacetedContent,FacetedEmpty,FacetedGroup,FacetedItem,FacetedList,FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
-import { Button as BaseButton } from '@base-ui/react'
-
+import { Button } from '@/components/ui'
+import { Button as BaseButton } from '@octanejs/base-ui/button'
 import { multiSelectFilterFn, type ColumnConfig } from '@/components/table/create-column'
 import { getFilterValueLabel, getFilterValueToken } from '@/components/table/filter-utils'
 import { Input } from '@/components/ui/input'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-
-import { filterFn_inDateRange } from '@tanstack/react-table'
+import  Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
+import { filterFn_inDateRange } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
-import { useId, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useId, useMemo, useState, type PointerEvent as OctanePointerEvent } from 'octane'
 
-import { type DataTableFilterListProps } from '@/components/table'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { type DataTableFilterListProps } from '@/components/ui/table/types'
 import { Icon } from '@/lib/icons'
-import type { AdminProofListItem } from '@/lib/proofs/admin-photo-types'
+import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { cn } from '@/lib/utils'
 import { ClassName } from '@/types'
-import {accuracyScoreRangeFilterFn,  createInclusiveDateRangeFilterValue,  createRangeFilterValue,  getRangeBounds,  getRangeDate,  getRangeInputValue,  isOpenRangeBound} from './proofs-filter-ranges'
+import {accuracyScoreRangeFilterFn,  createInclusiveDateRangeFilterValue,  createRangeFilterValue,  getRangeBounds,  getRangeDate,  getRangeInputValue,  isOpenRangeBound} from './snaps-filter-ranges'
 
 module
-  type ProofRow = AdminProofListItem
+  type SnapRow = AdminSnapListItem
 
-  const PROOF_STATUS_FILTERS: ProofRow['status'][] = [
+  const Snap_STATUS_FILTERS: SnapRow['status'][] = [
     'pending',
     'active',
     'abandoned',
@@ -32,35 +29,35 @@ module
     'invalidated'
   ]
 
-  type ProofFilterDefinitionBase = {
-    id: Extract<keyof ProofRow, string>
+  type SnapFilterDefinitionBase = {
+    id: Extract<keyof SnapRow, string>
     label: string
-    filterFn: NonNullable<ColumnConfig<ProofRow>['filterFn']>
+    filterFn: NonNullable<ColumnConfig<SnapRow>['filterFn']>
   }
 
-  type ProofFacetedFilterDefinition = ProofFilterDefinitionBase & {
+  type SnapFacetedFilterDefinition = SnapFilterDefinitionBase & {
     variant: 'faceted'
     values?: readonly unknown[]
     getValueLabel?: (value: unknown) => string
   }
 
-  type ProofNumberRangeFilterDefinition = ProofFilterDefinitionBase & {
+  type SnapNumberRangeFilterDefinition = SnapFilterDefinitionBase & {
     variant: 'number-range'
     min?: number
     max?: number
     step?: number
   }
 
-  type ProofDateRangeFilterDefinition = ProofFilterDefinitionBase & {
+  type SnapDateRangeFilterDefinition = SnapFilterDefinitionBase & {
     variant: 'date-range'
   }
 
-  type ProofFilterDefinition =
-    | ProofFacetedFilterDefinition
-    | ProofNumberRangeFilterDefinition
-    | ProofDateRangeFilterDefinition
+  type SnapFilterDefinition =
+    | SnapFacetedFilterDefinition
+    | SnapNumberRangeFilterDefinition
+    | SnapDateRangeFilterDefinition
 
-  type ProofFilterOption = {
+    type SnapFilterOption = {
     count: number
     label: string
     value: string
@@ -77,14 +74,14 @@ module
       label: 'Status',
       variant: 'faceted',
       filterFn: multiSelectFilterFn,
-      values: PROOF_STATUS_FILTERS,
+      values: SNAP_STATUS_FILTERS,
       getValueLabel: formatStatusFilterValue
     },
     { id: 'make', label: 'Make', variant: 'faceted', filterFn: multiSelectFilterFn },
     { id: 'model', label: 'Model', variant: 'faceted', filterFn: multiSelectFilterFn },
     {
       id: 'countryCodeMatchesIpinfo',
-      label: 'IP country match',
+      label: 'IPC match',
       variant: 'faceted',
       filterFn: multiSelectFilterFn,
       values: [true, false],
@@ -104,15 +101,15 @@ module
       variant: 'date-range',
       filterFn: filterFn_inDateRange
     }
-  ] as const satisfies readonly ProofFilterDefinition[]
+  ] as const satisfies readonly SnapFilterDefinition[]
 
-  type ProofFilterColumn = DataTableFilterListProps<ProofRow>['columns'][number]
+  type SnapFilterColumn = DataTableFilterListProps<SnapRow>['columns'][number]
 
-  const getProofFilterOptions = (
-    column: ProofFilterColumn,
-    definition: ProofFacetedFilterDefinition,
+  const getSnapFilterOptions = (
+    column: SnapFilterColumn,
+    definition: SnapFacetedFilterDefinition,
     selectedValues: readonly unknown[]
-  ): ProofFilterOption[] => {
+  ): SnapFilterOption[] => {
     const countByValue = new Map<string, number>()
     const rawValueByToken = new Map<string, unknown>()
 
@@ -134,7 +131,7 @@ module
     }
 
     const optionSource = definition.values ?? Array.from(rawValueByToken.values())
-    const options = new Map<string, ProofFilterOption>()
+    const options = new Map<string, SnapFilterOption>()
 
     for (const rawValue of optionSource) {
       const value = getFilterValueToken(rawValue)
@@ -153,16 +150,16 @@ module
       : resolvedOptions.sort((left, right) => left.label.localeCompare(right.label))
   }
 
-  const DEFAULT_FILTERABLE_BY_ID: ReadonlyMap<string, ProofFilterDefinition> = new Map(
+  const DEFAULT_FILTERABLE_BY_ID: ReadonlyMap<string, SnapFilterDefinition> = new Map(
     DEFAULT_FILTERABLE.map((definition) => [definition.id, definition])
   )
 
-  export const withDefaultFilterableColumns = (columns: ColumnConfig<ProofRow>[]): ColumnConfig<ProofRow>[] => {
+  export const withDefaultFilterableColumns = (columns: ColumnConfig<SnapRow>[]): ColumnConfig<SnapRow>[] => {
     const columnIds = new Set(columns.map((column) => column.id))
 
     for (const definition of DEFAULT_FILTERABLE) {
       if (!columnIds.has(definition.id)) {
-        throw new Error(`Default proof filter "${definition.id}" does not have a matching column.`)
+        throw new Error(`Default snap filter "${definition.id}" does not have a matching column.`)
       }
     }
 
@@ -203,7 +200,7 @@ module
   const triggerClassName: ClassName =
     ' bg-background hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
   const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
-  const getActiveFilterCount = (definition: ProofFilterDefinition, value: unknown) => {
+  const getActiveFilterCount = (definition: SnapFilterDefinition, value: unknown) => {
     if (definition.variant === 'faceted') {
       return Array.isArray(value) ? value.length : value === undefined ? 0 : 1
     }
@@ -212,31 +209,25 @@ module
     return isOpenRangeBound(min) && isOpenRangeBound(max) ? 0 : 1
   }
   type SnapFacetedFilterProps = {
-    column: ProofFilterColumn
-    definition: ProofFacetedFilterDefinition
+    column: SnapFilterColumn
+    definition: SnapFacetedFilterDefinition
     fieldLabelId: string
     rawFilterValue: unknown
   }
 
-  type FacetedTriggerProps = {
-    triggerClassName?: ClassValue
-    fieldLabelId: string
-    disabled?: boolean
-    render?: OctaneNode
-  }
   type SnapNumberRangeFilterProps = {
-    column: ProofFilterColumn
-    definition: ProofNumberRangeFilterDefinition
+    column: SnapFilterColumn
+    definition: SnapNumberRangeFilterDefinition
     fieldLabelId: string
     rawFilterValue: unknown
   }
   type SnapDateRangeFilterProps = {
-    column: ProofFilterColumn
+    column: SnapFilterColumn
     fieldLabelId: string
     rawFilterValue: unknown
   }
 
-component ProofFacetedFilter
+component SnapFacetedFilter
   props {column, definition, fieldLabelId, rawFilterValue }: SnapFacetedFilterProps
   setup
     const selectedValues = Array.isArray(rawFilterValue)
@@ -245,7 +236,7 @@ component ProofFacetedFilter
         ? []
         : [rawFilterValue]
     const selectedTokens = [...new Set(selectedValues.map(getFilterValueToken).filter(Boolean))]
-    const options = getProofFilterOptions(column, definition, selectedValues)
+    const options = getSnapFilterOptions(column, definition, selectedValues)
 
 
 
@@ -365,10 +356,34 @@ component SnapDateRangeFilter
         ~numberOfMonths={2}
         ~autoFocus)
 
+component Definition
+  props {columnsById, definitionId, baseId, rawFilterValue}: { columnsById: Map<string, Column>, definition: SnapFilterDefinition, baseId: string, rawFilterValue: string}
+  setup
+    const column = columnsById.get(definition.id)
+    const fieldLabelId = `${baseId}-${definition.id}-label`
+  if (!column)
+    null
+  else
+    div(key={definitionId} className='grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-2')
+      span(id={fieldLabelId} className='truncate font-okx text-sm capitalize') #{definition.label}
+        if definitionVariant === 'faceted'
+          SnapFacetedFilter(
+            ~ column={column}
+            ~ definition={definition}
+            ~ fieldLabelId={fieldLabelId}
+            ~ rawFilterValue={rawFilterValue})
+        elseif definition.variant === 'number-range'
+          SnapNumberRangeFilter(
+            ~ column={column}
+            ~ definition={definition}
+            ~ fieldLabelId={fieldLabelId}
+            ~rawFilterValue={rawFilterValue})
+        else
+          SnapDateRangeFilter(column={column} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
 
 
 component SnapFilterList
-  props { columns, columnFilters, onReset }: DataTableFilterListProps<ProofRow>
+  props { columns, columnFilters, onReset }: DataTableFilterListProps<SnapRow>
   setup
     const [open, setOpen] = useState(false)
     const baseId = useId()
@@ -416,50 +431,14 @@ component SnapFilterList
           h4(id={labelId} className='font-okx text-sm text-muted-foreground select-none') Add Filter
         if open
           div(className='space-y-2 p-3')
-            each definition in DEFAULT_FILTERABLE.map((definition) => {
-              const column = columnsById.get(definition.id)
-              if (!column) return null
-
-              const rawFilterValue = filterValuesById.get(definition.id)
-              const fieldLabelId = `${baseId}-${definition.id}-label`
-
-              return (
-                <div key={definition.id} className='grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-2'>
-                  <span id={fieldLabelId} className='truncate font-okx text-sm capitalize'>
-                    {definition.label}
-                  </span>
-                  {definition.variant === 'faceted' ? (
-                    <ProofFacetedFilter
-                      column={column}
-                      definition={definition}
-                      fieldLabelId={fieldLabelId}
-                      rawFilterValue={rawFilterValue}
-                    />
-                  ) : definition.variant === 'number-range' ? (
-                    <ProofNumberRangeFilter
-                      column={column}
-                      definition={definition}
-                      fieldLabelId={fieldLabelId}
-                      rawFilterValue={rawFilterValue}
-                    />
-                  ) : (
-                    <ProofDateRangeFilter column={column} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : null}
-
-        {activeFilterCount > 0 ? (
-          <div className='flex justify-end border-t border-dashed p-1'>
-            <Button type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md'>
-              <Icon name='cancel' />
-              <span>Reset Filters</span>
-            </Button>
-          </div>
-        ) : null}
-      </PopoverContent>
-    </Popover>
-  )
-}
+            each definition in DEFAULT_FILTERABLE key definition.id
+              Definition(columnsById={columnsById} definition={definition} baseId={baseId} rawFilterValue={filterValuesById.get(definition.id)})
+        else
+          null
+        if activeFilterCount > 0
+          div(className='flex justify-end border-t border-dashed p-1')
+            Button(type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md')
+              Icon( name='cancel')
+              span Reset Filters
+        else
+          null

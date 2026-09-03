@@ -8,7 +8,7 @@ import HyperRow from '@/components/ui/table/hyper/HyperRow.btsx'
 import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
 import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
 import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
-import { explorerFeatures } from '@/components/admin/table-config'
+import { snapsFeatures } from '@/components/admin/table-config'
 import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
 
 module
@@ -67,7 +67,7 @@ setup
   const table = useTable(
     {
       key: title,
-      features: explorerFeatures,
+      features: snapsFeatures,
       data,
       columns,
       globalFilterFn: 'includesString',
