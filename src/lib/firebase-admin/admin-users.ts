@@ -25,7 +25,7 @@ export type FirebaseAdminUserSummary = {
   lastSignInAt: string | null
   photoUrl: string | null
   providerIds: string[]
-  snapAdmin: boolean
+  god: boolean
   topg: boolean
   uid: string
 }
@@ -44,7 +44,7 @@ export function toFirebaseAdminUserSummary(user: FirebaseAdminUserRecord): Fireb
     lastSignInAt: user.metadata.lastSignInTime ?? null,
     photoUrl: user.photoURL ?? null,
     providerIds: Array.from(new Set(user.providerData.map(({ providerId }) => providerId))).sort(),
-    snapAdmin: customClaims['snap-admin'] === true,
+    god: customClaims.god === true,
     topg: customClaims.topg === true,
     uid: user.uid
   }

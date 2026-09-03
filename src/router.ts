@@ -22,7 +22,19 @@ const rootRoute = createRootRoute({
 const homeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  component: lazyRoute(() => import('./App.btsx'))
+  component: lazyRoute(() => import('./pages/root-page.btsx'))
+})
+
+const adminHandoffRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin-handoff',
+  component: lazyRoute(() => import('./routes/admin-handoff.btsx'))
+})
+
+const citadelRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'citadel',
+  component: lazyRoute(() => import('./pages/citadel-page.btsx'))
 })
 
 const snapsRoute = createRoute({
@@ -53,7 +65,15 @@ const legalRoute = createRoute({
   notFoundComponent: NotFound
 })
 
-const routeTree = rootRoute.addChildren([homeRoute, snapsRoute, snapRoute, accountRoute, legalRoute])
+const routeTree = rootRoute.addChildren([
+  homeRoute,
+  adminHandoffRoute,
+  citadelRoute,
+  snapsRoute,
+  snapRoute,
+  accountRoute,
+  legalRoute
+])
 
 export const router = createRouter({
   routeTree,

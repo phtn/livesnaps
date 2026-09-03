@@ -21,7 +21,7 @@ export const listForAdmin = query({
   handler: async (ctx, { limit }) => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (!identity || (identity.admin !== true && identity['snap-admin'] !== true)) {
+    if (!identity || identity.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
 

@@ -8,7 +8,7 @@ setup
 
 button(
   ~ type='button'
-  ~ className='inline-flex size-7 cursor-pointer items-center justify-center rounded-full hover:bg-muted text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 dark:border-white/15 dark:bg-white/10 dark:hover:bg-white/15'
+  ~ className='inline-flex size-7 cursor-pointer items-center justify-center rounded-full hover:bg-muted text-foreground/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 dark:border-white/15 dark:bg-white/10 dark:hover:bg-white/15'
   ~ onClick={toggleTheme}
   ~ aria-label='Dark theme'
   ~ aria-pressed={theme === 'dark'}

@@ -1,0 +1,93 @@
+import { useEffect, useState } from 'octane'
+import { useFirebaseUser } from '@/lib/firebase/auth'
+import { buildGodsHandoffUrl, isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
+
+setup
+  const { hasGodAccess, user } = useFirebaseUser()
+  const isGodsHost = typeof window !== 'undefined' && isGodsSubdomainHostname(window.location.hostname)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'forbidden' | 'error'>('loading')
+  const [email, setEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const setFailure = (nextStatus: 'forbidden' | 'error') => {
+      if (!cancelled) setStatus(nextStatus)
+    }
+
+    const openCitadel = async () => {
+      if (!isGodsHost) {
+        if (!user || !hasGodAccess) {
+          setFailure('forbidden')
+          return
+        }
+
+        try {
+          const idToken = await user.getIdToken(true)
+          window.location.assign(buildGodsHandoffUrl(new URL(window.location.href), idToken).toString())
+        } catch {
+          setFailure('error')
+        }
+        return
+      }
+
+      const idToken = new URLSearchParams(window.location.hash.slice(1)).get('idToken')
+
+      try {
+        if (idToken) {
+          const response = await fetch('/api/gods/session', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ idToken })
+          })
+
+          if (!response.ok) {
+            setFailure('forbidden')
+            return
+          }
+
+          window.history.replaceState(null, '', window.location.pathname)
+        }
+
+        const response = await fetch('/api/gods/session', { credentials: 'same-origin' })
+        if (!response.ok) {
+          setFailure('forbidden')
+          return
+        }
+
+        const payload: unknown = await response.json()
+        const nextEmail =
+          typeof payload === 'object' && payload !== null && typeof (payload as { email?: unknown }).email === 'string'
+            ? (payload as { email: string }).email
+            : null
+
+        if (!cancelled) {
+          setEmail(nextEmail)
+          setStatus('ready')
+        }
+      } catch {
+        setFailure('error')
+      }
+    }
+
+    void openCitadel()
+    return () => {
+      cancelled = true
+    }
+  }, [hasGodAccess, isGodsHost, user])
+
+main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
+  div(className='max-w-md')
+    p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Live Snaps Now
+    h1(className='mt-3 font-poly text-3xl font-medium') Citadel
+    if status === 'loading'
+      p(className='mt-4 text-sm text-muted-foreground') Verifying your Citadel access…
+    elseif status === 'ready'
+      fragment
+        p(className='mt-4 text-sm text-muted-foreground') #{email ? `Welcome to the Citadel, ${email}.` : 'Welcome to the Citadel.'}
+        p(className='mt-8 rounded-xl border border-border bg-card p-5 text-left text-sm text-muted-foreground') Add god-protected Worker endpoints under /api/gods/. Each endpoint must verify the God session before returning data.
+    elseif status === 'forbidden'
+      p(className='mt-4 text-sm text-destructive') God access is required to enter the Citadel.
+    else
+      p(className='mt-4 text-sm text-destructive') We could not verify your Citadel session. Please try again.

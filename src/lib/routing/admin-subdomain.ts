@@ -19,7 +19,7 @@ export type AdminSubdomainMode = 'auto' | 'force' | 'off'
 function resolveAdminSubdomainMode(): AdminSubdomainMode {
   const raw =
     (typeof process !== 'undefined' && process.env
-      ? process.env.ADMIN_SUBDOMAIN_MODE ?? process.env.NEXT_PUBLIC_ADMIN_SUBDOMAIN_MODE
+      ? (process.env.ADMIN_SUBDOMAIN_MODE ?? process.env.NEXT_PUBLIC_ADMIN_SUBDOMAIN_MODE)
       : undefined) ?? 'auto'
 
   if (raw === 'force') return 'force'

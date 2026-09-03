@@ -1,0 +1,58 @@
+import { useEffect, useState } from 'octane'
+
+setup
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const exchangeToken = async () => {
+      const parameters = new URLSearchParams(window.location.hash.slice(1))
+      const idToken = parameters.get('idToken')
+      const redirectTo = parameters.get('redirectTo')
+
+      if (!idToken) {
+        if (!cancelled) setError('Your administrator sign-in link is incomplete.')
+        return
+      }
+
+      try {
+        const response = await fetch('/api/admin/session', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ idToken })
+        })
+
+        if (!response.ok) {
+          const payload: unknown = await response.json().catch(() => null)
+          const message =
+            typeof payload === 'object' && payload !== null && typeof (payload as { error?: unknown }).error === 'string'
+              ? (payload as { error: string }).error
+              : 'Your account does not have administrator access.'
+
+          if (!cancelled) setError(message)
+          return
+        }
+
+        window.history.replaceState(null, '', window.location.pathname)
+        window.location.replace(redirectTo?.startsWith('/') ? redirectTo : '/')
+      } catch {
+        if (!cancelled) setError('We could not verify your administrator session. Please try again.')
+      }
+    }
+
+    void exchangeToken()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
+  div(className='max-w-md')
+    p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Live Snaps Now
+    h1(className='mt-3 font-poly text-3xl font-medium') Opening admin
+    if error
+      p(className='mt-4 text-sm text-destructive') #{error}
+    else
+      p(className='mt-4 text-sm text-muted-foreground') Verifying your administrator access…

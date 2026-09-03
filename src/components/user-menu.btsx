@@ -1,7 +1,6 @@
 import { Icon, type IconName } from '@/lib/icons'
 import { resolveAccountProfileImageUrl } from '@/lib/r2/prefixes'
 import { buildAdminHandoffUrl } from '@/lib/routing/admin-subdomain'
-import { buildSnapAdminHandoffUrl } from '@/lib/routing/snap-admin-subdomain'
 import { cn, getInitials } from '@/lib/utils'
 import type { User } from 'firebase/auth'
 import { useEffect, useRef, useState } from 'octane'
@@ -13,7 +12,7 @@ module
   export interface UserMenuProps {
     user: User | null
     hasAdminClaim: boolean
-    hasSnapAdminAccess: boolean
+    hasGodAccess: boolean
   }
 
   interface ItemProps {
@@ -40,11 +39,10 @@ component Item
     Icon(name={item.icon} className='size-4.5')
     span(className='font-medium text-base tracking-tight') #{item.label}
 
-props { user, hasAdminClaim, hasSnapAdminAccess }: UserMenuProps
+props { user, hasAdminClaim, hasGodAccess }: UserMenuProps
 
 setup
   const [isNavigatingToAdmin, setIsNavigatingToAdmin] = useState(false)
-  const [isNavigatingToSnapAdmin, setIsNavigatingToSnapAdmin] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const profileImageUrl = user?.photoURL ? resolveAccountProfileImageUrl(user.photoURL) : null
@@ -84,18 +82,6 @@ setup
       setIsNavigatingToAdmin(false)
     }
   }
-  const handleSnapAdminNavigation = async () => {
-    if (!user || isNavigatingToSnapAdmin) return
-    setIsOpen(false)
-    setIsNavigatingToSnapAdmin(true)
-    try {
-      const idToken = await user.getIdToken(true)
-      window.location.assign(buildSnapAdminHandoffUrl(new URL(window.location.href), idToken).toString())
-    } catch (error) {
-      console.error('Failed to navigate to the Snap Admin app.', error)
-      setIsNavigatingToSnapAdmin(false)
-    }
-  }
 
 div(ref={menuRef} className='relative z-100!')
   button(type='button' aria-haspopup='menu' aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
@@ -104,17 +90,12 @@ div(ref={menuRef} className='relative z-100!')
   if isOpen
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
-      RouteItem(to='/snaps' label='my snaps' icon='folder' onNavigate={() => setIsOpen(false)})
+      RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
+      if hasGodAccess
+        RouteItem(to='/citadel' label='citadel' icon='horse' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
-        fragment
-          Item(item={{ path: '/r', label: 're-up', icon: 're-up.ph' }} onNavigate={navigate})
-          Item(item={{ path: '/c', label: 'fields', icon: 'mechanics' }} onNavigate={navigate})
-          button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
-            Icon(name='horse-head' className='size-5 shrink-0')
-            span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
-      if hasSnapAdminAccess
-        button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleSnapAdminNavigation} disabled={isNavigatingToSnapAdmin})
+        button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
           Icon(name='rook' className='size-5 shrink-0')
-          span(className='text-base font-medium tracking-tight') #{isNavigatingToSnapAdmin ? 'opening snaps admin' : 'snaps admin'}
+          span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
       div(className='-mx-1 my-1 h-px bg-input' role='separator')
       SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

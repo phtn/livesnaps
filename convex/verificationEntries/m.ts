@@ -93,7 +93,7 @@ export const create = mutation({
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (!identity || (identity.admin !== true && identity['snap-admin'] !== true)) {
+    if (!identity || identity.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
 
@@ -199,7 +199,7 @@ export const updateAttachments = mutation({
     args: { id: Id<'verificationEntries'>; attachments: string[] }
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity || (identity.admin !== true && identity['snap-admin'] !== true)) {
+    if (!identity || identity.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
@@ -226,7 +226,7 @@ export const sendEmail = action({
   returns: verificationEntryDocumentSchema,
   handler: async (ctx: ActionCtx, args: SendEmailArgs): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity || (identity.admin !== true && identity['snap-admin'] !== true)) {
+    if (!identity || identity.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.runQuery(

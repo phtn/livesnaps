@@ -1,6 +1,6 @@
 import {
   getFirebaseCustomClaimsFromIdTokenResult,
-  hasFirebaseSnapAdminAccess,
+  hasFirebaseGodAccess,
   type FirebaseCustomClaims
 } from '@/lib/firebase-admin/custom-claims'
 import {
@@ -83,7 +83,7 @@ export function useFirebaseUser() {
   const [user, setUser] = useState<User | null>(null)
   const [customClaims, setCustomClaims] = useState<FirebaseCustomClaims>({})
   const [hasAdminClaim, setHasAdminClaim] = useState(false)
-  const [hasSnapAdminAccess, setHasSnapAdminAccess] = useState(false)
+  const [hasGodAccess, setHasGodAccess] = useState(false)
   const [isLoading, setIsLoading] = useState(Boolean(auth))
   const [authError, setAuthError] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -120,7 +120,7 @@ export function useFirebaseUser() {
           const nextCustomClaims = getFirebaseCustomClaimsFromIdTokenResult(tokenResult)
           setCustomClaims(nextCustomClaims)
           setHasAdminClaim(nextCustomClaims.admin === true)
-          setHasSnapAdminAccess(hasFirebaseSnapAdminAccess(nextCustomClaims))
+          setHasGodAccess(hasFirebaseGodAccess(nextCustomClaims))
           setAuthError(null)
           setIsLoading(false)
           return
@@ -144,7 +144,7 @@ export function useFirebaseUser() {
 
       setCustomClaims({})
       setHasAdminClaim(false)
-      setHasSnapAdminAccess(false)
+      setHasGodAccess(false)
       setAuthError(
         lastError instanceof Error ? lastError.message : 'Failed to load auth claims. Please re-authenticate.'
       )
@@ -161,7 +161,7 @@ export function useFirebaseUser() {
       if (!nextUser) {
         setCustomClaims({})
         setHasAdminClaim(false)
-        setHasSnapAdminAccess(false)
+        setHasGodAccess(false)
         setIsLoading(false)
         return
       }
@@ -193,7 +193,7 @@ export function useFirebaseUser() {
       const nextCustomClaims = getFirebaseCustomClaimsFromIdTokenResult(tokenResult)
       setCustomClaims(nextCustomClaims)
       setHasAdminClaim(nextCustomClaims.admin === true)
-      setHasSnapAdminAccess(hasFirebaseSnapAdminAccess(nextCustomClaims))
+      setHasGodAccess(hasFirebaseGodAccess(nextCustomClaims))
 
       if (nextCustomClaims.admin !== true) {
         setAuthError('Admin claim still missing after refresh. Please re-authenticate.')
@@ -225,7 +225,7 @@ export function useFirebaseUser() {
   return {
     customClaims,
     hasAdminClaim,
-    hasSnapAdminAccess,
+    hasGodAccess,
     isLoading,
     user,
     authError,

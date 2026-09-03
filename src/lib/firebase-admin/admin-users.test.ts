@@ -5,7 +5,7 @@ import { toFirebaseAdminUserSummary } from './admin-users'
 describe('Firebase admin user summaries', () => {
   test('returns only the account fields and claim metadata needed by the admin UI', () => {
     const summary = toFirebaseAdminUserSummary({
-      customClaims: { admin: true, region: 'apac', 'snap-admin': true, topg: true },
+      customClaims: { admin: true, god: true, region: 'apac', topg: true },
       disabled: false,
       displayName: 'Ada Admin',
       email: 'ada@example.com',
@@ -43,7 +43,7 @@ describe('Firebase admin user summaries', () => {
     assert.deepEqual(summary, {
       admin: true,
       createdAt: 'Wed, 01 Jan 2025 00:00:00 GMT',
-      customClaimNames: ['admin', 'region', 'snap-admin', 'topg'],
+      customClaimNames: ['admin', 'god', 'region', 'topg'],
       disabled: false,
       displayName: 'Ada Admin',
       email: 'ada@example.com',
@@ -51,7 +51,7 @@ describe('Firebase admin user summaries', () => {
       lastSignInAt: 'Thu, 02 Jan 2025 00:00:00 GMT',
       photoUrl: 'https://images.example.com/ada.jpg',
       providerIds: ['google.com'],
-      snapAdmin: true,
+      god: true,
       topg: true,
       uid: 'firebase-uid'
     })

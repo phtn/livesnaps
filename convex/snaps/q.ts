@@ -149,10 +149,10 @@ const applicantProfileSchema = v.object({
 
 type ApplicantSnapSummary = typeof applicantSnapSummarySchema.type
 
-const requireSnapAdmin = async (ctx: QueryCtx) => {
+const requireAdmin = async (ctx: QueryCtx) => {
   const identity = await ctx.auth.getUserIdentity()
 
-  if (!identity || (identity.admin !== true && identity['snap-admin'] !== true)) {
+  if (!identity || identity.admin !== true) {
     throw new ConvexError('Unauthorized.')
   }
 }
@@ -287,7 +287,7 @@ export const getForAdmin = query({
   },
   returns: v.union(snapDocumentSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireSnapAdmin(ctx)
+    await requireAdmin(ctx)
 
     return await ctx.db.get('snaps', snapId)
   }
@@ -299,7 +299,7 @@ export const getForAdminByRouteId = query({
   },
   returns: v.union(snapDocumentSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireSnapAdmin(ctx)
+    await requireAdmin(ctx)
 
     const normalizedSnapId = ctx.db.normalizeId('snaps', snapId)
     return normalizedSnapId ? await ctx.db.get('snaps', normalizedSnapId) : null
@@ -312,7 +312,7 @@ export const getApplicantProfileForAdminBySnapId = query({
   },
   returns: v.union(applicantProfileSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireSnapAdmin(ctx)
+    await requireAdmin(ctx)
 
     const normalizedSnapId = ctx.db.normalizeId('snaps', snapId)
     if (!normalizedSnapId) return null
@@ -420,7 +420,7 @@ export const listForAdmin = query({
   },
   returns: v.array(snapListItemSchema),
   handler: async (ctx, { limit }) => {
-    await requireSnapAdmin(ctx)
+    await requireAdmin(ctx)
 
     const snaps = await ctx.db.query('snaps').withIndex('by_updated_at').order('desc').take(normalizeListLimit(limit))
 

@@ -1,19 +1,17 @@
 import ThemeToggle from './theme-toggle.btsx'
 import { Icon } from '@/lib/icons'
-import { getCurrentUser, signInWithGoogle, subscribeToAuthState } from '@/lib/firebase'
+import { signInWithGoogle } from '@/lib/firebase'
+import { useFirebaseUser } from '@/lib/firebase/auth'
 import UserMenu from './user-menu.btsx'
-import type { User } from 'firebase/auth'
-import { useEffect, useState } from 'octane'
+import { useState } from 'octane'
 import { Link } from '@octanejs/tanstack-router'
 // import StoreMark from './store-mark.btsx'
 
 setup
-  const [user, setUser] = useState<User | null>(getCurrentUser)
+  const { hasAdminClaim, hasGodAccess, user } = useFirebaseUser()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [signInError, setSignInError] = useState<string | null>(null)
   const inSession = user !== null
-
-  useEffect(() => subscribeToAuthState(() => setUser(getCurrentUser())), [])
 
   const handleSignIn = async () => {
     if (isSigningIn) return
@@ -21,8 +19,7 @@ setup
     setSignInError(null)
     setIsSigningIn(true)
     try {
-      const result = await signInWithGoogle()
-      setUser(result.user)
+      await signInWithGoogle()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sign in right now.'
       setSignInError(message)
@@ -44,7 +41,7 @@ header(className='relative z-40 mx-auto flex h-16 w-full max-w-[1520px] items-ce
   div(className='flex items-center gap-4 md:gap-6')
     ThemeToggle
     if inSession
-      UserMenu(user={user} hasAdminClaim={false} hasSnapAdminAccess={false})
+      UserMenu(user={user} hasAdminClaim={hasAdminClaim} hasGodAccess={hasGodAccess})
     else
       button(type='button' disabled={isSigningIn} onClick={handleSignIn} aria-busy={isSigningIn} aria-label='Sign in with Google' className='inline-flex size-9 items-center justify-center rounded-full text-foreground transition hover:bg-muted disabled:cursor-wait disabled:opacity-60')
         Icon(name='person')

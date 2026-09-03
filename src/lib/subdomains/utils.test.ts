@@ -4,28 +4,28 @@ import { getSubdomainRoute } from './config'
 import { extractSubdomain, getSubdomainFromHeaders } from './utils'
 
 describe('subdomain routing', () => {
-  test('maps the snaps subdomain to the Live Snaps route', () => {
-    assert.equal(getSubdomainRoute('snaps'), '/l')
+  test('does not map the removed snaps subdomain', () => {
+    assert.equal(getSubdomainRoute('snaps'), null)
   })
 
-  test('recognizes the production snaps hostname case-insensitively', () => {
-    assert.deepEqual(extractSubdomain('Snaps.BigTicket.ph:443'), {
-      subdomain: 'snaps',
+  test('keeps the reserved gods hostname out of generic subdomain routing', () => {
+    assert.deepEqual(extractSubdomain('Gods.BigTicket.ph:443'), {
+      subdomain: null,
       domain: 'bigticket.ph',
-      isSubdomain: true
+      isSubdomain: false
     })
   })
 
   test('uses the forwarded hostname when the application is behind a proxy', () => {
     const headers = new Headers({
       host: 'internal-service:3000',
-      'x-forwarded-host': 'snaps.bigticket.ph'
+      'x-forwarded-host': 'gods.bigticket.ph'
     })
 
     assert.deepEqual(getSubdomainFromHeaders(headers), {
-      subdomain: 'snaps',
+      subdomain: null,
       domain: 'bigticket.ph',
-      isSubdomain: true
+      isSubdomain: false
     })
   })
 })

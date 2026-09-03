@@ -7,10 +7,7 @@ export const SUBDOMAIN_CONFIG = {
   /**
    * Available subdomains and their route mappings
    */
-  subdomains: {
-    snaps: '/l'
-    // Add more subdomains as needed
-  },
+  subdomains: {},
 
   /**
    * The main/root domain (no subdomain)
@@ -28,7 +25,7 @@ export const SUBDOMAIN_CONFIG = {
    * Reserved subdomains that should not be routed
    * These will be treated as the root domain
    */
-  reservedSubdomains: ['www', 'api', 'admin']
+  reservedSubdomains: ['www', 'api', 'admin', 'gods']
 } as const
 
 export type SubdomainKey = keyof typeof SUBDOMAIN_CONFIG.subdomains

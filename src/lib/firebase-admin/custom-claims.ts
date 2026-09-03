@@ -1,17 +1,12 @@
 import type { UserIdentity } from 'convex/server'
-import type { IdTokenResult } from 'firebase/auth'
 import type { DecodedIdToken } from 'firebase-admin/auth'
+import type { IdTokenResult } from 'firebase/auth'
 
 export type FirebaseCustomClaimValue =
-  | null
-  | boolean
-  | number
-  | string
-  | FirebaseCustomClaimValue[]
-  | { [key: string]: FirebaseCustomClaimValue }
+  null | boolean | number | string | FirebaseCustomClaimValue[] | { [key: string]: FirebaseCustomClaimValue }
 
 export type FirebaseCustomClaims = Record<string, FirebaseCustomClaimValue>
-export type FirebaseManagedAccessClaimName = 'admin' | 'snap-admin'
+export type FirebaseManagedAccessClaimName = 'admin' | 'god'
 export type FirebasePrivilegedCustomClaimName = FirebaseManagedAccessClaimName | 'topg'
 
 export const FIREBASE_CUSTOM_CLAIMS_MAX_BYTES = 1000
@@ -50,8 +45,8 @@ const firebaseStandardClaimKeys = new Set([
 ])
 
 const unsafeCustomClaimKeys = new Set(['__proto__', 'constructor', 'prototype'])
-const managedAccessClaimKeys = new Set<FirebaseManagedAccessClaimName>(['admin', 'snap-admin'])
-const privilegedCustomClaimKeys = new Set<FirebasePrivilegedCustomClaimName>(['admin', 'snap-admin', 'topg'])
+const managedAccessClaimKeys = new Set<FirebaseManagedAccessClaimName>(['admin', 'god'])
+const privilegedCustomClaimKeys = new Set<FirebasePrivilegedCustomClaimName>(['admin', 'god', 'topg'])
 const customClaimNamePattern = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/
 
 const convexIdentityStandardClaimKeys = new Set([
@@ -111,9 +106,7 @@ export function isFirebaseCustomClaimName(value: unknown): value is string {
   )
 }
 
-export function isPrivilegedFirebaseCustomClaimName(
-  value: unknown
-): value is FirebasePrivilegedCustomClaimName {
+export function isPrivilegedFirebaseCustomClaimName(value: unknown): value is FirebasePrivilegedCustomClaimName {
   return typeof value === 'string' && privilegedCustomClaimKeys.has(value as FirebasePrivilegedCustomClaimName)
 }
 
@@ -121,17 +114,11 @@ export function isFirebaseManagedAccessClaimName(value: unknown): value is Fireb
   return typeof value === 'string' && managedAccessClaimKeys.has(value as FirebaseManagedAccessClaimName)
 }
 
-export function canReceiveFirebaseClaimGrant(recipient: {
-  email?: string | null
-  emailVerified: boolean
-}): boolean {
+export function canReceiveFirebaseClaimGrant(recipient: { email?: string | null; emailVerified: boolean }): boolean {
   return recipient.emailVerified === true && typeof recipient.email === 'string' && recipient.email.trim().length > 0
 }
 
-export function updateFirebaseAdminClaim(
-  claims: FirebaseCustomClaims,
-  enabled: boolean
-): FirebaseCustomClaims {
+export function updateFirebaseAdminClaim(claims: FirebaseCustomClaims, enabled: boolean): FirebaseCustomClaims {
   return updateFirebaseManagedAccessClaim(claims, 'admin', enabled)
 }
 
@@ -155,7 +142,11 @@ export function canManageFirebaseAccessClaim(
   actorClaims: FirebaseCustomClaims,
   claim: FirebaseManagedAccessClaimName
 ): boolean {
-  return claim === 'admin' ? actorClaims.topg === true : actorClaims.admin === true
+  if (claim === 'admin' || claim === 'god') {
+    return actorClaims.topg === true
+  }
+
+  return false
 }
 
 export function canViewTopgFirebaseUser(
@@ -165,8 +156,8 @@ export function canViewTopgFirebaseUser(
   return targetClaims.topg !== true || actorClaims.topg === true
 }
 
-export function hasFirebaseSnapAdminAccess(claims: FirebaseCustomClaims): boolean {
-  return claims.admin === true || claims['snap-admin'] === true
+export function hasFirebaseGodAccess(claims: FirebaseCustomClaims): boolean {
+  return claims.god === true
 }
 
 export function getFirebaseCustomClaimsByteLength(claims: FirebaseCustomClaims): number {

@@ -4,6 +4,8 @@ import {
   type SnapPhotoRouteEnvironment
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
+import { handleAdminSession } from './server/admin-auth-routes'
+import { handleGodsSession } from './server/gods-auth-routes'
 
 interface WorkerEnvironment {
   ASSETS: {
@@ -20,6 +22,8 @@ interface WorkerEnvironment {
 }
 
 const SESSION_PATH = '/api/snaps/session'
+const ADMIN_SESSION_PATH = '/api/admin/session'
+const GODS_SESSION_PATH = '/api/gods/session'
 const PHOTO_PATH = '/api/proofs'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 
@@ -46,6 +50,14 @@ export default {
         mapboxAccessToken: env.MAPBOX_ACCESS_TOKEN
       }
       return handleSnapSessionRequest(request, environment)
+    }
+
+    if (pathname === ADMIN_SESSION_PATH) {
+      return handleAdminSession(request)
+    }
+
+    if (pathname === GODS_SESSION_PATH) {
+      return handleGodsSession(request)
     }
 
     if (pathname === PHOTO_PATH) {

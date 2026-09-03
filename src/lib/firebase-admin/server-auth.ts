@@ -1,48 +1,69 @@
-import 'server-only'
-
 import {
   getFirebaseCustomClaimsFromDecodedToken,
-  hasFirebaseSnapAdminAccess
-} from '@/lib/firebase/custom-claims'
+  hasFirebaseGodAccess
+} from '@/lib/firebase-admin/custom-claims'
 import { getAppRootHostname } from '@/lib/routing/admin-subdomain'
-import { cache } from 'react'
 import type { DecodedIdToken } from 'firebase-admin/auth'
-import { cookies, headers } from 'next/headers'
-import { redirect } from 'next/navigation'
 import { getFirebaseAdminAuth } from './admin'
-import { firebaseSessionCookieName } from './session'
+import {
+  firebaseAdminSessionCookieName,
+  firebaseGodsSessionCookieName,
+  firebaseSessionCookieName
+} from './session'
 
 type VerifiedSession = {
   customClaims: ReturnType<typeof getFirebaseCustomClaimsFromDecodedToken>
   decodedToken: DecodedIdToken
 }
 
-async function buildAppHomeUrl() {
-  const headerStore = await headers()
-  const host = headerStore.get('x-forwarded-host') ?? headerStore.get('host')
+function getCookieValue(cookieHeader: string | null, name: string) {
+  if (!cookieHeader) return null
 
-  if (!host) {
-    return '/'
+  for (const cookie of cookieHeader.split(';')) {
+    const separatorIndex = cookie.indexOf('=')
+    if (separatorIndex === -1) continue
+
+    if (cookie.slice(0, separatorIndex).trim() !== name) continue
+
+    const value = cookie.slice(separatorIndex + 1).trim()
+
+    try {
+      return decodeURIComponent(value)
+    } catch {
+      return value
+    }
   }
 
-  const protocol = headerStore.get('x-forwarded-proto') ?? 'http'
+  return null
+}
+
+function buildAppHomeUrl(request: Request) {
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+
+  if (!host) {
+    return new URL('/', request.url)
+  }
+
+  const protocol = request.headers.get('x-forwarded-proto') ?? new URL(request.url).protocol.slice(0, -1)
   const appUrl = new URL(`${protocol}://${host}`)
   appUrl.hostname = getAppRootHostname(appUrl.hostname)
   appUrl.pathname = '/'
   appUrl.search = ''
   appUrl.hash = ''
-  return appUrl.toString()
+  return appUrl
 }
 
-export const getVerifiedSession = cache(async (): Promise<VerifiedSession | null> => {
+export async function getVerifiedSession(
+  request: Request,
+  cookieName = firebaseSessionCookieName
+): Promise<VerifiedSession | null> {
   const auth = getFirebaseAdminAuth()
 
   if (!auth) {
     return null
   }
 
-  const cookieStore = await cookies()
-  const sessionCookie = cookieStore.get(firebaseSessionCookieName)?.value
+  const sessionCookie = getCookieValue(request.headers.get('cookie'), cookieName)
 
   if (!sessionCookie) {
     return null
@@ -59,35 +80,35 @@ export const getVerifiedSession = cache(async (): Promise<VerifiedSession | null
   } catch {
     return null
   }
-})
+}
 
-export const getVerifiedAdminSession = cache(async (): Promise<VerifiedSession | null> => {
-  const session = await getVerifiedSession()
+export async function getVerifiedAdminSession(request: Request): Promise<VerifiedSession | null> {
+  const session = await getVerifiedSession(request, firebaseAdminSessionCookieName)
 
   return session?.customClaims.admin === true ? session : null
-})
+}
 
-export const getVerifiedSnapAdminSession = cache(async (): Promise<VerifiedSession | null> => {
-  const session = await getVerifiedSession()
+export async function getVerifiedGodSession(request: Request): Promise<VerifiedSession | null> {
+  const session = await getVerifiedSession(request, firebaseGodsSessionCookieName)
 
-  return session && hasFirebaseSnapAdminAccess(session.customClaims) ? session : null
-})
+  return session && hasFirebaseGodAccess(session.customClaims) ? session : null
+}
 
-export async function requireAdminSession() {
-  const session = await getVerifiedAdminSession()
+export async function requireAdminSession(request: Request): Promise<VerifiedSession | Response> {
+  const session = await getVerifiedAdminSession(request)
 
   if (!session) {
-    redirect(await buildAppHomeUrl())
+    return Response.redirect(buildAppHomeUrl(request), 302)
   }
 
   return session
 }
 
-export async function requireSnapAdminSession() {
-  const session = await getVerifiedSnapAdminSession()
+export async function requireGodSession(request: Request): Promise<VerifiedSession | Response> {
+  const session = await getVerifiedGodSession(request)
 
   if (!session) {
-    redirect(await buildAppHomeUrl())
+    return Response.redirect(buildAppHomeUrl(request), 302)
   }
 
   return session

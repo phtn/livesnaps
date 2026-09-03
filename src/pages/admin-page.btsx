@@ -1,0 +1,100 @@
+import { useEffect, useState } from 'octane'
+import { resolveAdminNavigationPath, stripAdminSubdomain, supportsAdminSubdomain } from '@/lib/routing/admin-subdomain'
+import {Icon} from "@/lib/icons";
+import { cn } from '@/lib/utils'
+import ThemeToggle from "../components/theme-toggle.btsx";
+
+module
+  type NavItem = {
+    icon: string
+    label: string
+    path: string
+  }
+  const navs: NavItem[] = [
+    { icon: 'grid', label: 'Overview', path: '/admin-overview' },
+    { icon: 'snap', label: 'Snaps', path: '/admin-snaps' },
+    { icon: 'timeline', label: 'Workspace', path: '/admin-workspace' },
+    { icon: 'settings', label: 'Settings', path: '/admin-settings' },
+  ]
+
+setup
+  const [email, setEmail] = useState<string | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
+  const readyMessage = email ? `Your administrator session is active for ${email}.` : 'Your administrator session is active.'
+  const pathname = window.location.pathname
+  const resolvedNavItems = useMemo(
+    () =>
+      navs.map((item) => ({
+        ...item,
+        path: resolveAdminNavigationPath(item.path, pathname)
+      })),
+    [pathname]
+  )
+
+
+  useEffect(() => {
+    let cancelled = false
+
+    const loadSession = async () => {
+      try {
+        const response = await fetch('/api/admin/session', { credentials: 'same-origin' })
+
+        if (!response.ok) {
+          if (!cancelled) setStatus('unauthorized')
+          return
+        }
+
+        const payload: unknown = await response.json()
+        const nextEmail =
+          typeof payload === 'object' && payload !== null && typeof (payload as { email?: unknown }).email === 'string'
+            ? (payload as { email: string }).email
+            : null
+
+        if (!cancelled) {
+          setEmail(nextEmail)
+          setStatus('ready')
+        }
+      } catch {
+        if (!cancelled) setStatus('error')
+      }
+    }
+
+    void loadSession()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+div(className='flex')
+  aside( className=' w-54 flex flex-col items-center bg-background border-r border-border')
+    div( className='h-16 w-54 flex items-center border-b border-border')
+      div(className='flex items-center gap-2 px-6 w-full')
+        Icon(name='re-up.ph' className='size-4.5 text-foreground/70')
+        h2(className='font-poly font-bold text-foreground/70 text-lg leading-0 whitespace-nowrap mt-0.5')
+        | Admin
+    nav(className='flex-1 w-full')
+      ul(className='flex flex-col space-y-2')
+        each item in resolvedNavItems key item.path
+          li(className='w-full hover:text-foreground hover:bg-foreground/4')
+            a(href={item.path} className={cn('relative flex items-center gap-3 h-16 group text-foreground/70 px-6')})
+              Icon(name={item.icon} className='size-5')
+              span #{item.label}
+    div(className='h-16 w-54 flex items-center lg:px-6 border-t border-border')
+      div(className='flex items-center justify-center lg:justify-end gap-2')
+        ThemeToggle
+  main(className='min-h-screen w-full flex items-center justify-center bg-background px-6 text-center')
+    div(className='max-w-md')
+      p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Live Snaps Now
+      h1(className='mt-3 font-poly text-3xl font-medium') Admin
+      if status === 'loading'
+        p(className='mt-4 text-sm text-muted-foreground') Verifying your administrator session…
+      elseif status === 'ready'
+        fragment
+          p(className='mt-4 text-sm text-muted-foreground') #{readyMessage}
+          p(className='mt-8 rounded-xl border border-border bg-card p-5 text-left text-sm text-muted-foreground') Protected admin endpoints can now be added under /api/admin/ and must verify this session before returning data.
+      elseif status === 'unauthorized'
+        fragment
+          p(className='mt-4 text-sm text-muted-foreground') You do not have an active administrator session.
+          a(href='https://livesnapsnow.com/' className='mt-6 inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background') Return to Live Snaps Now
+      else
+        p(className='mt-4 text-sm text-destructive') We could not verify your administrator session. Please try again.

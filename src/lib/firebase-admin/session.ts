@@ -3,6 +3,8 @@ import { getSharedCookieDomain } from '@/lib/routing/admin-subdomain'
 const SESSION_ENDPOINT = '/api/auth/session'
 
 export const firebaseSessionCookieName = 'live-snaps-session'
+export const firebaseAdminSessionCookieName = 'live-snaps-admin-session'
+export const firebaseGodsSessionCookieName = 'live-snaps-gods-session'
 export const firebaseSessionCookieMaxAgeMs = 5 * 24 * 60 * 60 * 1000
 export const firebaseSessionCookieMaxAgeSeconds = firebaseSessionCookieMaxAgeMs / 1000
 
