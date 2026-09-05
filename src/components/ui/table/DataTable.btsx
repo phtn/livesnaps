@@ -296,7 +296,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
       ~ className='py-0 [&_svg]:size-4 text-xs]'
       ~ menuPlacement='top'
       ~ value={String(table.state.pagination.pageSize)}
-      ~ onChange={(event) => table.setPageSize(Number((event.currentTarget as HTMLSelectElement).value))}
+      ~ onChange={(value) => table.setPageSize(Number(value))}
       ~ options={safePageSizes.map((size) => ({ value: String(size), label: String(size) }))}
       ~ direction='up'
       ~ )

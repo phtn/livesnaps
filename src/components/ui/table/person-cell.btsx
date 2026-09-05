@@ -1,0 +1,13 @@
+import Avatar from '@/components/ui/avatar.btsx'
+
+module
+  export interface PersonCellProps {
+    name: string
+  }
+
+props { name }: PersonCellProps
+
+if name
+  div(className='flex min-w-0 items-center gap-2')
+    Avatar(alt={name} size='sm' className='shrink-0')
+    span(className='truncate') #{name}

@@ -687,6 +687,18 @@ export const icons = {
       '<g transform="scale(0.667)"><path d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Z"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  sidebar: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 9.5-6 6M9 4l-6 6m6 5-5 5M9 3v18M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  images: {
+    symbol:
+      '<g transform="scale(0.667)"><path d="m5 17 4.5-6 3.5 4.5 2.5-3L19 17m1-11h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2" fill="currentColor"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

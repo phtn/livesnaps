@@ -85,16 +85,50 @@ export const vehicleMakes = ['Toyota', 'Honda', 'Mitsubishi', 'Nissan', 'Hyundai
 export type CountryCode = (typeof countryCodes)[number]
 export type VehicleMake = (typeof vehicleMakes)[number]
 
-export const snapIPCmStatus: Record<string, { className: string; icon: IconName; label: string }> = {
+/**
+ * Presentation for the `countryCodeMatchesIpinfo` badge. Keyed by the tokens
+ * `toIpcMatchToken` (in `snap-columns.ts`) emits, not the underlying
+ * `boolean | null` — importing that helper here would create a circular
+ * import, so the key union is restated instead.
+ */
+export const snapIpcMatchStatus: Record<'match' | 'mismatch' | 'unknown', { className: string; icon: IconName; label: string }> = {
   match: {
     className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
     icon: 'circle-check',
-    label: 'Completed'
+    label: 'Verified'
   },
-  not: {
-    className: 'border-orange-500/25 bg-orange-500/8 text-orange-700 dark:text-orange-300',
+  mismatch: {
+    className: 'border-rose-500/25 bg-rose-500/8 text-rose-700 dark:text-rose-300',
     icon: 'alert-triangle',
-    label: 'Unavailable'
+    label: 'Mismatch'
+  },
+  unknown: {
+    className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
+    icon: 'circle-minus-line',
+    label: 'Not measured'
+  }
+}
+
+/**
+ * Presentation for the `verification_status` badge. A snap only gets a real
+ * status once its session completes and the applicant submits the handoff
+ * email, so `unsubmitted` covers every row without one yet.
+ */
+export const snapVerificationStatus: Record<'draft' | 'submitted' | 'unsubmitted', { className: string; icon: IconName; label: string }> = {
+  draft: {
+    className: 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-300',
+    icon: 'draft',
+    label: 'Draft'
+  },
+  submitted: {
+    className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+    icon: 'send',
+    label: 'Submitted'
+  },
+  unsubmitted: {
+    className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
+    icon: 'circle-minus-line',
+    label: 'Unsubmitted'
   }
 }
 

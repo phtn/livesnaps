@@ -106,7 +106,7 @@ component SnapPhotosCell
       ~ className={cn(GHOST_BUTTON_CLASS, 'h-8 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400')}
       ~ )
       span(className='font-okx text-base font-medium') #{photoCount}
-      Icon(name='gallery' className='size-5')
+      Icon(name='images' className='size-5')
 
     button(
       ~ type='button'

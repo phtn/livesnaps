@@ -1,0 +1,12 @@
+import { SnapRowActions } from './row-actions.btsx'
+import type { SnapRow } from '@/components/admin/snap-columns'
+
+module
+  // `snap-columns.ts` is a plain `.ts` module, so it can only import a `.btsx`
+  // file's default export (the ambient `*.btsx` declaration in `env.d.ts`
+  // covers no named exports). This file exists purely to give the photos cell
+  // a default export the column definition can reach.
+
+props { snap }: { snap: SnapRow }
+
+SnapRowActions.PhotosCell(snap={snap})

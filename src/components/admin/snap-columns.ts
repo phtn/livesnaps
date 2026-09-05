@@ -1,12 +1,15 @@
 import RowActions from '@/components/ui/table/row-actions.btsx'
+import PhotosCell from '@/components/ui/table/photos-cell.btsx'
+import PersonCell from '@/components/ui/table/person-cell.btsx'
 import { getSnapImageUrl, isSnapObjectKey } from '@/lib/r2/snap-images'
 import type { AdminSnapListItem, AdminSnapPhoto } from '@/lib/snaps/admin-photo-types'
 import { getSnapPhotoFileName } from '@/lib/snaps/photo-download'
 import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
+import { format } from 'date-fns'
 import { createElement } from 'octane'
 import StatusBadge from './badges.btsx'
-import { snapSessionStatus } from './data'
+import { snapIpcMatchStatus, snapSessionStatus, snapVerificationStatus } from './data'
 import { snapsFeatures } from './table-config'
 
 /**
@@ -42,7 +45,7 @@ export const IPC_MATCH_TOKENS = ['match', 'mismatch', 'unknown'] as const
 
 export const toIpcMatchToken = (value: boolean | null) => (value === null ? 'unknown' : value ? 'match' : 'mismatch')
 
-const formatUpdatedAt = (timestamp: number) => new Date(timestamp).toISOString()
+const formatUpdatedAt = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
 
 const columnHelper = createColumnHelper<typeof snapsFeatures, SnapRow>()
 
@@ -57,7 +60,10 @@ export const snapColumns = columnHelper.columns([
     header: 'Applicant',
     size: 276,
     sortFn: 'text',
-    enableColumnFilter: false
+    enableColumnFilter: false,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(PersonCell, { name: info.getValue() })
   }),
   columnHelper.accessor('locationLabel', {
     header: 'Location',
@@ -68,9 +74,12 @@ export const snapColumns = columnHelper.columns([
   columnHelper.accessor((row) => row.photos.length, {
     id: 'photos',
     header: 'Photos',
-    size: 120,
+    size: 160,
     sortFn: 'basic',
-    enableColumnFilter: false
+    enableColumnFilter: false,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(PhotosCell, { snap: info.row.original })
   }),
   columnHelper.accessor((row) => toIpcMatchToken(row.countryCodeMatchesIpinfo), {
     id: 'countryCodeMatchesIpinfo',
@@ -78,7 +87,10 @@ export const snapColumns = columnHelper.columns([
     size: 150,
     sortFn: 'text',
     filterFn: 'arrHas',
-    enableColumnFilter: true
+    enableColumnFilter: true,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(StatusBadge, { presentation: snapIpcMatchStatus[info.getValue()] })
   }),
   columnHelper.accessor('make', {
     header: 'Make',
@@ -117,15 +129,21 @@ export const snapColumns = columnHelper.columns([
     size: 200,
     sortFn: 'text',
     filterFn: 'includesString',
-    enableColumnFilter: true
+    enableColumnFilter: true,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(PersonCell, { name: info.getValue() })
   }),
-  columnHelper.accessor((row) => row.verification_status ?? '', {
+  columnHelper.accessor((row) => row.verification_status ?? 'unsubmitted', {
     id: 'verification_status',
     header: 'Verification',
     size: 200,
     sortFn: 'text',
     filterFn: 'includesString',
-    enableColumnFilter: true
+    enableColumnFilter: true,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(StatusBadge, { presentation: snapVerificationStatus[info.getValue()] })
   }),
   columnHelper.accessor('updatedAt', {
     header: 'Updated',
