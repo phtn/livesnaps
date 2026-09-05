@@ -166,12 +166,12 @@ Sortable(value={reorderableColumnIds} onValueChange={handleColumnOrderChange})
               ~     : 'Reorder columns'
               ~   : 'At least two unpinned columns are required to reorder'}
               ~ onClick={() => setIsPositioning((current) => !current)}
-              ~ className='group/toggle flex size-7 items-center justify-center rounded-xs text-mist-600 transition-colors hover:bg-mist-300/50 dark:hover:bg-mist-300/10 focus-visible:outline-1 disabled:cursor-not-allowed disabled:opacity-40 -mr-1.5'
+              ~ className='group/toggle flex size-7 items-center justify-center rounded-xs text-mist-600 transition-colors hover:bg-mist-300/50 dark:hover:bg-mist-300/10 focus-visible:outline-1 disabled:cursor-not-allowed disabled:opacity-40 -mr-2'
               ~ )
               Icon(
                 ~ name='arrow-right-col'
                 ~ className={cn(
-                ~   'size-6 text-foreground/80 transition-colors drop-shadow-xs group-hover/toggle:text-foreground',
+                ~   'size-5 text-foreground/80 transition-colors group-hover/toggle:text-foreground',
                 ~   positioningEnabled && 'opacity-100 text-orange-400',
                 ~ )}
                 ~ )
@@ -198,10 +198,11 @@ Sortable(value={reorderableColumnIds} onValueChange={handleColumnOrderChange})
                     ~   className: 'group/drag flex h-8 items-center justify-between rounded-xs bg-transparent ps-3 pe-1 text-sm text-foreground opacity-100 hover:bg-sand/10 dark:text-white dark:hover:bg-sand/2 dark:hover:text-sand/95',
                     ~ })}
                     ~ )
-                    span #{getColumnHeaderText(column)}
+                    span #{getColumnHeaderText(column)} 𜲉
+
                     Icon(
                       ~ name='draggable'
-                      ~ className='size-5 opacity-60 group-hover/drag:opacity-100 group-hover/drag:text-mist-700 dark:group-hover/drag:text-orange-200'
+                      ~ className='hidden size-5 opacity-60 group-hover/drag:opacity-100 group-hover/drag:text-mist-700 dark:group-hover/drag:text-orange-200'
                       ~ )
           else
             div(className='space-y-0 p-0')

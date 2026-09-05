@@ -65,6 +65,7 @@ const snapListItemSchema = v.object({
   firebaseUid: v.string(),
   fullName: v.string(),
   handler: v.optional(snapHandlerSchema),
+  imageUrl: v.optional(v.string()),
   location: v.union(snapLocationSchema, v.null()),
   location_session: v.optional(snapLocationSessionSchema),
   locationLabel: v.string(),
@@ -424,6 +425,22 @@ export const listForAdmin = query({
 
     const snaps = await ctx.db.query('snaps').withIndex('by_updated_at').order('desc').take(normalizeListLimit(limit))
 
+    const firebaseUids = [...new Set(snaps.map((snap) => snap.firebase_uid).filter((uid): uid is string => !!uid))]
+    const imageUrlByFirebaseUid = new Map<string, string | undefined>(
+      await Promise.all(
+        firebaseUids.map(
+          async (uid): Promise<[string, string | undefined]> => {
+            const user = await ctx.db
+              .query('users')
+              .withIndex('by_firebaseUid', (q) => q.eq('firebaseUid', uid))
+              .unique()
+
+            return [uid, user?.imageUrl]
+          }
+        )
+      )
+    )
+
     return snaps.map((snap): SnapListItem => {
       const location = snap.location ?? (snap.location_session ? prepareSnapLocation(snap.location_session) : null)
 
@@ -439,6 +456,7 @@ export const listForAdmin = query({
         firebaseUid: snap.firebase_uid ?? '',
         fullName: snap.full_name ?? '',
         handler: snap.handler ?? undefined,
+        imageUrl: snap.firebase_uid ? imageUrlByFirebaseUid.get(snap.firebase_uid) : undefined,
         location,
         location_session: snap.location_session,
         locationLabel: location?.address.full_address ?? '',

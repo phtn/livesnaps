@@ -22,8 +22,8 @@ module
   }
 
   interface ColumnDefinitionProps {
-    column: any
-    columnVisibility: ColumnVisibilityState
+    visible: boolean
+    width: number
   }
 
   interface HeaderCellProps {
@@ -37,11 +37,7 @@ module
   }
 
 component ColumnDefinition
-  props { column, columnVisibility }: ColumnDefinitionProps
-  setup
-    const visible = isColumnVisible(column.id, columnVisibility, column.getCanHide())
-    const width = visible ? getColumnSize(column) : 0
-
+  props { visible, width }: ColumnDefinitionProps
   col(
     ~ data-column-visible={visible}
     ~ className='transition-[width] duration-200 ease-out motion-reduce:transition-none'
@@ -57,17 +53,16 @@ component HeaderCell
     const sort = sorting.find((entry) => entry.id === header.column.id)
     const sorted = sort ? (sort.desc ? 'desc' : 'asc') : false
     const headerClassName = cn(
-      'h-9 overflow-hidden px-1 font-sans font-medium text-foreground text-xs md:h-10 md:text-sm tracking-tight',
+      'mx-2 h-9 overflow-hidden font-sans font-medium text-foreground text-sm md:h-10 tracking-tight',
       pinnedColumnLayout && 'sticky z-30 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none dark:bg-[#1d2129]',
       pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start' && 'shadow-[4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
       pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end' && 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
-      !visible && 'pointer-events-none'
+      !visible && 'pointer-events-none',
     )
     const contentClassName = cn(
-      'flex h-full min-w-0 items-center overflow-hidden px-3 ps-2 transition-opacity duration-150 ease-out motion-reduce:transition-none',
+      'relative flex h-full min-w-0 items-center overflow-hidden px-0 transition-opacity duration-150 ease-out motion-reduce:transition-none',
       visible ? 'opacity-100 delay-75' : 'opacity-0 delay-0'
     )
-
   TableHead(
     ~ aria-hidden={visible ? undefined : true}
     ~ aria-sort={visible && header.column.getCanSort() ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
@@ -76,7 +71,7 @@ component HeaderCell
     ~ data-column-visible={visible}
     ~ inert={!visible}
     ~ scope='col'
-    ~ style={getPinnedColumnStyle(pinnedColumnLayout)}
+    ~ style={{...getPinnedColumnStyle(pinnedColumnLayout), width: `${header.getSize()}px`}}
     ~ className={headerClassName}
     ~ )
     div(className={contentClassName})
@@ -88,6 +83,15 @@ component HeaderCell
           ~ )
       else
         ColumnSort(header={header} sorted={sorted})
+      if header.column.getCanResize()
+        button(
+          ~ type='button'
+          ~ aria-label={`Resize ${header.column.id} column`}
+          ~ className={`absolute right-0 top-0 z-100 h-full w-3 touch-none border-0 bg-transparent hover:bg-brand/3 p-0 after:absolute after:right-0 after:top-0 after:h-[38px] after:w-1 after:rounded-[1px] after:bg-brand/5 after:content-[''] hover:after:w-1 hover:after:bg-active ${header.column.getIsResizing() ? 'cursor-col-resize after:w-1 after:bg-active' : ' '}`}
+          ~ onMouseDown={header.getResizeHandler()}
+          ~ onTouchStart={header.getResizeHandler()}
+          ~ onDoubleClick={() => header.column.resetSize()}
+          ~ )
 
 component HiddenHeaderCell
   TableHead(
@@ -103,9 +107,14 @@ setup
   const layout = useMemo(() => {
     const orderedLeafColumns = orderColumnsByPinning(table.getAllLeafColumns(), columnPinning)
     const pinnedColumnLayouts = getPinnedColumnLayouts(orderedLeafColumns, columnPinning, columnVisibility)
+    const columnWidths = new Map(
+      orderedLeafColumns.map((column) => {
+        const visible = isColumnVisible(column.id, columnVisibility, column.getCanHide())
+        return [column.id, { visible, width: visible ? getColumnSize(column) : 0 }] as const
+      }),
+    )
     const visibleTableSize = orderedLeafColumns.reduce(
-      (total, column) =>
-        total + (isColumnVisible(column.id, columnVisibility, column.getCanHide()) ? getColumnSize(column) : 0),
+      (total, column) => total + (columnWidths.get(column.id)?.width ?? 0),
       0,
     )
     const headersByColumnId = new Map(
@@ -114,8 +123,8 @@ setup
       ),
     )
 
-    return { headersByColumnId, orderedLeafColumns, pinnedColumnLayouts, visibleTableSize }
-  }, [table, columnPinning, columnVisibility])
+    return { columnWidths, headersByColumnId, orderedLeafColumns, pinnedColumnLayouts, visibleTableSize }
+  }, [table, columnPinning, columnVisibility, table.state.columnSizing])
 
 table(
   ~ data-slot='table'
@@ -126,7 +135,7 @@ table(
   ~ )
   colgroup
     each column in layout.orderedLeafColumns key column.id
-      ColumnDefinition(column={column} columnVisibility={columnVisibility})
+      ColumnDefinition(visible={layout.columnWidths.get(column.id)?.visible ?? false} width={layout.columnWidths.get(column.id)?.width ?? 0})
   TableHeader(className='w-full text-foreground')
     TableRow(className='sticky top-0 z-20 h-7 bg-slate-300/30 backdrop-blur-3xl md:h-8 dark:bg-slate-400/20')
       each column in layout.orderedLeafColumns key column.id

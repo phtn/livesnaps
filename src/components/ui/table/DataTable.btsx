@@ -193,6 +193,7 @@ setup
         if (isSameState(next, columnVisibility)) return
         void setQuery({ visibility: next })
       },
+      columnResizeMode: 'onChange',
       onGlobalFilterChange: (updater) => {
         const next = String(functionalUpdate(updater, globalFilter) ?? '')
         trace('globalFilter', next, globalFilter)
@@ -213,6 +214,8 @@ setup
       columnOrder: state.columnOrder,
       columnPinning: state.columnPinning,
       columnVisibility: state.columnVisibility,
+      columnResizing: state.columnResizing,
+      columnSizing: state.columnSizing,
       globalFilter: state.globalFilter,
       pagination: state.pagination,
       rowSelection: state.rowSelection,

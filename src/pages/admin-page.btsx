@@ -113,7 +113,7 @@ else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
       aside(className='flex h-full min-w-0 w-full flex-col bg-background border-r border-border/70')
-        div(className={cn('flex h-16 items-center border-b border-border', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+        div(className={cn('flex h-16 items-center border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
           Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
             if isNavigationCompact
@@ -125,7 +125,7 @@ else
                 span(className='text-sand dark:text-foreground') Now
 
         AdminNavigation(compact={isNavigationCompact})
-        div(className={cn('flex h-16 items-center border-t border-border', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+        div(className={cn('flex h-16 items-center border-t border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
           ThemeToggle
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
       span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')

@@ -169,7 +169,7 @@ component FacetedBadgeList
       ~ data-slot='faceted-badge-list'
       ~ {...badgeListProps}
       ~ ref={ref}
-      ~ className={cn('flex w-full items-center ps-2 text-sm text-foreground/50', className)}
+      ~ className={cn('flex w-full items-center ps-1.5 text-sm text-foreground/50', className)}
       ~ )
       | #{placeholder}
       ChevronDownIcon(className='ml-auto size-3.5 opacity-80')
@@ -181,11 +181,11 @@ component FacetedBadgeList
       ~ className={cn('flex w-full items-center justify-between font-okx', className)}
       ~ )
       if values.length > max
-        span(className={cn('inline-flex items-center rounded-xs bg-secondary px-2 py-0.5 text-xs font-normal text-secondary-foreground', badgeClassName)})
+        span(className={cn('inline-flex items-center rounded-sm bg-brand px-2 py-0.5 text-xs font-normal text-primary-foreground', badgeClassName)})
           | #{values.length} selected
       else
         each value in values key value
-          span(className={cn('inline-flex min-w-0 items-center rounded-xs bg-secondary px-2 py-0.5 text-xs font-normal text-secondary-foreground', badgeClassName)})
+          span(className={cn('inline-flex min-w-0 items-center rounded-sm bg-indigo-400 px-2 py-0.5 text-xs font-normal text-primary-foreground', badgeClassName)})
             span.truncate #{getLabel(value)}
       ChevronDownIcon(className='ml-auto size-3.5 shrink-0 opacity-80')
 
@@ -203,12 +203,12 @@ component FacetedContent
     ~ align='start'
     ~ sideOffset={8}
     ~ className={cn(
-    ~   'w-64 origin-(--transform-origin) rounded-md border border-border/60 bg-transparent p-0! ring-0 dark:border-indigo-200/30 overflow-hidden',
+    ~   'w-64 origin-(--transform-origin) rounded-sm border border-border/60 bg-transparent p-0! ring-0 dark:border-indigo-200/30 overflow-hidden',
     ~   className
     ~ )}
     ~ onFocus={onFocus}
     ~ )
-    Command(className='rounded-md p-1 backdrop-blur-3xl dark:bg-indigo-100/5')
+    Command(className='rounded-sm p-1 backdrop-blur-3xl dark:bg-indigo-100/5')
       | #{children}
 
 component FacetedInput

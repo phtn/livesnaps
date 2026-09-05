@@ -54,7 +54,8 @@ export const snapsFeatures = tableFeatures({
   columnOrderingFeature,
   columnPinningFeature,
   columnSizingFeature,
-  columnVisibilityFeature
+  columnVisibilityFeature,
+  columnResizingFeature
 })
 
 export const analyticsFeatures = tableFeatures({

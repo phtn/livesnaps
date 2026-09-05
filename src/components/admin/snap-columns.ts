@@ -1,6 +1,6 @@
-import RowActions from '@/components/ui/table/row-actions.btsx'
-import PhotosCell from '@/components/ui/table/photos-cell.btsx'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
+import PhotosCell from '@/components/ui/table/photos-cell.btsx'
+import RowActions from '@/components/ui/table/row-actions.btsx'
 import { getSnapImageUrl, isSnapObjectKey } from '@/lib/r2/snap-images'
 import type { AdminSnapListItem, AdminSnapPhoto } from '@/lib/snaps/admin-photo-types'
 import { getSnapPhotoFileName } from '@/lib/snaps/photo-download'
@@ -48,32 +48,33 @@ export const toIpcMatchToken = (value: boolean | null) => (value === null ? 'unk
 const formatUpdatedAt = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
 
 const columnHelper = createColumnHelper<typeof snapsFeatures, SnapRow>()
+const createHeader = (header: string) => () => createElement('div', { className: 'ps-4' }, header)
 
 export const snapColumns = columnHelper.columns([
   columnHelper.accessor('plateNumber', {
-    header: 'Plate',
+    header: createHeader('Plate'),
     size: 120,
     sortFn: 'text',
     enableColumnFilter: false
   }),
   columnHelper.accessor('fullName', {
-    header: 'Applicant',
+    header: createHeader('Applicant'),
     size: 276,
     sortFn: 'text',
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { name: info.getValue() })
+    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.imageUrl, name: info.getValue() })
   }),
   columnHelper.accessor('locationLabel', {
-    header: 'Location',
+    header: createHeader('Location'),
     size: 300,
     sortFn: 'text',
     enableColumnFilter: false
   }),
   columnHelper.accessor((row) => row.photos.length, {
     id: 'photos',
-    header: 'Photos',
+    header: createHeader('Photos'),
     size: 160,
     sortFn: 'basic',
     enableColumnFilter: false,
@@ -83,7 +84,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor((row) => toIpcMatchToken(row.countryCodeMatchesIpinfo), {
     id: 'countryCodeMatchesIpinfo',
-    header: 'IPCm',
+    header: createHeader('IPCm'),
     size: 150,
     sortFn: 'text',
     filterFn: 'arrHas',
@@ -93,28 +94,28 @@ export const snapColumns = columnHelper.columns([
     cell: (info) => createElement(StatusBadge, { presentation: snapIpcMatchStatus[info.getValue()] })
   }),
   columnHelper.accessor('make', {
-    header: 'Make',
+    header: createHeader('Make'),
     size: 140,
     sortFn: 'text',
     filterFn: 'arrHas',
     enableColumnFilter: true
   }),
   columnHelper.accessor('model', {
-    header: 'Model',
+    header: createHeader('Model'),
     size: 140,
     sortFn: 'text',
     filterFn: 'arrHas',
     enableColumnFilter: true
   }),
   columnHelper.accessor('email', {
-    header: 'Email',
+    header: createHeader('Email'),
     size: 300,
     sortFn: 'text',
     filterFn: 'includesString',
     enableColumnFilter: true
   }),
   columnHelper.accessor('status', {
-    header: 'Status',
+    header: createHeader('Status'),
     size: 200,
     sortFn: 'text',
     filterFn: 'arrHas',
@@ -125,7 +126,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor((row) => row.handler?.name ?? '', {
     id: 'handler',
-    header: 'Handler',
+    header: createHeader('Handler'),
     size: 200,
     sortFn: 'text',
     filterFn: 'includesString',
@@ -136,7 +137,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor((row) => row.verification_status ?? 'unsubmitted', {
     id: 'verification_status',
-    header: 'Verification',
+    header: createHeader('Verification'),
     size: 200,
     sortFn: 'text',
     filterFn: 'includesString',
@@ -146,7 +147,7 @@ export const snapColumns = columnHelper.columns([
     cell: (info) => createElement(StatusBadge, { presentation: snapVerificationStatus[info.getValue()] })
   }),
   columnHelper.accessor('updatedAt', {
-    header: 'Updated',
+    header: createHeader('Updated'),
     size: 300,
     sortFn: 'basic',
     filterFn: 'inDateRange',
@@ -156,7 +157,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor((row) => row.bestAccuracyMeters ?? null, {
     id: 'bestAccuracyMeters',
-    header: 'Accuracy',
+    header: createHeader('Accuracy'),
     size: 160,
     sortFn: 'basic',
     filterFn: 'inNumberRange',
@@ -164,7 +165,7 @@ export const snapColumns = columnHelper.columns([
     cell: (info) => (info.getValue() === null ? '--' : `${info.getValue()} m`)
   }),
   columnHelper.accessor('createdAt', {
-    header: 'Created',
+    header: createHeader('Created'),
     size: 300,
     sortFn: 'basic',
     filterFn: 'inDateRange',
@@ -177,7 +178,7 @@ export const snapColumns = columnHelper.columns([
   columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' }),
   columnHelper.display({
     id: 'actions',
-    header: '⁞',
+    header: createHeader('⁞'),
     size: 40,
     enableHiding: false,
     enableSorting: false,

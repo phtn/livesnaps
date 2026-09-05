@@ -103,6 +103,7 @@ export const createSnapFixtures = (
     const accuracy = photoCount > 0 ? Math.round(between(30, 650) / 10) : null
     const matchesIpinfo = photoCount > 0 ? random() > 0.12 : null
     const verificationStatus = isCompleted ? (random() > 0.5 ? 'submitted' : 'draft') : undefined
+    const imageUrl = random() > 0.3 ? `https://i.pravatar.cc/64?u=${firstName}${lastName}${index}` : undefined
 
     const photos: AdminSnapPhoto[] = Array.from({ length: photoCount }, (__, slotIndex) => {
       const slot = SNAP_SLOTS[slotIndex]
@@ -162,6 +163,7 @@ export const createSnapFixtures = (
       firebaseUid: hex(28),
       fullName,
       handler: verificationStatus === 'submitted' ? pick(HANDLERS) : undefined,
+      imageUrl,
       location,
       location_session: undefined,
       locationLabel: photoCount > 0 ? fullAddress : '',

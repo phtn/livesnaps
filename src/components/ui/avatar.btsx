@@ -11,7 +11,7 @@ module
 
 props { imageUrl, alt = 'User', fallback, size = 'default', className }: AvatarProps
 
-div(className={cn('group relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border/30 bg-muted text-sm text-muted-foreground', size === 'sm' ? 'size-6 text-xs' : size === 'lg' ? 'size-10' : 'size-8', className)} data-slot='avatar' data-size={size})
+div(className={cn('group relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm text-muted-foreground', size === 'sm' ? 'size-6 text-xs' : size === 'lg' ? 'size-10' : 'size-8', className)} data-slot='avatar' data-size={size})
   if imageUrl
     img(className='aspect-square size-full rounded-full object-cover' src={imageUrl} alt={alt})
   else
