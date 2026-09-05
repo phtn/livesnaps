@@ -9,7 +9,7 @@ module
     action?: VoidFunction
     actionLabel?: string
   }
-props {title, message, action}: Props
+props {title, message, action, actionLabel, code}: Props
 main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
   div(className='max-w-md')
     StoreMark(className='mx-auto size-12')

@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useId, useRef } from 'octane'
 import type { JSX } from 'octane/jsx-runtime'
 import type { features } from './features'
 import { TABLE_QUERY_LIMITS } from './parsers'
+import { useMobile } from '@/hooks/use-mobile'
 
 module
   type InputProps = JSX.IntrinsicElements['input']
@@ -23,6 +24,7 @@ module
 props { col, value, onChange, onClear, ref }: Props
 setup
   const id = useId()
+  const isMobile = useMobile()
   const fallbackRef = useRef<HTMLInputElement | null>(null)
   const inputRef = ref ?? fallbackRef
   const hasValue = value.trim().length > 0 || Boolean(col?.getFilterValue?.()?.toString())
@@ -51,14 +53,14 @@ setup
     inputRef.current?.focus()
   }
 
-div(className='relative w-full min-w-0 md:w-auto mx-3')
+div(className='relative w-full min-w-0 md:w-auto')
   Input(
     ~ id={id}
     ~ ref={inputRef}
     ~ className={cn(
     ~   'peer h-9 w-full min-w-0 rounded-xs border-none ps-3 outline-0 md:w-48 md:min-w-60',
     ~   'placeholder:text-foreground/80 placeholder:select-none placeholder:ps-0.75',
-    ~   'font-sans text-sm bg-sidebar/80 opacity-60 focus:opacity-100 focus:placeholder:text-foreground/60',
+    ~   'font-mono text-sm bg-sidebar/80 opacity-60 focus:opacity-100 focus:placeholder:text-foreground/60',
     ~   hasValue && 'pe-10 opacity-100',
     ~ )}
     ~ value={value}
@@ -70,7 +72,7 @@ div(className='relative w-full min-w-0 md:w-auto mx-3')
     ~ aria-label='Search'
     ~ )
   div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-foreground/80 peer-disabled:opacity-50')
-    Icon(name='slash' aria-hidden='true' className='size-6')
+    Icon(name={isMobile ? 'search': 'slash'} aria-hidden='true' className='size-4 md:size-5')
   if hasValue
     button(
       ~ type='button'

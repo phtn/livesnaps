@@ -239,12 +239,12 @@ setup
     : Math.min(100, (queryState.completed / queryState.total) * 100)
   const queryLabel = queryState.phase === 'sorting' ? 'Ranking' : 'Searching'
 
-section(className='relative overflow-hidden rounded-xs border border-sidebar-border bg-background dark:bg-sidebar shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
-  div(className='flex items-center justify-between p-2')
+section(className='relative overflow-hidden rounded-xs border border-sidebar-border border-l-0 bg-background dark:bg-sidebar shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+  div(className='hidden md:flex items-center justify-between p-2')
     Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
     fragment #{children}
 
-  div(className='flex min-h-12 items-center justify-between px-1 pb-2 max-[680px]:flex-col max-[680px]:items-start')
+  div(className='flex min-h-12 items-center justify-between px-1 md:pb-2')
     div(className='flex items-center gap-0.75')
       ColumnView(
         ~ cols={table.getAllLeafColumns()}
@@ -262,7 +262,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
     div(className='flex items-center gap-2.5 font-mono text-sm text-active')
       Popper(condition={isQuerying} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
       Popper(condition={queryState.phase === 'error'} lead='error' trail='index interrupted')
-      span(className='uppercase text-sm') #{visibleRows.length.toLocaleString()} ROWS
+      span(className='uppercase text-sm whitespace-nowrap') #{visibleRows.length.toLocaleString()} ROWS
       Search(value={globalFilter} onChange={handleSearchChange})
 
   div(className='h-[calc(100vh-157px)] w-full overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')

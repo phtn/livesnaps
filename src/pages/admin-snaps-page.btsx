@@ -37,7 +37,7 @@ setup
 main
   div
     if isLoading && !hasRows
-      p(className='text-sm text-muted-foreground') Loading snaps…
+      ErrorPage(code={200} title='Fetching Data' message={'Loading Snaps'} actionLabel='')
     elseif error && !hasRows
       ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
     else

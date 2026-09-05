@@ -355,8 +355,8 @@ Dropdown.Root
     ~ onClick={(event: MouseEvent) => event.stopPropagation()}
     ~ )
     Dropdown.Group
-      Dropdown.Label(className='border-b border-dashed') Row Actions
-      Dropdown.Item(onClick={handleView} className='h-12 rounded-sm')
+      Dropdown.Label(className='border-b border-dashed border-border') Row Actions
+      Dropdown.Item(onClick={handleView} className='h-12 rounded-xs')
         Icon(name='eye' className='size-5 text-blue-600 dark:text-blue-400')
         span(className='flex min-w-0 flex-col')
           span View Report
@@ -364,7 +364,7 @@ Dropdown.Root
       Dropdown.Item(
         ~ disabled={!hasPhotos || isExporting}
         ~ onClick={() => void handleExport()}
-        ~ className='h-12 rounded-sm'
+        ~ className='h-12 rounded-xs'
         ~ )
         Icon(name='download-line' className='size-5 text-red-600 dark:text-red-400')
         span(className='flex min-w-0 flex-col')
