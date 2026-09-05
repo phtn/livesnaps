@@ -1,9 +1,11 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { adminSchema } from './admin/d'
+import { resendWebhookEventSchema } from './resendWebhooks/d'
 import { snapValidator } from './snaps/d'
 import { snapSettingsSchema } from './snapSettings/d'
 import { userValidator } from './users/v'
 import { verificationEntrySchema } from './verificationEntries/d'
+import { visionLogSchema } from './vision_logs/d'
 
 export default defineSchema({
   admin: defineTable(adminSchema).index('by_identifier', ['identifier']),
@@ -23,5 +25,11 @@ export default defineSchema({
     .index('by_createdAt', ['createdAt'])
     .index('by_status_and_createdAt', ['status', 'createdAt'])
     .index('by_senderTokenIdentifier_and_createdAt', ['senderTokenIdentifier', 'createdAt'])
-    .index('by_uploadId', ['uploadId'])
+    .index('by_uploadId', ['uploadId']),
+  vision_logs: defineTable(visionLogSchema).index('by_upload_id', ['upload_id']).index('by_createdAt', ['createdAt']),
+  resendWebhooks: defineTable(resendWebhookEventSchema)
+    .index('by_webhookId', ['webhookId'])
+    .index('by_receivedAt', ['receivedAt'])
+    .index('by_category_and_receivedAt', ['category', 'receivedAt'])
+    .index('by_eventType_and_receivedAt', ['eventType', 'receivedAt'])
 })

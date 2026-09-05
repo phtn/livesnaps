@@ -699,6 +699,18 @@ export const icons = {
       '<g transform="scale(0.667)"><path d="m5 17 4.5-6 3.5 4.5 2.5-3L19 17m1-11h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  account: {
+    symbol:
+      '<path d="m6.21 12.293-3.215-4.3 3.197-4.178-.617-.842-3.603 4.712-.005.603 3.62 4.847z" transform-origin="0 0" fill="currentColor"/><path d="M7.332 1.988H6.095l4.462 6.1-4.357 5.9h1.245L11.8 8.09z" transform-origin="0 0" fill="currentColor"/><path d="M9.725 1.988H8.472l4.533 6.027-4.533 5.973h1.255l4.303-5.67v-.603z" transform-origin="0 0" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  'cloud-fill': {
+    symbol:
+      '<path fill-rule="evenodd" d="M3.335 6.947a4.336 4.336 0 0 1 8.395-1.47 4.003 4.003 0 0 1-1.058 7.863H4.669a3.335 3.335 0 0 1-1.334-6.393" clip-rule="evenodd" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'octane'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
 import { useFirebaseUser } from '@/lib/firebase/auth'
 import { buildGodsHandoffUrl, isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
 import { useMobile } from '@/hooks/use-mobile'
@@ -7,34 +9,35 @@ import { Link, Outlet } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator } from '@octanejs/resizable-panels'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
-import { useMobile } from '@/hooks/use-mobile'
-import {Link} from '@octanejs/tanstack-router'
 
 module
   type NavItem = {
-      icon: string
-      label: string
-      path: '/' | '/merchants'
-    }
-    const navs: NavItem[] = [
-      { icon: 'grid', label: 'Overview', path: '/' },
-      { icon: 'merchnt', label: 'Merchants', path: '/merchants' },
-    ]
+    icon: string
+    label: string
+    path: '/citadel' | '/citadel/accounts'
+  }
+  const navs: NavItem[] = [
+    { icon: 'folder', label: 'Overview', path: '/citadel' },
+    { icon: 'account', label: 'Accounts', path: '/citadel/accounts' },
+    { icon: 'settings', label: 'Settings', path: '/citadel/settings' },
+  ]
+
 component Navigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className='flex flex-col space-y-2 py-2')
+    ul(className='flex flex-col space-y-2 py-0')
       each item in navs key item.path
-        li(className='w-full hover:text-foreground hover:bg-foreground/4')
+        li(className='w-full font-sans text-foreground/70 hover:text-foreground hover:bg-foreground/4 tracking-tight')
           Link(to={item.path} onClick={onNavigate} aria-label={item.label} title={compact ? item.label : undefined} className={cn('relative flex h-14 items-center text-foreground/70', compact ? 'justify-center px-0' : 'gap-3 px-6')})
             Icon(name={item.icon} className='size-5')
             if !compact
-              span #{item.label}
+              span(className='font-sans') #{item.label}
+
 setup
   const { hasGodAccess, user } = useFirebaseUser()
-  const { isMobile } = useMobile()
+  // `useMobile` returns the boolean itself, not a wrapper object.
+  const isMobile = useMobile()
   const isGodsHost = typeof window !== 'undefined' && isGodsSubdomainHostname(window.location.hostname)
-  const [status, setStatus] = useState<'loading' | 'ready' | 'forbidden' | 'error'>('loading')
   const [email, setEmail] = useState<string | null>(null)
   const [isNavigationCompact, setIsNavigationCompact] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
@@ -43,14 +46,14 @@ setup
   useEffect(() => {
     let cancelled = false
 
-    const setFailure = (nextStatus: 'forbidden' | 'error') => {
+    const setFailure = (nextStatus: 'unauthorized' | 'error') => {
       if (!cancelled) setStatus(nextStatus)
     }
 
     const openCitadel = async () => {
       if (!isGodsHost) {
         if (!user || !hasGodAccess) {
-          setFailure('forbidden')
+          setFailure('unauthorized')
           return
         }
 
@@ -75,7 +78,7 @@ setup
           })
 
           if (!response.ok) {
-            setFailure('forbidden')
+            setFailure('unauthorized')
             return
           }
 
@@ -84,7 +87,7 @@ setup
 
         const response = await fetch('/api/gods/session', { credentials: 'same-origin' })
         if (!response.ok) {
-          setFailure('forbidden')
+          setFailure('unauthorized')
           return
         }
 
@@ -112,26 +115,24 @@ setup
 if isMobile
   div(className='min-h-screen bg-background')
     Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
-      Drawer.Trigger(type='button' aria-label='Open admin navigation' className='fixed h-7! left-2 top-2 z-20 gap-2 inline-flex items-center justify-center bg-background text-foreground')
-        Icon(name='sidebar' className='size-5 text-foreground/70')
-        h1(className='inline-flex items-center gap-0 font-poly font-medium text-foreground/90 tracking-tight')
-          span(className='uppercase text-beach dark:text-foreground') Live
-          span(className='uppercase dark:text-lime-200') Snaps
-          span(className='text-sand dark:text-foreground') Now
+      div(className='flex items-center justify-between h-12 border-b px-2.5 text-white bg-black')
+        Drawer.Trigger(type='button' aria-label='Open citadel navigation' className='gap-2.5 inline-flex items-center justify-center')
+          Icon(name='sidebar' className='size-4 text-white/70')
+          h1(className='inline-flex items-center gap-0 font-poly font-medium text-white/90 tracking-tight')
+            span(className='dark:text-lime-200') Citadel
       Drawer.Portal
         Drawer.Overlay(className='fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]')
         Drawer.Content(className='fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-background! shadow-2xl outline-none')
-          Drawer.Title(className='sr-only') Admin navigation
-          div(className='flex h-16 items-center border-b border-border px-6')
-            Link(className='inline-flex items-center gap-2 text-[clamp(1.2rem,3vw,1.6rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
-              h1(className='')
-                span(className='uppercase text-beach dark:text-foreground') Live
-                span(className='uppercase dark:text-lime-200') Snaps
-                span(className='text-sand dark:text-foreground') Now
+          Drawer.Title(className='sr-only') Citadel navigation
+          div(className='flex h-16 items-center px-6')
+            Link(className='inline-flex items-center gap-3 text-[clamp(1.2rem,3vw,1.4rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
+              Icon(name='re-up.ph')
+              h1(className='leading-6 border-b border-border')
+                span(className='dark:text-lime-200') Citadel
           Navigation(onNavigate={() => setIsMobileNavOpen(false)})
           div(className='flex h-16 items-center border-t border-border px-6')
             ThemeToggle
-    main(className='min-h-screen bg-background pt-11')
+    main(className='min-h-screen bg-background')
       if status === 'loading'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your administrator session…
@@ -151,14 +152,14 @@ else
       aside(className='flex h-full min-w-0 w-full flex-col bg-background border-r border-border/70')
         div(className={cn('flex h-16 items-center border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
-          Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
+          Link(className='inline-flex items-center gap-2 text-[clamp(1rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
             if isNavigationCompact
-              Icon(name='livesnaps')
+              Icon(name='re-up.ph')
             else
-              h1(className='')
-                span(className='uppercase text-beach dark:text-foreground') Live
-                span(className='uppercase dark:text-lime-200') Snaps
-                span(className='text-sand dark:text-foreground') Now
+              div(className='flex items-center gap-3')
+                Icon(name='re-up.ph')
+                h1(className='')
+                  span(className='dark:text-lime-200') Citadel
 
         Navigation(compact={isNavigationCompact})
         div(className={cn('flex h-16 items-center border-t border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})

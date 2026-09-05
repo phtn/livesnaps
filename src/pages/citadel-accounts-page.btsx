@@ -1,0 +1,9 @@
+import {Icon} from "@/lib/icons";
+import {Button} from "@/components/ui";
+main(className='')
+  div(className='flex items-center justify-between w-full ps-4 h-12 md:h-16 border-b border-border/70')
+    p(className='font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground') Accounts
+    Button(variant='ghost')
+      Icon(name='more-v')
+  div(className='p-6')
+    div(className='bg-sidebar w-full h-10')

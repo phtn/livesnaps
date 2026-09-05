@@ -13,6 +13,9 @@ import type * as admin_m from "../admin/m.js";
 import type * as admin_q from "../admin/q.js";
 import type * as lib_any from "../lib/any.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as resendWebhooks_d from "../resendWebhooks/d.js";
+import type * as resendWebhooks_m from "../resendWebhooks/m.js";
+import type * as resendWebhooks_q from "../resendWebhooks/q.js";
 import type * as snapSettings_d from "../snapSettings/d.js";
 import type * as snapSettings_m from "../snapSettings/m.js";
 import type * as snapSettings_q from "../snapSettings/q.js";
@@ -27,6 +30,9 @@ import type * as verificationEntries_d from "../verificationEntries/d.js";
 import type * as verificationEntries_helpers from "../verificationEntries/helpers.js";
 import type * as verificationEntries_m from "../verificationEntries/m.js";
 import type * as verificationEntries_q from "../verificationEntries/q.js";
+import type * as vision_logs_d from "../vision_logs/d.js";
+import type * as vision_logs_m from "../vision_logs/m.js";
+import type * as vision_logs_q from "../vision_logs/q.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +46,9 @@ declare const fullApi: ApiFromModules<{
   "admin/q": typeof admin_q;
   "lib/any": typeof lib_any;
   "lib/auth": typeof lib_auth;
+  "resendWebhooks/d": typeof resendWebhooks_d;
+  "resendWebhooks/m": typeof resendWebhooks_m;
+  "resendWebhooks/q": typeof resendWebhooks_q;
   "snapSettings/d": typeof snapSettings_d;
   "snapSettings/m": typeof snapSettings_m;
   "snapSettings/q": typeof snapSettings_q;
@@ -54,6 +63,9 @@ declare const fullApi: ApiFromModules<{
   "verificationEntries/helpers": typeof verificationEntries_helpers;
   "verificationEntries/m": typeof verificationEntries_m;
   "verificationEntries/q": typeof verificationEntries_q;
+  "vision_logs/d": typeof vision_logs_d;
+  "vision_logs/m": typeof vision_logs_m;
+  "vision_logs/q": typeof vision_logs_q;
 }>;
 
 /**

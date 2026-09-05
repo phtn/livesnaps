@@ -93,7 +93,7 @@ div(ref={menuRef} className='relative z-100!')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
       if hasGodAccess
-        RouteItem(to='/citadel' label='citadel' icon='horse' onNavigate={() => setIsOpen(false)})
+        RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
         Item(role='menuitem' label='admin' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
         // button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60')

@@ -1,0 +1,100 @@
+import type { JSX } from 'octane/jsx-runtime'
+import { useLayoutEffect, useRef } from 'octane'
+import { Icon } from '@/lib/icons'
+import type { IconName } from '@/lib/icons'
+
+module
+  // Callers own their own id union and path shapes; the tab bar only needs ids
+  // it can compare and hrefs it can hand back to the router.
+  export interface PanelRoute {
+    href: string
+    id: string
+    label: string
+    shortLabel: string
+    icon: IconName
+  }
+
+  type NativeNavProps = JSX.IntrinsicElements['nav']
+
+  type Props = Omit<NativeNavProps, 'aria-label' | 'children' | 'class' | 'className'> & {
+    activeId: string
+    className?: NativeNavProps['className']
+    items: readonly PanelRoute[]
+    label?: string
+    onNavigate: (href: string) => void
+  }
+
+  const baseClassName = 'relative inline-flex items-center justify-self-end gap-3 sm:gap-5 md:gap-7 lg:gap-8 max-[1050px]:col-span-full max-[1050px]:row-start-2 max-[1050px]:justify-self-center max-[680px]:w-full'
+
+props { activeId, className, items, label = 'Tabs', onNavigate, ...navProps }: Props
+
+setup
+  const tabListRef = useRef<HTMLElement | null>(null)
+  const handleNavigate = (
+    event: MouseEvent & { currentTarget: HTMLAnchorElement },
+    href: string,
+  ) => {
+    if (
+      event.defaultPrevented
+      || event.button !== 0
+      || event.metaKey
+      || event.ctrlKey
+      || event.shiftKey
+      || event.altKey
+    ) return
+
+    event.preventDefault()
+    onNavigate(href)
+  }
+
+  useLayoutEffect(() => {
+    const tabList = tabListRef.current
+    if (!tabList) return
+
+    const updateIndicator = () => {
+      const activeTab = tabList.querySelector<HTMLAnchorElement>('[aria-current="page"]')
+      if (!activeTab) return
+
+      tabList.style.setProperty('--active-tab-left', `${activeTab.offsetLeft}px`)
+      tabList.style.setProperty('--active-tab-width', `${activeTab.offsetWidth}px`)
+    }
+
+    updateIndicator()
+
+    const resizeObserver = new ResizeObserver(updateIndicator)
+    resizeObserver.observe(tabList)
+    window.addEventListener('resize', updateIndicator)
+
+    return () => {
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', updateIndicator)
+    }
+  }, [activeId])
+
+nav(
+  ~ {...navProps}
+  ~ ref={tabListRef}
+  ~ className={[baseClassName, className]}
+  ~ aria-label={label}
+  ~ role='tablist'
+  ~ )
+  each item in items key item.id
+    a(
+      ~ href={item.href}
+      ~ id={`route-${item.id}`}
+      ~ aria-current={activeId === item.id ? 'page' : undefined}
+      ~ className={`relative z-10 flex items-center justify-center gap-1 cursor-pointer -tracking-[0.02em] px-3.5 py-2.5 hover:text-foreground max-[680px]:min-w-0 max-[680px]:flex-1 max-[680px]:px-4 ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
+      ~ onClick={(event) => handleNavigate(event, item.href)}
+      ~ )
+      Icon(name={item.icon} size={20})
+      span(className='max-[680px]:hidden text-sm font-medium') #{item.label}
+      span(className='hidden max-[680px]:inline text-sm font-medium') #{item.shortLabel}
+  // div(
+  //   ~ aria-hidden='true'
+  //   ~ className='pointer-events-none absolute -bottom-0.25 left-0 z-0 h-0.5 rounded-e-full -translate-y-1/2 bg-border/40 w-full'
+  //   ~ )
+  div(
+    ~ aria-hidden='true'
+    ~ className='pointer-events-none absolute -bottom-0.75 left-0 z-0 h-0.75 rounded-[1px] -translate-y-1/2 bg-foreground shadow-xs transition-[width,transform] duration-180 ease-out'
+    ~ style={{ width: 'var(--active-tab-width, 0px)', transform: 'translateX(var(--active-tab-left, 0px)) translateY(-50%)' }}
+    ~ )

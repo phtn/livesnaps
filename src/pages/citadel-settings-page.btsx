@@ -1,0 +1,36 @@
+import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
+import Tabs from '@/components/ui/tabs.btsx'
+import type { PanelRoute } from '@/components/ui/tabs.btsx'
+
+module
+  // One entry per child route under `citadelSettingsRoute` in `router.ts`.
+  export const panelRoutes: readonly PanelRoute[] = [
+    { id: 'settings', href: '/citadel/settings', label: 'Settings', shortLabel: 'Settings', icon: 'settings' },
+    { id: 'gods', href: '/citadel/settings/gods', label: 'Gods', shortLabel: 'Gods', icon: 'cloud-fill' }
+  ]
+
+  // Longest href wins, otherwise the `/citadel/settings` index would also claim
+  // `/citadel/settings/gods` and both tabs would read as active.
+  const panelRoutesByDepth = [...panelRoutes].sort((left, right) => right.href.length - left.href.length)
+
+  const resolveActiveId = (pathname: string) =>
+    panelRoutesByDepth.find((route) => pathname === route.href || pathname.startsWith(`${route.href}/`))?.id ??
+    panelRoutes[0].id
+
+setup
+  const location = useLocation()
+  const navigate = useNavigate()
+  const activeId = resolveActiveId(location.pathname)
+  const handleNavigate = (href: string) => {
+    void navigate({ to: href })
+  }
+
+main(className='')
+  div(className='flex items-end h-12 md:h-16 border-b border-border/70')
+    Tabs(
+      ~ activeId={activeId}
+      ~ items={panelRoutes}
+      ~ label='Citadel settings'
+      ~ onNavigate={handleNavigate}
+      ~ )
+  Outlet

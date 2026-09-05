@@ -1,20 +1,13 @@
-import {
-  createRootRoute,
-  createRoute,
-  createRouter,
-  lazyRouteComponent,
-  notFound
-} from '@octanejs/tanstack-router'
-import type { RouteComponent } from '@octanejs/tanstack-router'
 import { isLegalDocumentSlug } from '@/lib/legal/documents'
 import NotFound from '@/routes/not-found.btsx'
 import Pending from '@/routes/pending.btsx'
 import RootLayout from '@/routes/root-layout.btsx'
+import type { RouteComponent } from '@octanejs/tanstack-router'
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, notFound } from '@octanejs/tanstack-router'
 
 // The 0.1.48 binding's runtime preload contract accepts an optional promise,
 // while its RouteComponent type requires one. Keep that version-specific gap here.
-const lazyRoute = (importer: () => Promise<unknown>) =>
-  lazyRouteComponent(importer) as unknown as RouteComponent
+const lazyRoute = (importer: () => Promise<unknown>) => lazyRouteComponent(importer) as unknown as RouteComponent
 
 const rootRoute = createRootRoute({
   component: RootLayout,
@@ -65,10 +58,44 @@ const adminSettingsRoute = createRoute({
   component: lazyRoute(() => import('./pages/admin-settings-page.btsx'))
 })
 
+// `citadel-page.btsx` is a shell — nav plus an `Outlet` — so it only renders
+// content through its children below.
 const citadelRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'citadel',
   component: lazyRoute(() => import('./pages/citadel-page.btsx'))
+})
+
+const citadelIndexRoute = createRoute({
+  getParentRoute: () => citadelRoute,
+  path: '/',
+  component: lazyRoute(() => import('./pages/citadel-overview-page.btsx'))
+})
+
+const citadelAccountsRoute = createRoute({
+  getParentRoute: () => citadelRoute,
+  path: 'accounts',
+  component: lazyRoute(() => import('./pages/citadel-accounts-page.btsx'))
+})
+
+const citadelSettingsRoute = createRoute({
+  getParentRoute: () => citadelRoute,
+  path: 'settings',
+  component: lazyRoute(() => import('./pages/citadel-settings-page.btsx'))
+})
+
+// `citadel-settings-page.btsx` renders its tab bar above an `Outlet`; these are
+// the panels its `panelRoutes` point at, one child per tab.
+const citadelSettingsIndexRoute = createRoute({
+  getParentRoute: () => citadelSettingsRoute,
+  path: '/',
+  component: lazyRoute(() => import('./pages/citadel-settings-general-page.btsx'))
+})
+
+const citadelSettingsGodsRoute = createRoute({
+  getParentRoute: () => citadelSettingsRoute,
+  path: 'gods',
+  component: lazyRoute(() => import('./pages/citadel-settings-gods-page.btsx'))
 })
 
 const snapsRoute = createRoute({
@@ -107,7 +134,11 @@ const routeTree = rootRoute.addChildren([
   adminSnapsLabRoute,
   adminWorkspaceRoute,
   adminSettingsRoute,
-  citadelRoute,
+  citadelRoute.addChildren([
+    citadelIndexRoute,
+    citadelAccountsRoute,
+    citadelSettingsRoute.addChildren([citadelSettingsIndexRoute, citadelSettingsGodsRoute])
+  ]),
   snapsRoute,
   snapRoute,
   accountRoute,
