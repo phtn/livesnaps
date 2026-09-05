@@ -18,9 +18,6 @@ describe('proof capture analysis', () => {
   test('uses back slot when make/model missing even if plate present', () => {
     assert.equal(getVehicleInspectionView(2, { plate_number: 'ABC 1234', make: '', model: '' }), 'back')
     assert.equal(getVehicleInspectionView(2, { plate_number: 'ABC 1234', make: 'Toyota', model: '' }), 'back')
-    assert.equal(
-      getVehicleInspectionView(2, { plate_number: 'ABC 1234', make: 'Toyota', model: 'Corolla' }),
-      null
-    )
+    assert.equal(getVehicleInspectionView(2, { plate_number: 'ABC 1234', make: 'Toyota', model: 'Corolla' }), null)
   })
 })

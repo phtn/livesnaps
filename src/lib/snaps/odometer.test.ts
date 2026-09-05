@@ -1,11 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import {
-  MAX_VEHICLE_MILEAGE,
-  normalizeMileage,
-  normalizeOdometerReading,
-  ODOMETER_DISTANCE_UNIT
-} from './odometer'
+import { MAX_VEHICLE_MILEAGE, normalizeMileage, normalizeOdometerReading, ODOMETER_DISTANCE_UNIT } from './odometer'
 
 describe('odometer normalization', () => {
   test('normalizes grouped mileage and preserves one visible decimal place', () => {

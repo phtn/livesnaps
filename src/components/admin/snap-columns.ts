@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import { createElement } from 'octane'
 import StatusBadge from './badges.btsx'
 import { snapIpcMatchStatus, snapSessionStatus, snapVerificationStatus } from './data'
-import { snapsFeatures } from './table-config'
+import type { snapsFeatures } from './table-config'
 
 /**
  * Shared table definition for the snaps admin table.
@@ -231,7 +231,7 @@ export const buildSnapGallery = (snap: SnapRow | undefined) =>
   snap && snap.photos.length > 0
     ? {
         photos: snap.photos,
-        title: snap.plateNumber ? `Snap photos · ${snap.plateNumber}` : `Snap photos · ${snap.uploadId}`,
+        title: snap.plateNumber ? `${snap.plateNumber}` : `${snap.uploadId}`,
         uploadId: snap.uploadId
       }
     : null

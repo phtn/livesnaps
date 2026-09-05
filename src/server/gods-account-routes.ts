@@ -1,11 +1,16 @@
-import { api } from '../../convex/_generated/api'
-import { getFirebaseAdminAuth, getFirebaseUserByUid, revokeFirebaseUserRefreshTokens, setFirebaseCustomUserClaims } from '@/lib/firebase-admin/admin'
+import {
+  getFirebaseAdminAuth,
+  getFirebaseUserByUid,
+  revokeFirebaseUserRefreshTokens,
+  setFirebaseCustomUserClaims
+} from '@/lib/firebase-admin/admin'
 import { AdminIdTokenError, mintAdminIdToken } from '@/lib/firebase-admin/admin-id-token'
 import { updateFirebaseManagedAccessClaim } from '@/lib/firebase-admin/custom-claims'
 import { authorizeManagedClaimChange, readFirebaseCustomClaims } from '@/lib/firebase-admin/god-directory'
 import { getVerifiedGodSession } from '@/lib/firebase-admin/server-auth'
 import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
+import { api } from '../../convex/_generated/api'
 import { createConvexClient } from './convex'
 
 export interface GodsAccountRouteEnvironment {
@@ -134,8 +139,7 @@ async function grantContactAdminClaim(session: GodSession, uid: string): Promise
 const listAccounts = (client: GodsConvexClient) =>
   client.query(api.accounts.q.listForAdmin, { limit: ACCOUNT_LIST_LIMIT })
 
-const getAccountBySlug = (client: GodsConvexClient, slug: string) =>
-  client.query(api.accounts.q.getBySlug, { slug })
+const getAccountBySlug = (client: GodsConvexClient, slug: string) => client.query(api.accounts.q.getBySlug, { slug })
 
 const listAccountMembers = (client: GodsConvexClient, accountId: GodsAccountListResponse['accounts'][number]['_id']) =>
   client.query(api.accountMembers.q.listForAccount, { accountId, limit: ACCOUNT_MEMBER_LIST_LIMIT })

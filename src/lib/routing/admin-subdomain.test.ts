@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import {
-  buildAdminHandoffUrl,
-  resolveAdminNavigationPath,
-  toAdminSubdomainHostname
-} from './admin-subdomain'
+import { buildAdminHandoffUrl, resolveAdminNavigationPath, toAdminSubdomainHostname } from './admin-subdomain'
 
 describe('admin routing', () => {
   test('targets the root admin subdomain from another application subdomain', () => {
@@ -29,10 +25,7 @@ describe('admin routing', () => {
   })
 
   test('uses the primary origin for admin handoff when admin subdomains are unsupported', () => {
-    const handoffUrl = buildAdminHandoffUrl(
-      new URL('https://re-up.bigticket-pro.vercel.app/'),
-      'firebase-token'
-    )
+    const handoffUrl = buildAdminHandoffUrl(new URL('https://re-up.bigticket-pro.vercel.app/'), 'firebase-token')
     const hash = new URLSearchParams(handoffUrl.hash.slice(1))
 
     assert.equal(handoffUrl.origin, 'https://bigticket-pro.vercel.app')

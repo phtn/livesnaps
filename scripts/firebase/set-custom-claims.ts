@@ -3,7 +3,7 @@ import {
   mergeFirebaseCustomUserClaims,
   setFirebaseCustomUserClaims
 } from '../../src/lib/firebase-admin/admin-core'
-import { isFirebaseCustomClaims, type FirebaseCustomClaims } from '../../src/lib/firebase-admin/custom-claims'
+import { type FirebaseCustomClaims, isFirebaseCustomClaims } from '../../src/lib/firebase-admin/custom-claims'
 
 type ParsedArgs = {
   uid: string | null

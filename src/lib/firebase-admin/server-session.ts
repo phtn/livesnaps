@@ -1,7 +1,7 @@
-import { getFirebaseSessionCookieDomain } from '@/lib/firebase-admin/session'
-import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { ConvexHttpClient } from 'convex/browser'
 import type { DecodedIdToken } from 'firebase-admin/auth'
+import { getFirebaseSessionCookieDomain } from '@/lib/firebase-admin/session'
+import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { api } from '../../../convex/_generated/api'
 
 function toNullableString(value: unknown): string | null {

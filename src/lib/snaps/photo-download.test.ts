@@ -2,11 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { strFromU8, unzipSync } from 'fflate'
 import type { AdminSnapPhoto } from './admin-photo-types'
-import {
-  createSnapPhotoArchive,
-  getSnapPhotoArchiveName,
-  getSnapPhotoFileName
-} from './photo-download'
+import { createSnapPhotoArchive, getSnapPhotoArchiveName, getSnapPhotoFileName } from './photo-download'
 
 const uploadId = '550e8400-e29b-41d4-a716-446655440000'
 const firstCaptureId = '96c6bc92-61e2-46ab-a9c0-6e5443bd18c2'

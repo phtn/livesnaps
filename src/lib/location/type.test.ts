@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { isSnapLocationCurrentAndAccurate, parseDeviceLocation, type DeviceLocation } from './type'
+import { type DeviceLocation, isSnapLocationCurrentAndAccurate, parseDeviceLocation } from './type'
 
 const location: DeviceLocation = {
   latitude: 14.5995,

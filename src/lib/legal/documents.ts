@@ -4,10 +4,7 @@ export interface Heading {
   level: number
 }
 
-export type LegalDocumentSlug =
-  | 'terms-of-use'
-  | 'privacy-policy'
-  | 'purchase-agreement'
+export type LegalDocumentSlug = 'terms-of-use' | 'privacy-policy' | 'purchase-agreement'
 
 export interface LegalDocument {
   slug: LegalDocumentSlug

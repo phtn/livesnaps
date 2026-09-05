@@ -1,12 +1,12 @@
-import { getFirebaseCustomClaimsFromDecodedToken } from '@/lib/firebase-admin/custom-claims'
 import { getFirebaseAdminAuth } from '@/lib/firebase-admin/admin'
+import { getFirebaseCustomClaimsFromDecodedToken } from '@/lib/firebase-admin/custom-claims'
+import { getVerifiedAdminSession } from '@/lib/firebase-admin/server-auth'
 import {
   firebaseAdminSessionCookieName,
   firebaseSessionCookieMaxAgeMs,
   firebaseSessionCookieMaxAgeSeconds
 } from '@/lib/firebase-admin/session'
 import { getHostnameFromHostHeader, isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
-import { getVerifiedAdminSession } from '@/lib/firebase-admin/server-auth'
 
 function json(body: unknown, status = 200, headers?: HeadersInit) {
   return Response.json(body, {
@@ -62,13 +62,9 @@ export async function handleAdminSession(request: Request): Promise<Response> {
   }
 
   if (request.method === 'DELETE') {
-    return json(
-      { ok: true },
-      200,
-      {
-        'set-cookie': serializeAdminSessionCookie('', request, 0)
-      }
-    )
+    return json({ ok: true }, 200, {
+      'set-cookie': serializeAdminSessionCookie('', request, 0)
+    })
   }
 
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
@@ -102,13 +98,9 @@ export async function handleAdminSession(request: Request): Promise<Response> {
       expiresIn: firebaseSessionCookieMaxAgeMs
     })
 
-    return json(
-      { ok: true },
-      200,
-      {
-        'set-cookie': serializeAdminSessionCookie(sessionCookie, request, firebaseSessionCookieMaxAgeSeconds)
-      }
-    )
+    return json({ ok: true }, 200, {
+      'set-cookie': serializeAdminSessionCookie(sessionCookie, request, firebaseSessionCookieMaxAgeSeconds)
+    })
   } catch {
     return json({ error: 'Your sign-in session is invalid or expired.' }, 401)
   }

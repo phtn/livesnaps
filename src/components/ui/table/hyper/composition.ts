@@ -90,5 +90,5 @@ function useComposedRefs<T>(...args: any[]): RefCallback<T> {
   return useCallback(composeRefs(...refs), refs, subSlot(slot, 'callback'))
 }
 
-export { composeEventHandlers, composeRefs, useComposedRefs }
 export type { Ref, RefCallback }
+export { composeEventHandlers, composeRefs, useComposedRefs }

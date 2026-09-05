@@ -5,8 +5,8 @@ import {
   getApplicantProfilePath,
   getSnapDetailPath,
   getSnapSubmissionPath,
-  getSnapSubmissionRouteId,
-  getSnapSubmissionPhotoPath
+  getSnapSubmissionPhotoPath,
+  getSnapSubmissionRouteId
 } from './routes'
 
 test('proof detail paths use the authoritative Convex row id', () => {

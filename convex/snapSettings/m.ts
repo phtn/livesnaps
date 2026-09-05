@@ -5,7 +5,7 @@ import {
   IMAGE_CAPTURE_SETTINGS_KEY,
   type ImageCaptureSettingsValues
 } from '../../src/lib/snaps/snap-settings'
-import { internalMutation, mutation, type MutationCtx } from '../_generated/server'
+import { internalMutation, type MutationCtx, mutation } from '../_generated/server'
 import { snapSettingsResultSchema, snapSettingsValuesSchema } from './d'
 
 const getSettingsDocument = async (ctx: MutationCtx) =>

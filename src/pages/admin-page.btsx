@@ -16,9 +16,8 @@ module
     path: '/' | '/admin-snaps' | '/admin-snaps-lab' | '/admin-workspace' | '/admin-settings'
   }
   const navs: NavItem[] = [
-    { icon: 'grid', label: 'Overview', path: '/' },
+    { icon: 'overview', label: 'Overview', path: '/' },
     { icon: 'snap', label: 'Snaps', path: '/admin-snaps' },
-    { icon: 'table', label: 'Snaps Lab', path: '/admin-snaps-lab' },
     { icon: 'timeline', label: 'Workspace', path: '/admin-workspace' },
     { icon: 'settings', label: 'Settings', path: '/admin-settings' },
   ]

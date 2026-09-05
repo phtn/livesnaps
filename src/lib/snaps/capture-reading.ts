@@ -12,9 +12,10 @@ export const parseCaptureReading = (value: unknown, slot: SnapSlotIndex): Captur
   const isVehicleSlot = slot === 1 || slot === 2
 
   return {
-    vehicle: isVehicleSlot && response.vehicle && typeof response.vehicle === 'object'
-      ? normalizeDetectedVehicleDetails(response.vehicle)
-      : null,
+    vehicle:
+      isVehicleSlot && response.vehicle && typeof response.vehicle === 'object'
+        ? normalizeDetectedVehicleDetails(response.vehicle)
+        : null,
     mileageKm: slot === 5 ? normalizeMileage(response.mileage) : null
   }
 }

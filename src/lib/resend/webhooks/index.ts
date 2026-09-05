@@ -1,5 +1,5 @@
-import { createClient } from '@/lib/resend'
 import type { WebhookEventPayload } from 'resend'
+import { createClient } from '@/lib/resend'
 
 export interface ResendWebhookHeaders {
   id: string

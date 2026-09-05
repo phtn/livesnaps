@@ -1,4 +1,4 @@
-import { DefaultEmailProps } from '..'
+import type { DefaultEmailProps } from '..'
 
 export type TemplateProps = Omit<DefaultEmailProps, 'recipientName'> & {
   recipientName?: string

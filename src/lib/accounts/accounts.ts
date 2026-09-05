@@ -8,7 +8,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUS_VALUES)[number]
 
 export const DEFAULT_ACCOUNT_STATUS: AccountStatus = 'pending'
 
-export const ACCOUNT_PLAN_VALUES = ['trial', 'starter', 'growth', 'enterprise'] as const
+export const ACCOUNT_PLAN_VALUES = ['trial', 'starter', 'pro', 'enterprise'] as const
 
 export type AccountPlan = (typeof ACCOUNT_PLAN_VALUES)[number]
 

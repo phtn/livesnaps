@@ -94,10 +94,7 @@ export const getCaptureIntegrityDisposition = ({
   return 'review'
 }
 
-export const createCaptureIntegrityAnalysis = (
-  output: unknown,
-  analyzedAt = Date.now()
-): CaptureIntegrityAnalysis => {
+export const createCaptureIntegrityAnalysis = (output: unknown, analyzedAt = Date.now()): CaptureIntegrityAnalysis => {
   const normalized = normalizeCaptureIntegrityModelOutput(output)
 
   return {
@@ -124,8 +121,7 @@ export const isCaptureIntegrityAnalysisPersistable = (
   capturedAt: number,
   now = Date.now()
 ) => {
-  const expectedDisposition =
-    analysis.status === 'unavailable' ? 'review' : getCaptureIntegrityDisposition(analysis)
+  const expectedDisposition = analysis.status === 'unavailable' ? 'review' : getCaptureIntegrityDisposition(analysis)
   const isUnavailableResultValid =
     analysis.status !== 'unavailable' ||
     (analysis.confidence === 0 &&

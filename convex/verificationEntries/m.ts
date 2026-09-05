@@ -420,11 +420,13 @@ export const sendEmail = action({
             cc: entry.ccEmailAddress ? [entry.ccEmailAddress] : undefined,
             subject: emailSubject,
             text: emailBody,
-            attachments: emailAttachments.map((attachment: EmailAttachment): ResendAttachmentPayload => ({
-              filename: attachment.filename,
-              content: attachment.content,
-              content_type: attachment.contentType
-            }))
+            attachments: emailAttachments.map(
+              (attachment: EmailAttachment): ResendAttachmentPayload => ({
+                filename: attachment.filename,
+                content: attachment.content,
+                content_type: attachment.contentType
+              })
+            )
           }
           const response: Response = await fetch('https://api.resend.com/emails', {
             method: 'POST',

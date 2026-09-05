@@ -40,10 +40,7 @@ function getEmailEventDetail(event: Extract<WebhookEventPayload, { type: `email.
   }
 }
 
-export function buildResendWebhookRecord(
-  event: WebhookEventPayload,
-  webhookId: string
-): ResendWebhookRecord {
+export function buildResendWebhookRecord(event: WebhookEventPayload, webhookId: string): ResendWebhookRecord {
   if (event.type.startsWith('email.')) {
     const emailEvent = event as Extract<WebhookEventPayload, { type: `email.${string}` }>
 
@@ -119,13 +116,9 @@ function serializeRecord(record: ResendWebhookRecord) {
 }
 
 async function importSigningKey(secret: string, usage: KeyUsage) {
-  return await crypto.subtle.importKey(
-    'raw',
-    textEncoder.encode(secret),
-    { hash: 'SHA-256', name: 'HMAC' },
-    false,
-    [usage]
-  )
+  return await crypto.subtle.importKey('raw', textEncoder.encode(secret), { hash: 'SHA-256', name: 'HMAC' }, false, [
+    usage
+  ])
 }
 
 function bytesToHex(bytes: ArrayBuffer) {
@@ -147,11 +140,7 @@ export async function signResendWebhookRecord(record: ResendWebhookRecord, secre
   return bytesToHex(signature)
 }
 
-export async function verifyResendWebhookRecord(
-  record: ResendWebhookRecord,
-  secret: string,
-  signature: string
-) {
+export async function verifyResendWebhookRecord(record: ResendWebhookRecord, secret: string, signature: string) {
   const signatureBytes = hexToBytes(signature)
 
   if (!signatureBytes) {

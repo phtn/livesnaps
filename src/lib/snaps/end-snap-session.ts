@@ -1,4 +1,4 @@
-import { type DeviceLocation } from '@/lib/location/type'
+import type { DeviceLocation } from '@/lib/location/type'
 export type SnapSessionEndStatus = 'completed' | 'cancelled' | 'invalidated'
 
 type EndSnapSessionProps = {

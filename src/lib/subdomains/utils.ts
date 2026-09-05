@@ -52,12 +52,7 @@ export function getSubdomainFromHeaders(headersList: Headers): SubdomainInfo {
 /**
  * Builds a URL with a subdomain
  */
-export function buildSubdomainUrl(
-  subdomain: string,
-  domain: string,
-  path = '/',
-  protocol = 'https'
-): string {
+export function buildSubdomainUrl(subdomain: string, domain: string, path = '/', protocol = 'https'): string {
   const port = domain === 'localhost' ? ':3000' : ''
   const proto = domain === 'localhost' ? 'http' : protocol
   return `${proto}://${subdomain}.${domain}${port}${path}`

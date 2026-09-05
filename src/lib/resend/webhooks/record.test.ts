@@ -1,15 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { WebhookEventPayload } from 'resend'
-import {
-  isTrackedResendWebhookEventType,
-  trackedResendWebhookEventTypes
-} from './events'
-import {
-  buildResendWebhookRecord,
-  signResendWebhookRecord,
-  verifyResendWebhookRecord
-} from './record'
+import { isTrackedResendWebhookEventType, trackedResendWebhookEventTypes } from './events'
+import { buildResendWebhookRecord, signResendWebhookRecord, verifyResendWebhookRecord } from './record'
 
 const deliveredEvent = {
   created_at: '2026-08-01T04:00:00.000Z',
@@ -44,10 +37,7 @@ test('ingest signatures cover every stored field', async () => {
   const signature = await signResendWebhookRecord(record, secret)
 
   assert.equal(await verifyResendWebhookRecord(record, secret, signature), true)
-  assert.equal(
-    await verifyResendWebhookRecord({ ...record, target: 'attacker@example.com' }, secret, signature),
-    false
-  )
+  assert.equal(await verifyResendWebhookRecord({ ...record, target: 'attacker@example.com' }, secret, signature), false)
   assert.equal(await verifyResendWebhookRecord(record, secret, 'not-a-signature'), false)
 })
 

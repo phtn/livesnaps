@@ -9,5 +9,6 @@ import ThemeToggle from './theme-toggle.btsx'
 import Toasts from './toasts.btsx'
 import Topbar from './topbar.btsx'
 import UserMenu from './user-menu.btsx'
-export { Footer, Hero, Heron, List, SignOut, SubmitList, ThemeToggle, Toasts, Topbar, UserMenu }
+
 export type { Game }
+export { Footer, Hero, Heron, List, SignOut, SubmitList, ThemeToggle, Toasts, Topbar, UserMenu }

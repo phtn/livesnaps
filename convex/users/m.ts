@@ -1,6 +1,6 @@
-import { UserIdentity } from 'convex/server'
+import type { UserIdentity } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
-import { mutation, MutationCtx } from '../_generated/server'
+import { type MutationCtx, mutation } from '../_generated/server'
 import { trimOrNull } from '../utils'
 import { getCurrentIdentity, getUserByTokenIdentifier } from './q'
 import { userUpsertSchema, userValidator } from './v'

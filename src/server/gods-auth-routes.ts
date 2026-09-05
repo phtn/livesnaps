@@ -1,7 +1,11 @@
 import { getFirebaseAdminAuth } from '@/lib/firebase-admin/admin'
 import { getFirebaseCustomClaimsFromDecodedToken, hasFirebaseGodAccess } from '@/lib/firebase-admin/custom-claims'
-import { firebaseGodsSessionCookieName, firebaseSessionCookieMaxAgeMs, firebaseSessionCookieMaxAgeSeconds } from '@/lib/firebase-admin/session'
 import { getVerifiedGodSession } from '@/lib/firebase-admin/server-auth'
+import {
+  firebaseGodsSessionCookieName,
+  firebaseSessionCookieMaxAgeMs,
+  firebaseSessionCookieMaxAgeSeconds
+} from '@/lib/firebase-admin/session'
 import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
 

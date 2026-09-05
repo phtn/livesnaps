@@ -1,7 +1,7 @@
 import { ConvexClient } from 'convex/browser'
 import { onAuthStateChanged } from 'firebase/auth'
-import type { api } from '../../convex/_generated/api'
 import { auth } from '@/lib/firebase'
+import type { api } from '../../convex/_generated/api'
 
 const url = import.meta.env.PUBLIC_CONVEX_URL
 // Debug mode disables proof mutations at their call sites, but owner-scoped

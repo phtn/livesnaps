@@ -1,4 +1,4 @@
-import { IconName } from '@/lib/icons'
+import type { IconName } from '@/lib/icons'
 
 export const SNAPS_ROUTE_PREFIX = '/l' as const
 

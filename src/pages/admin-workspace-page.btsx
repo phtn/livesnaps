@@ -1,3 +1,45 @@
-main(className='p-8')
-  p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
-  h1(className='mt-3 font-poly text-3xl font-medium') Workspace
+import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
+import { DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_VERIFICATION_ENTRIES, PAGE_SIZES, VERIFICATION_ENTRY_LIST_LIMIT, verificationEntryColumns } from '@/components/admin/verification-entry-columns'
+import DataTable from '@/components/ui/table/DataTable.btsx'
+import VerificationEntryFilterList from '@/components/admin/VerificationEntryFilterList.btsx'
+import ErrorPage from '@/components/error.btsx'
+
+props {}: {}
+setup
+  // Reads go through the Worker, which is protected by the admin session
+  // cookie and re-mints an ID token for Convex server-side. The browser on the
+  // admin origin has no Firebase client identity, so it cannot query Convex.
+  const { entries, error, isLoading, lastUpdatedAt, refresh } = useAdminVerificationEntries(VERIFICATION_ENTRY_LIST_LIMIT)
+  const rows = entries ?? EMPTY_VERIFICATION_ENTRIES
+  // A poll failure keeps the last good rows, so the table stays up and the
+  // error reads as "stale" rather than replacing everything.
+  const hasRows = entries !== undefined
+  const freshnessLabel = lastUpdatedAt ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
+
+main
+  div
+    if isLoading && !hasRows
+      ErrorPage(code={200} title='Fetching Data' message={'Loading verification entries'} actionLabel='')
+    elseif error && !hasRows
+      ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
+    else
+      DataTable(
+        ~ title='Verification Entries'
+        ~ data={rows}
+        ~ columns={verificationEntryColumns}
+        ~ filterList={VerificationEntryFilterList}
+        ~ getRowId={(row) => row._id}
+        ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+        ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+        ~ initialPageSize={50}
+        ~ pageSizes={PAGE_SIZES}
+        ~ emptyTitle='No verification entries'
+        ~ emptyDescription='Try a shorter query or clear the search.'
+        ~ )
+        fragment
+          div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
+            if error
+              span(className='text-destructive') #{error} — showing the last successful load.
+            else
+              span #{freshnessLabel}
+            button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh

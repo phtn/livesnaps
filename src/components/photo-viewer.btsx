@@ -339,8 +339,9 @@ Dialog.Root(open={open} onOpenChange={onOpenChange})
       Dialog.Description(className='sr-only') Fullscreen photo viewer. Swipe or use the left and right arrow keys to move between photos.
 
       header(className='flex shrink-0 items-center gap-3 border-b border-white/10 bg-black/70 pb-2 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.5rem,env(safe-area-inset-top))] backdrop-blur-xl sm:pb-3 sm:pt-[max(0.75rem,env(safe-area-inset-top))]')
+        Icon(name='livesnaps' className='size-8 -rotate-3')
         div(className='min-w-0 flex-1')
-          p(className='truncate font-poly font-medium text-white text-sm') #{title}
+          p(className='truncate font-poly font-medium text-white text-base') #{title}
           if activePhoto
             p(className='mt-0.5 truncate text-2xs text-white/45')
               span(className='capitalize') #{activePhoto.label}

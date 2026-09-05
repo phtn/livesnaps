@@ -1,9 +1,14 @@
 import type { UserIdentity } from 'convex/server'
-import type { DecodedIdToken } from 'firebase-admin/auth'
 import type { IdTokenResult } from 'firebase/auth'
+import type { DecodedIdToken } from 'firebase-admin/auth'
 
 export type FirebaseCustomClaimValue =
-  null | boolean | number | string | FirebaseCustomClaimValue[] | { [key: string]: FirebaseCustomClaimValue }
+  | null
+  | boolean
+  | number
+  | string
+  | FirebaseCustomClaimValue[]
+  | { [key: string]: FirebaseCustomClaimValue }
 
 export type FirebaseCustomClaims = Record<string, FirebaseCustomClaimValue>
 export type FirebaseManagedAccessClaimName = 'admin' | 'god'

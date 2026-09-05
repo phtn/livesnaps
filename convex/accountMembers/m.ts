@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { DEFAULT_ACCOUNT_MEMBER_ROLE } from '../../src/lib/accounts/members'
-import { mutation, type MutationCtx } from '../_generated/server'
 import type { Id } from '../_generated/dataModel'
+import { type MutationCtx, mutation } from '../_generated/server'
 import { normalizeAccountEmail } from '../accounts/helpers'
 import { getUserByTokenIdentifier } from '../lib/auth'
 import { accountMemberDocumentSchema, accountMemberRoleSchema, inviteAccountMemberSchema } from './d'
@@ -25,10 +25,7 @@ const requireAccount = async (ctx: MutationCtx, accountId: Id<'accounts'>) => {
 }
 
 /** Only an owner may create or unmake another owner. */
-const requireOwnerForOwnerChange = (
-  role: string,
-  actor: Awaited<ReturnType<typeof requireAccountAccess>>
-) => {
+const requireOwnerForOwnerChange = (role: string, actor: Awaited<ReturnType<typeof requireAccountAccess>>) => {
   if (role !== 'owner') return
 
   if (!actor.isPlatformAdmin && actor.membership?.role !== 'owner') {

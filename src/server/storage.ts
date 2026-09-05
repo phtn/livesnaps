@@ -1,9 +1,4 @@
-import {
-  DeleteObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
-  S3Client,
-} from '@aws-sdk/client-s3'
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import type { CategoryName } from '@/types/file'
 
@@ -70,34 +65,36 @@ export function createObjectKey(userId: string, uploadId: string) {
 
 export async function uploadStoredFile(record: FileRecord, contents: Uint8Array) {
   const r2 = getR2Config()
-  await getR2Client().send(new PutObjectCommand({
-    Bucket: r2.bucket,
-    Key: record.objectKey,
-    Body: contents,
-    ContentLength: record.size,
-    ContentType: record.mimeType,
-    ContentDisposition: inlineContentDisposition(record.name),
-    Metadata: {
-      uploadId: record.id
-    }
-  }))
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: r2.bucket,
+      Key: record.objectKey,
+      Body: contents,
+      ContentLength: record.size,
+      ContentType: record.mimeType,
+      ContentDisposition: inlineContentDisposition(record.name),
+      Metadata: {
+        uploadId: record.id
+      }
+    })
+  )
 }
 
 export async function deleteStoredFile(objectKey: string) {
   const r2 = getR2Config()
-  await getR2Client().send(new DeleteObjectCommand({
-    Bucket: r2.bucket,
-    Key: objectKey
-  }))
+  await getR2Client().send(
+    new DeleteObjectCommand({
+      Bucket: r2.bucket,
+      Key: objectKey
+    })
+  )
 }
 
 export async function createStoredFileUrl(objectKey: string) {
   const r2 = getR2Config()
-  return await getSignedUrl(
-    getR2Client(),
-    new GetObjectCommand({ Bucket: r2.bucket, Key: objectKey }),
-    { expiresIn: 15 * 60 }
-  )
+  return await getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: r2.bucket, Key: objectKey }), {
+    expiresIn: 15 * 60
+  })
 }
 
 export function storageError(error: unknown) {

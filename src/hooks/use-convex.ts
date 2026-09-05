@@ -1,11 +1,6 @@
-import { useSyncExternalStore } from 'octane'
 import type { ConvexClient } from 'convex/browser'
-import {
-  convexClient,
-  getConvexAuthState,
-  subscribeToConvexAuthState,
-  type ConvexAuthState
-} from '@/lib/convex-client'
+import { useSyncExternalStore } from 'octane'
+import { type ConvexAuthState, convexClient, getConvexAuthState, subscribeToConvexAuthState } from '@/lib/convex-client'
 
 /**
  * Octane replacement for `useConvex` from `convex/react`.

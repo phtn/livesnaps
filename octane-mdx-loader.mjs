@@ -7,10 +7,14 @@ export default function octaneMdxLoader(source, inputSourceMap) {
     mode: 'client',
     hmr: this.hot === true,
     dev: this.mode !== 'production'
-  }).then(({ code, diagnostics, map }) => {
-    for (const diagnostic of diagnostics) {
-      this.emitWarning(new Error(`${diagnostic.filename}:${diagnostic.start.line}:${diagnostic.start.column} ${diagnostic.message}`))
-    }
-    done(null, code, map ?? inputSourceMap)
-  }).catch((error) => done(error))
+  })
+    .then(({ code, diagnostics, map }) => {
+      for (const diagnostic of diagnostics) {
+        this.emitWarning(
+          new Error(`${diagnostic.filename}:${diagnostic.start.line}:${diagnostic.start.column} ${diagnostic.message}`)
+        )
+      }
+      done(null, code, map ?? inputSourceMap)
+    })
+    .catch((error) => done(error))
 }

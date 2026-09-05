@@ -13,4 +13,3 @@ export const replaceCapturedPhoto = <Photo extends IndexedPhoto>(
   photoId: string,
   replacement: Photo
 ): Photo[] => photos.map((photo) => (photo.id === photoId ? replacement : photo))
-

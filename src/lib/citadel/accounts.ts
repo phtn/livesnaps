@@ -1,5 +1,9 @@
-import type { GodsAccountCreateResponse, GodsAccountDetailResponse, GodsAccountListResponse } from '@/server/gods-account-routes'
 import { ACCOUNT_STATUS_VALUES, type AccountPlan, type AccountStatus } from '@/lib/accounts/accounts'
+import type {
+  GodsAccountCreateResponse,
+  GodsAccountDetailResponse,
+  GodsAccountListResponse
+} from '@/server/gods-account-routes'
 
 // Type-only import: the Convex and Firebase Admin modules behind this response
 // never reach the client bundle.
@@ -47,11 +51,7 @@ async function requestJson<T>(input: string, init: RequestInit, fallback: string
 }
 
 export function fetchAccounts(signal?: AbortSignal) {
-  return requestJson<GodsAccountListResponse>(
-    GODS_ACCOUNTS_ENDPOINT,
-    { signal },
-    'Could not load the account roster.'
-  )
+  return requestJson<GodsAccountListResponse>(GODS_ACCOUNTS_ENDPOINT, { signal }, 'Could not load the account roster.')
 }
 
 export function fetchAccount(slug: string, signal?: AbortSignal) {
@@ -110,7 +110,7 @@ export const ACCOUNT_STATUS_TONE: Record<AccountStatus, string> = {
 export const ACCOUNT_PLAN_LABEL: Record<AccountPlan, string> = {
   trial: 'Trial',
   starter: 'Starter',
-  growth: 'Growth',
+  pro: 'Pro',
   enterprise: 'Enterprise'
 }
 

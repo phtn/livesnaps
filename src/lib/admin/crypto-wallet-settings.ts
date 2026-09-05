@@ -147,9 +147,7 @@ export const createDefaultCryptoWalletSettingsBundle = (): CryptoWalletSettingsB
   walletDestination: createDefaultCryptoWalletDestinationSetting()
 })
 
-export const cloneCryptoWalletSettingsBundle = (
-  value: CryptoWalletSettingsBundle
-): CryptoWalletSettingsBundle => ({
+export const cloneCryptoWalletSettingsBundle = (value: CryptoWalletSettingsBundle): CryptoWalletSettingsBundle => ({
   privateCredentials: {
     enabled: value.privateCredentials.enabled,
     amoy: { ...value.privateCredentials.amoy },

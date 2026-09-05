@@ -16,9 +16,7 @@ self.addEventListener('install', (event) => {
         if (!response.ok) throw new Error('Unable to load the app shell.')
 
         const shell = await response.clone().text()
-        const emittedAssets = [...shell.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|css))"/g)].map(
-          ([, asset]) => asset
-        )
+        const emittedAssets = [...shell.matchAll(/(?:src|href)="(\/[^"]+\.(?:js|css))"/g)].map(([, asset]) => asset)
         const cache = await caches.open(CACHE_NAME)
         await cache.put('/', response)
         await cache.addAll([...APP_SHELL.filter((path) => path !== '/'), ...emittedAssets])
@@ -66,9 +64,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET' || new URL(request.url).origin !== self.location.origin) return
 
   if (request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(
-      fetchAndCache(request, '/').catch(() => cachedResponse(request, '/'))
-    )
+    event.respondWith(fetchAndCache(request, '/').catch(() => cachedResponse(request, '/')))
     return
   }
 

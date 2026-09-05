@@ -1,11 +1,6 @@
 import {
-  getFirebaseCustomClaimsFromIdTokenResult,
-  hasFirebaseGodAccess,
-  type FirebaseCustomClaims
-} from '@/lib/firebase-admin/custom-claims'
-import {
-  getRedirectResult,
   GoogleAuthProvider,
+  getRedirectResult,
   onIdTokenChanged,
   signInWithPopup,
   signInWithRedirect,
@@ -14,6 +9,11 @@ import {
   type UserCredential
 } from 'firebase/auth'
 import { useCallback, useEffect, useState } from 'octane'
+import {
+  type FirebaseCustomClaims,
+  getFirebaseCustomClaimsFromIdTokenResult,
+  hasFirebaseGodAccess
+} from '@/lib/firebase-admin/custom-claims'
 
 import { auth, isFirebaseConfigured } from './'
 
@@ -133,7 +133,6 @@ export function useFirebaseUser() {
 
           if (attempt < TOKEN_FETCH_MAX_RETRIES) {
             await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)))
-            continue
           }
         }
       }

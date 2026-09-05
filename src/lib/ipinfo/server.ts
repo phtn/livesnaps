@@ -1,6 +1,6 @@
 import { isIP } from 'node:net'
 import { parseIpinfoConfig } from './config'
-import { parseLiteData, type LiteData } from './type'
+import { type LiteData, parseLiteData } from './type'
 
 const IPINFO_API_URL = 'https://api.ipinfo.io'
 

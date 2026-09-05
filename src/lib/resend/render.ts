@@ -1,5 +1,5 @@
 import { render as renderToHtml } from '@react-email/render'
-import { createElement, type ComponentType, type ReactElement } from 'react'
+import { type ComponentType, createElement, type ReactElement } from 'react'
 
 /**
  * Renders a React Email template to HTML for sending via Resend.

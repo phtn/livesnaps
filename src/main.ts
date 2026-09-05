@@ -1,6 +1,6 @@
-import { createElement, createRoot } from 'octane'
-import { RouterProvider } from '@octanejs/tanstack-router'
 import { NuqsAdapter } from '@octanejs/nuqs/adapters/react'
+import { RouterProvider } from '@octanejs/tanstack-router'
+import { createElement, createRoot } from 'octane'
 import ThemeProvider from './components/theme-provider.btsx'
 import { applyTheme, getPreferredTheme } from './lib/theme'
 import { router } from './router'
@@ -15,16 +15,16 @@ const registerServiceWorker = () => {
       .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
     void caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key.startsWith('livesnaps-shell-')).map((key) => caches.delete(key))))
+      .then((keys) =>
+        Promise.all(keys.filter((key) => key.startsWith('livesnaps-shell-')).map((key) => caches.delete(key)))
+      )
     return
   }
 
   window.addEventListener('load', () => {
-    void navigator.serviceWorker
-      .register('/service-worker.js', { scope: '/', updateViaCache: 'none' })
-      .catch(() => {
-        // Service worker support is an enhancement; the app remains usable without it.
-      })
+    void navigator.serviceWorker.register('/service-worker.js', { scope: '/', updateViaCache: 'none' }).catch(() => {
+      // Service worker support is an enhancement; the app remains usable without it.
+    })
   })
 }
 

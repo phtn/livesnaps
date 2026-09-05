@@ -1,11 +1,7 @@
 import { api } from '../../convex/_generated/api'
-import {
-  deleteR2Object,
-  getR2Object,
-  putR2Object,
-  type R2Config
-} from '../lib/r2/server'
+import { getVerifiedAdminSession } from '../lib/firebase-admin/server-auth'
 import { parseDeviceLocation } from '../lib/location/type'
+import { deleteR2Object, getR2Object, putR2Object, type R2Config } from '../lib/r2/server'
 import {
   buildSnapObjectKey,
   getSnapSlot,
@@ -186,26 +182,67 @@ export async function handleSnapSubmissionPhotoPreviewRequest(
       return json({ error: 'Your sign-in session has expired. Sign in again.' }, 401)
     }
 
-    return json(
-      { error: error instanceof Error ? error.message : 'Unable to load the proof image.' },
-      503
-    )
+    return json({ error: error instanceof Error ? error.message : 'Unable to load the proof image.' }, 503)
   }
 }
 
-export async function handleSnapPhotoRequest(
+/**
+ * Serves an admin-viewed snap photo directly by its R2 object key.
+ *
+ * The admin snap list/detail queries are already admin-gated, so any r2_key
+ * they hand back is fair game here — this route just needs the admin session
+ * cookie, not a fresh Convex round trip.
+ */
+export async function handleAdminSnapPhotoRequest(
   request: Request,
+  objectKey: string,
   environment: SnapPhotoRouteEnvironment = {}
 ) {
+  try {
+    if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
+
+    const session = await getVerifiedAdminSession(request)
+    if (!session) return json({ error: 'Administrator access is required.' }, 401)
+
+    if (!isSnapObjectKey(objectKey)) {
+      return json({ error: 'Photo not found.' }, 404)
+    }
+
+    const photoResponse = await getR2Object(objectKey, getR2Environment(environment))
+
+    if (!photoResponse.ok || !photoResponse.body) {
+      if (photoResponse.status === 404) return json({ error: 'Photo not found.' }, 404)
+      throw new Error(`R2 photo fetch failed with status ${photoResponse.status}.`)
+    }
+
+    const contentType = photoResponse.headers.get('content-type') || 'image/webp'
+    const contentLength = photoResponse.headers.get('content-length')
+    const etag = photoResponse.headers.get('etag')
+
+    return new Response(photoResponse.body, {
+      headers: {
+        'cache-control': 'private, max-age=86400',
+        'content-type': contentType,
+        ...(contentLength ? { 'content-length': contentLength } : {}),
+        ...(etag ? { etag } : {})
+      }
+    })
+  } catch (error) {
+    if (error instanceof Error && /unauthenticated|authentication/i.test(error.message)) {
+      return json({ error: 'Your sign-in session has expired. Sign in again.' }, 401)
+    }
+
+    return json({ error: error instanceof Error ? error.message : 'Unable to load the proof image.' }, 503)
+  }
+}
+
+export async function handleSnapPhotoRequest(request: Request, environment: SnapPhotoRouteEnvironment = {}) {
   try {
     if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
     return await saveSnapPhoto(request, environment)
   } catch (error) {
     if (error instanceof RequestError) return json({ error: error.message }, error.status)
 
-    return json(
-      { error: error instanceof Error ? error.message : 'Unable to save the proof image.' },
-      503
-    )
+    return json({ error: error instanceof Error ? error.message : 'Unable to save the proof image.' }, 503)
   }
 }

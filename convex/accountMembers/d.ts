@@ -3,9 +3,7 @@ import { ACCOUNT_MEMBER_ROLE_VALUES, ACCOUNT_MEMBER_STATUS_VALUES } from '../../
 
 export const accountMemberRoleSchema = v.union(...ACCOUNT_MEMBER_ROLE_VALUES.map((role) => v.literal(role)))
 
-export const accountMemberStatusSchema = v.union(
-  ...ACCOUNT_MEMBER_STATUS_VALUES.map((status) => v.literal(status))
-)
+export const accountMemberStatusSchema = v.union(...ACCOUNT_MEMBER_STATUS_VALUES.map((status) => v.literal(status)))
 
 /**
  * One row per person per account. `email` is captured at invite time and is the

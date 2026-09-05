@@ -1,13 +1,13 @@
 import type { UserRecord } from 'firebase-admin/auth'
 import { listFirebaseUsers } from './admin-core'
-import { toFirebaseAdminUserSummary, type FirebaseAdminUserSummary } from './admin-users'
+import { type FirebaseAdminUserSummary, toFirebaseAdminUserSummary } from './admin-users'
 import {
   canManageFirebaseAccessClaim,
   canReceiveFirebaseClaimGrant,
   canViewTopgFirebaseUser,
-  isFirebaseCustomClaims,
   type FirebaseCustomClaims,
-  type FirebaseManagedAccessClaimName
+  type FirebaseManagedAccessClaimName,
+  isFirebaseCustomClaims
 } from './custom-claims'
 
 // Firebase Auth has no way to query users by custom claim and caps a single

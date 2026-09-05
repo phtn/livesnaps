@@ -13,10 +13,7 @@ test('snap photo previews deduplicate in-flight requests and reuse the resolved 
     revokeObjectUrl: () => {}
   })
 
-  const [first, second] = await Promise.all([
-    resolver.resolve('snap-id', 1),
-    resolver.resolve('snap-id', 1)
-  ])
+  const [first, second] = await Promise.all([resolver.resolve('snap-id', 1), resolver.resolve('snap-id', 1)])
 
   assert.equal(first, 'blob:front-preview')
   assert.equal(second, 'blob:front-preview')

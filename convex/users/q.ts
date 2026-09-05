@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { MutationCtx, query, QueryCtx } from '../_generated/server'
+import { type MutationCtx, type QueryCtx, query } from '../_generated/server'
 import schema from '../schema'
 
 export const current = query({

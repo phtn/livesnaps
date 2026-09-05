@@ -13,7 +13,7 @@ import {
   LLM_PROVIDER_CONFIG_IDENTIFIER,
   normalizeLlmProviderConfig
 } from '../../src/lib/admin/llm-provider-settings'
-import { type MutationCtx, type QueryCtx, mutation, query } from '../_generated/server'
+import { type MutationCtx, mutation, type QueryCtx, query } from '../_generated/server'
 
 type AdminCtx = MutationCtx | QueryCtx
 type AdminDb = MutationCtx['db'] | QueryCtx['db']

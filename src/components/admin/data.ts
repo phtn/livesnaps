@@ -1,4 +1,4 @@
-import { IconName } from '@/lib/icons'
+import type { IconName } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { VERIFICATION_ENTRY_STATUS_VALUES } from '@/lib/verifications/entries'
 import type { UserIdentity } from '../../../convex/users/v'
@@ -91,7 +91,10 @@ export type VehicleMake = (typeof vehicleMakes)[number]
  * `boolean | null` — importing that helper here would create a circular
  * import, so the key union is restated instead.
  */
-export const snapIpcMatchStatus: Record<'match' | 'mismatch' | 'unknown', { className: string; icon: IconName; label: string }> = {
+export const snapIpcMatchStatus: Record<
+  'match' | 'mismatch' | 'unknown',
+  { className: string; icon: IconName; label: string }
+> = {
   match: {
     className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
     icon: 'circle-check',
@@ -114,7 +117,10 @@ export const snapIpcMatchStatus: Record<'match' | 'mismatch' | 'unknown', { clas
  * status once its session completes and the applicant submits the handoff
  * email, so `unsubmitted` covers every row without one yet.
  */
-export const snapVerificationStatus: Record<'draft' | 'submitted' | 'unsubmitted', { className: string; icon: IconName; label: string }> = {
+export const snapVerificationStatus: Record<
+  'draft' | 'submitted' | 'unsubmitted',
+  { className: string; icon: IconName; label: string }
+> = {
   draft: {
     className: 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-300',
     icon: 'draft',
@@ -129,6 +135,42 @@ export const snapVerificationStatus: Record<'draft' | 'submitted' | 'unsubmitted
     className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
     icon: 'circle-minus-line',
     label: 'Unsubmitted'
+  }
+}
+
+/**
+ * Presentation for a `verificationEntries` row's `status`. An entry is created
+ * as a `draft`, goes `active` while its email is being sent, and settles on
+ * `submitted`, `cancelled`, or `failed`.
+ */
+export const verificationEntryStatus: Record<
+  VerificationEntryStatus,
+  { className: string; icon: IconName; label: string }
+> = {
+  draft: {
+    className: 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-300',
+    icon: 'draft',
+    label: 'Draft'
+  },
+  active: {
+    className: 'border-active/80 bg-active/8 text-active dark:active',
+    icon: 'bolt',
+    label: 'Sending'
+  },
+  submitted: {
+    className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+    icon: 'send',
+    label: 'Submitted'
+  },
+  cancelled: {
+    className: 'border-stone-500/30 bg-stone-500/8 text-stone-700 dark:text-stone-300',
+    icon: 'octagon',
+    label: 'Cancelled'
+  },
+  failed: {
+    className: 'border border-rose-500 bg-rose-500/8 text-rose-700 dark:text-rose-300',
+    icon: 'cancel',
+    label: 'Failed'
   }
 }
 
@@ -560,16 +602,19 @@ const runAnalyticsIndex = async (source: ReadonlyArray<SnapRow>): Promise<Analyt
     if (chunkEnd < source.length) await yieldToMain()
   }
 
-  const rows = Array.from(buckets.values(), (bucket): AnalyticsRow => ({
-    accuracySamples: bucket.accuracySamples,
-    accuracyTotal: bucket.accuracyTotal,
-    countryCode: bucket.countryCode,
-    id: `${bucket.countryCode}:${bucket.status}`,
-    photoTotal: bucket.photoTotal,
-    snaps: bucket.snaps,
-    status: bucket.status,
-    submittedTotal: bucket.submittedTotal
-  }))
+  const rows = Array.from(
+    buckets.values(),
+    (bucket): AnalyticsRow => ({
+      accuracySamples: bucket.accuracySamples,
+      accuracyTotal: bucket.accuracyTotal,
+      countryCode: bucket.countryCode,
+      id: `${bucket.countryCode}:${bucket.status}`,
+      photoTotal: bucket.photoTotal,
+      snaps: bucket.snaps,
+      status: bucket.status,
+      submittedTotal: bucket.submittedTotal
+    })
+  )
 
   return {
     elapsedMs: performance.now() - startedAt,

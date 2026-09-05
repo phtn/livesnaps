@@ -8,7 +8,7 @@ import type {
   SortingState,
   TableFeatures
 } from '@octanejs/tanstack-table'
-import { features } from './hyper/features'
+import type { features } from './hyper/features'
 
 export type TableFilterFeatures<TFeatures extends TableFeatures> = Pick<
   TFeatures,

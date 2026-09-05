@@ -1,7 +1,7 @@
-import { getApp, getApps, initializeApp, type FirebaseOptions } from 'firebase/app'
+import { type FirebaseOptions, getApp, getApps, initializeApp } from 'firebase/app'
 import {
-  getAuth,
   GoogleAuthProvider,
+  getAuth,
   onAuthStateChanged,
   signInWithPopup,
   signOut,

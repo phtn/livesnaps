@@ -1,14 +1,16 @@
+import { handleAdminSession } from './server/admin-auth-routes'
+import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
+import { handleAdminVerificationEntryList } from './server/admin-verification-routes'
+import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
+import { handleGodsSession } from './server/gods-auth-routes'
+import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
 import {
+  handleAdminSnapPhotoRequest,
   handleSnapPhotoRequest,
   handleSnapSubmissionPhotoPreviewRequest,
   type SnapPhotoRouteEnvironment
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
-import { handleAdminSession } from './server/admin-auth-routes'
-import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
-import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
-import { handleGodsSession } from './server/gods-auth-routes'
-import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
 
 interface WorkerEnvironment {
   ASSETS: {
@@ -34,7 +36,9 @@ const GODS_USER_CLAIMS_PATH = '/api/gods/users/claims'
 const PHOTO_PATH = '/api/proofs'
 const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
+const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
+const ADMIN_SNAP_PHOTO_PATH = /^\/api\/r2\/(.+)$/
 
 const isSpaNavigation = (request: Request) =>
   request.method === 'GET' && request.headers.get('accept')?.includes('text/html')
@@ -101,6 +105,10 @@ export default {
       return handleAdminSnapList(request, { convexUrl })
     }
 
+    if (pathname === ADMIN_VERIFICATION_ENTRIES_PATH) {
+      return handleAdminVerificationEntryList(request, { convexUrl })
+    }
+
     const adminSnapDetailMatch = ADMIN_SNAP_DETAIL_PATH.exec(pathname)
 
     if (adminSnapDetailMatch) {
@@ -117,6 +125,20 @@ export default {
 
     if (pathname === PHOTO_PATH) {
       return handleSnapPhotoRequest(request, getSnapPhotoEnvironment(env))
+    }
+
+    const adminSnapPhotoMatch = ADMIN_SNAP_PHOTO_PATH.exec(pathname)
+
+    if (adminSnapPhotoMatch) {
+      let objectKey: string
+
+      try {
+        objectKey = adminSnapPhotoMatch[1].split('/').map(decodeURIComponent).join('/')
+      } catch {
+        return Response.json({ error: 'The photo path is invalid.' }, { status: 400 })
+      }
+
+      return handleAdminSnapPhotoRequest(request, objectKey, getSnapPhotoEnvironment(env))
     }
 
     if (photoRouteMatch) {

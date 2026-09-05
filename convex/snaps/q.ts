@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { getSnapSlot, isSnapUploadId } from '../../src/lib/r2/snap-images'
 import { prepareSnapLocation } from '../../src/lib/snaps/snap-location'
-import { query, type QueryCtx } from '../_generated/server'
+import { type QueryCtx, query } from '../_generated/server'
 import {
   snapDocumentSchema,
   snapHandlerSchema,
@@ -428,16 +428,14 @@ export const listForAdmin = query({
     const firebaseUids = [...new Set(snaps.map((snap) => snap.firebase_uid).filter((uid): uid is string => !!uid))]
     const imageUrlByFirebaseUid = new Map<string, string | undefined>(
       await Promise.all(
-        firebaseUids.map(
-          async (uid): Promise<[string, string | undefined]> => {
-            const user = await ctx.db
-              .query('users')
-              .withIndex('by_firebaseUid', (q) => q.eq('firebaseUid', uid))
-              .unique()
+        firebaseUids.map(async (uid): Promise<[string, string | undefined]> => {
+          const user = await ctx.db
+            .query('users')
+            .withIndex('by_firebaseUid', (q) => q.eq('firebaseUid', uid))
+            .unique()
 
-            return [uid, user?.imageUrl]
-          }
-        )
+          return [uid, user?.imageUrl]
+        })
       )
     )
 

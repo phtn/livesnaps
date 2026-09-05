@@ -13,7 +13,7 @@
   will-change: opacity, transform;
 }
 
-.root[data-expanded='true'] .pageContent {
+.root[data-expanded="true"] .pageContent {
   opacity: 0;
   transform: translate3d(0, -10px, 0) scale(0.995);
 }
@@ -52,7 +52,7 @@
     transform 440ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.expanderViewport[data-expanded='true'] {
+.expanderViewport[data-expanded="true"] {
   pointer-events: auto;
   visibility: visible;
   opacity: 1;
@@ -63,7 +63,7 @@
     transform 460ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.expanderViewport[data-expanded='true']::before {
+.expanderViewport[data-expanded="true"]::before {
   opacity: 1;
   transform: scale(1);
 }
@@ -102,7 +102,7 @@
   transition: opacity 300ms ease;
 }
 
-.cameraViewport[data-camera-active='true'] .cameraPreview {
+.cameraViewport[data-camera-active="true"] .cameraPreview {
   opacity: 1;
 }
 
@@ -133,12 +133,12 @@
 
 .shutterButton::after {
   position: absolute;
-  content: '';
+  content: "";
   opacity: 0;
   pointer-events: none;
 }
 
-.shutterButton[data-state='capturing']::after {
+.shutterButton[data-state="capturing"]::after {
   animation: shutter-flash 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -155,7 +155,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .shutterButton[data-state='capturing']::after {
+  .shutterButton[data-state="capturing"]::after {
     animation: none;
   }
 }
@@ -180,7 +180,7 @@
   transition: scale 280ms ease-out;
 }
 
-.cameraRightControl[data-empty='true'] {
+.cameraRightControl[data-empty="true"] {
   scale: 0.8;
   transition-delay: 460ms;
 }
@@ -219,21 +219,21 @@
 /* Orientation media queries update synchronously with device rotation, including
    Safari where the Screen Orientation API is not consistently available. */
 @media (orientation: landscape) and (max-height: 500px) {
-  .root[data-expanded='true'] {
+  .root[data-expanded="true"] {
     --proof-nav-height: 0rem;
   }
 
-  .root[data-expanded='true'] .navigation {
+  .root[data-expanded="true"] .navigation {
     display: none;
   }
 
-  .root[data-expanded='true'] .viewportBody,
-  .root[data-expanded='true'] .expanderViewport {
+  .root[data-expanded="true"] .viewportBody,
+  .root[data-expanded="true"] .expanderViewport {
     height: 100vh;
     height: 100dvh;
   }
 
-  .root[data-expanded='true'] .expanderViewport {
+  .root[data-expanded="true"] .expanderViewport {
     top: 0;
   }
 
@@ -267,7 +267,7 @@
     transform-origin: left bottom;
   }
 
-  .cameraRightControl[data-empty='true'] {
+  .cameraRightControl[data-empty="true"] {
     scale: 0.62;
   }
 

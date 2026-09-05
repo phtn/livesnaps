@@ -3,7 +3,8 @@ type SlottedPhoto = {
 }
 
 type UpdateSnapPhotosResult<Photo extends SlottedPhoto> =
-  { photos: Photo[]; status: 'updated' } | { status: 'missing_retake_target' | 'occupied_without_retake' }
+  | { photos: Photo[]; status: 'updated' }
+  | { status: 'missing_retake_target' | 'occupied_without_retake' }
 
 export const updateSnapPhotos = <Photo extends SlottedPhoto>(
   photos: readonly Photo[],

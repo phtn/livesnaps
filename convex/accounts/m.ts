@@ -36,10 +36,7 @@ export const create = mutation({
     }
 
     const now = Date.now()
-    const { contact: primaryContact, userId: contactUserId } = await normalizePrimaryContact(
-      ctx,
-      args.primaryContact
-    )
+    const { contact: primaryContact, userId: contactUserId } = await normalizePrimaryContact(ctx, args.primaryContact)
 
     const accountId = await ctx.db.insert('accounts', {
       slug,
@@ -91,10 +88,7 @@ export const update = mutation({
     // Lifecycle, billing tier, and the public handle are ours to set, not the
     // customer's - an owner editing their own profile must not be able to move
     // themselves onto another plan or rename the account out from under a URL.
-    if (
-      !actor.isPlatformAdmin &&
-      (args.status !== undefined || args.plan !== undefined || args.slug !== undefined)
-    ) {
+    if (!actor.isPlatformAdmin && (args.status !== undefined || args.plan !== undefined || args.slug !== undefined)) {
       throw new ConvexError('Account status, plan, and slug can only be changed by support.')
     }
 

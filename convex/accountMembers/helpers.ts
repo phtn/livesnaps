@@ -12,11 +12,7 @@ import { trimOrNull } from '../utils'
 
 type Ctx = QueryCtx | MutationCtx
 
-export const getMembershipByTokenIdentifier = async (
-  ctx: Ctx,
-  accountId: Id<'accounts'>,
-  tokenIdentifier: string
-) =>
+export const getMembershipByTokenIdentifier = async (ctx: Ctx, accountId: Id<'accounts'>, tokenIdentifier: string) =>
   await ctx.db
     .query('accountMembers')
     .withIndex('by_accountId_and_tokenIdentifier', (q) =>

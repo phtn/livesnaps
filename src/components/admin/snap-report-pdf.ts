@@ -1,9 +1,9 @@
-import { container, text } from '@takumi-rs/helpers'
 import type { Node } from '@takumi-rs/helpers'
+import { container, text } from '@takumi-rs/helpers'
 import type { RenderOptions } from 'takumi-pdf/no-init'
 import { render } from 'takumi-pdf/no-init'
-import { createPdfFooter, initializePdfRenderer, loadPdfFonts, pdfTheme } from '@/lib/pdf/takumi'
 import type { PdfStyle } from '@/lib/pdf/takumi'
+import { createPdfFooter, initializePdfRenderer, loadPdfFonts, pdfTheme } from '@/lib/pdf/takumi'
 import type {
   SnapFullReportDocument,
   SnapReportBlock,
@@ -23,15 +23,7 @@ const toneStyle = (tone: SnapReportTone): { backgroundColor: string; color: stri
   return { backgroundColor: pdfTheme.color.wash, color: pdfTheme.color.muted }
 }
 
-const sectionHeading = ({
-  description,
-  index,
-  title
-}: {
-  description?: string
-  index: string
-  title: string
-}): Node =>
+const sectionHeading = ({ description, index, title }: { description?: string; index: string; title: string }): Node =>
   container({
     tagName: 'div',
     style: { alignItems: 'flex-start', display: 'flex', gap: 14, marginBottom: 10, width: '100%' },
@@ -446,7 +438,11 @@ export const createSnapFullReportPdfLayout = (
     children: [
       reportHero(document),
       ...document.blocks.map((block) =>
-        container({ tagName: 'div', style: { display: 'flex', flexDirection: 'column' }, children: [reportBlock(block)] })
+        container({
+          tagName: 'div',
+          style: { display: 'flex', flexDirection: 'column' },
+          children: [reportBlock(block)]
+        })
       )
     ]
   }),

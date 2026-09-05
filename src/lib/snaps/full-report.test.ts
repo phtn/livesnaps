@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import type { Doc, Id } from '../../convex/_generated/dataModel'
-import {
-  createSnapFullReportDocument,
-  flattenSnapAttributeFields,
-  type SnapFullReportDocument
-} from './full-report'
+import { createSnapFullReportDocument, flattenSnapAttributeFields, type SnapFullReportDocument } from './full-report'
 
 const snapId = 'snap_fixture_01' as Id<'snaps'>
 
@@ -154,7 +150,10 @@ describe('full proof report reshaping', () => {
 
     assert.equal(report.kind, 'snap-full-row-report')
     assert.equal(report.metrics.find((metric) => metric.label === 'IP country match')?.value, 'Unknown')
-    assert.equal(report.blocks.some((block) => block.kind === 'callout'), false)
+    assert.equal(
+      report.blocks.some((block) => block.kind === 'callout'),
+      false
+    )
 
     for (const expected of [
       'Ada Lovelace',
@@ -203,7 +202,10 @@ describe('full proof report reshaping', () => {
     const callout = report.blocks.find((block) => block.kind === 'callout')
 
     assert.ok(callout && callout.kind === 'callout')
-    assert.deepEqual(callout.fields.map((field) => field.label), ['City'])
+    assert.deepEqual(
+      callout.fields.map((field) => field.label),
+      ['City']
+    )
     assert.match(callout.fields[0]?.value ?? '', /Session: Makati \| Snapshot: Pasig/)
   })
 
@@ -219,9 +221,18 @@ describe('full proof report reshaping', () => {
   })
 
   test('flattens nested Convex values with stable paths and lossless scalar encodings', () => {
-    const fields = flattenSnapAttributeFields({ z: [Number.NaN, Number.POSITIVE_INFINITY], a: new Uint8Array([1, 2]).buffer })
+    const fields = flattenSnapAttributeFields({
+      z: [Number.NaN, Number.POSITIVE_INFINITY],
+      a: new Uint8Array([1, 2]).buffer
+    })
 
-    assert.deepEqual(fields.map((field) => field.label), ['A', 'Z / Item 1', 'Z / Item 2'])
-    assert.deepEqual(fields.map((field) => field.value), ['bytes:2:0102', 'NaN', 'Infinity'])
+    assert.deepEqual(
+      fields.map((field) => field.label),
+      ['A', 'Z / Item 1', 'Z / Item 2']
+    )
+    assert.deepEqual(
+      fields.map((field) => field.value),
+      ['bytes:2:0102', 'NaN', 'Infinity']
+    )
   })
 })

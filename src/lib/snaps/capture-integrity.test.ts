@@ -53,10 +53,7 @@ describe('proof capture integrity policy', () => {
       }),
       'review'
     )
-    assert.equal(
-      getCaptureIntegrityDisposition({ confidence: 1, signals: [], verdict: 'uncertain' }),
-      'review'
-    )
+    assert.equal(getCaptureIntegrityDisposition({ confidence: 1, signals: [], verdict: 'uncertain' }), 'review')
   })
 
   test('accepts a sufficiently confident physical scene without display signals', () => {
@@ -126,10 +123,7 @@ describe('proof capture integrity policy', () => {
   })
 
   test('persists only fresh, internally consistent non-rejected analyses', () => {
-    const accepted = createCaptureIntegrityAnalysis(
-      { confidence: 0.9, signals: [], verdict: 'physical_scene' },
-      1_100
-    )
+    const accepted = createCaptureIntegrityAnalysis({ confidence: 0.9, signals: [], verdict: 'physical_scene' }, 1_100)
     const unavailable = createUnavailableCaptureIntegrityAnalysis(1_100)
 
     assert.equal(isCaptureIntegrityAnalysisPersistable(accepted, 1_000, 1_200), true)
@@ -145,10 +139,7 @@ describe('proof capture integrity policy', () => {
       ),
       false
     )
-    assert.equal(
-      isCaptureIntegrityAnalysisPersistable({ ...accepted, disposition: 'review' }, 1_000, 1_200),
-      false
-    )
+    assert.equal(isCaptureIntegrityAnalysisPersistable({ ...accepted, disposition: 'review' }, 1_000, 1_200), false)
     assert.equal(isCaptureIntegrityAnalysisPersistable({ ...accepted, analyzed_at: 999 }, 1_000, 1_200), false)
   })
 })

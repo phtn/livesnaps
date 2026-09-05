@@ -1,10 +1,10 @@
 import { ConvexError, v } from 'convex/values'
 import {
+  type DeviceLocation,
   isSnapLocationCurrentAndAccurate,
   MAX_SNAP_LOCATION_ACCURACY_METERS,
   MAX_SNAP_LOCATION_AGE_MS,
-  parseDeviceLocation,
-  type DeviceLocation
+  parseDeviceLocation
 } from '../../src/lib/location/type'
 import {
   buildSnapObjectKey,
@@ -25,8 +25,13 @@ import {
   normalizeDetectedVehicleDetails,
   normalizePlateNumber
 } from '../../src/lib/snaps/vehicle-details'
-import { internalMutation, mutation, type MutationCtx } from '../_generated/server'
+import { internalMutation, type MutationCtx, mutation } from '../_generated/server'
 import {
+  type SnapApplicantDetails,
+  type SnapCaptureIntegrity,
+  type SnapDetails,
+  type SnapPhoto,
+  type SnapVehicleDetails,
   snapAddressSchema,
   snapApplicantDetailsSchema,
   snapCaptureIntegritySchema,
@@ -35,12 +40,7 @@ import {
   snapPhotoSchema,
   snapPhotoWriteSchema,
   snapSessionEndStatusSchema,
-  snapVehicleDetailsSchema,
-  type SnapApplicantDetails,
-  type SnapCaptureIntegrity,
-  type SnapDetails,
-  type SnapPhoto,
-  type SnapVehicleDetails
+  snapVehicleDetailsSchema
 } from './d'
 
 const SNAP_SESSION_REUSE_WINDOW_MS = 60 * 60 * 1000

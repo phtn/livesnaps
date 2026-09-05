@@ -1,26 +1,39 @@
 import { useEffect, useState } from 'octane'
-import type { OctaneNode } from 'octane'
 import { Icon } from '@/lib/icons'
 import Input from '@/components/ui/input.btsx'
 import { Badge } from '@/components/ui'
 import { Link } from '@octanejs/tanstack-router'
 import { cn } from '@/lib/utils'
+import { debounce, parseAsBoolean, parseAsString, parseAsStringLiteral, throttle, useQueryStates } from '@octanejs/nuqs'
+import { useField, useSelector } from '@octanejs/tanstack-form'
 import { getGodUserLabel, searchUsers, type GodUser } from '@/lib/citadel/gods-users'
-import { ACCOUNT_PLAN_VALUES, toAccountSlug, type AccountPlan, type AccountStatus } from '@/lib/accounts/accounts'
-import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow, type AccountStatusFilter } from '@/lib/citadel/accounts'
+import { ACCOUNT_PLAN_VALUES, toAccountSlug, type AccountStatus } from '@/lib/accounts/accounts'
+import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
+import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, useAccountDraft, useAccountForm, validateAccountForm, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
+import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
 
 module
   type RosterStatus = 'loading' | 'ready' | 'error'
 
-  const readErrorMessage = (error: unknown, fallback: string) =>
-    error instanceof Error && error.message.length > 0 ? error.message : fallback
-
-  // An aborted in-flight request is the expected outcome of a remount, not
-  // something to surface.
-  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
-
   const CONTACT_SEARCH_DEBOUNCE_MS = 300
   const MIN_CONTACT_SEARCH_LENGTH = 2
+  const ROSTER_URL_DEBOUNCE_MS = 200
+
+  // Discarding a draft has to reach the URL before the form unmounts, so those
+  // writes skip the debounce the editing path uses. Pushing through the
+  // throttle queue also cancels whatever the last keystroke left pending.
+  const IMMEDIATE_URL_UPDATE = { limitUrlUpdates: throttle(0) }
+
+  /**
+   * The roster's own query state: what is being searched, which statuses are
+   * shown, and whether the create form is open. Keeping it in the URL makes a
+   * filtered roster shareable and survives a reload.
+   */
+  const ROSTER_PARSERS = {
+    q: parseAsString.withDefault(''),
+    status: parseAsStringLiteral(ACCOUNT_STATUS_FILTERS).withDefault('all'),
+    create: parseAsBoolean.withDefault(false)
+  }
 
   const fieldLabelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
 
@@ -29,17 +42,67 @@ module
 
   const addButtonClassName = 'size-5 aspect-square rounded-full bg-active text-white transition-colors duration-200 ease-out'
   const actionButtonClassName =
-    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/80 px-2.5 font-mono text-2xs uppercase tracking-wider transition-colors'
+    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-2.5 font-mono text-muted-foreground text-xs uppercase tracking-wide transition-colors'
+
+  const errorTextClassName = 'font-mono text-2xs text-destructive'
+
+  interface TextFieldProps {
+    form: AccountForm
+    name: AccountTextField
+    label: string
+    type?: 'text' | 'email' | 'tel' | 'url'
+    placeholder?: string
+    required?: boolean
+    className?: string
+  }
 
 component StatusBadge
   props { status }: { status: AccountStatus }
   Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[status])}) #{ACCOUNT_STATUS_LABEL[status]}
 
-component Field
-  props { label, children, className }: { label: string; children?: OctaneNode; className?: string }
-  label(className={cn('flex flex-col gap-1.5', className)})
+// One text control bound to one form field. Value, blur, and the error message
+// all come from the field's own state rather than from a second copy kept here.
+component TextField
+  props { form, name, label, type = 'text', placeholder, required = false, className }: TextFieldProps
+  setup
+    const field = useField({ form, name })
+    const controlId = `account-${name}`
+    const errorId = `${controlId}-error`
+    const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
+
+  label(className={cn('flex flex-col gap-1.5', className)} htmlFor={controlId})
     span(className={fieldLabelClassName}) #{label}
-    | #{children}
+    Input(
+      ~ id={controlId}
+      ~ type={type}
+      ~ value={field.state.value}
+      ~ required={required}
+      ~ autoComplete='off'
+      ~ placeholder={placeholder}
+      ~ aria-invalid={message !== null}
+      ~ aria-describedby={message === null ? undefined : errorId}
+      ~ onBlur={field.handleBlur}
+      ~ onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)}
+      ~ )
+    if message
+      p(id={errorId} className={cn('mt-1.5', errorTextClassName)}) #{message}
+
+component PlanField
+  props { form, results=0 }: { form: AccountForm, results?: number }
+  setup
+    const field = useField({ form, name: 'plan' })
+
+  div(className={cn('mt-4 mb-10 flex flex-col gap-1.5', {'mb-16': results > 0})})
+    span(className={fieldLabelClassName}) Plan
+    div(className='mt-3 flex gap-1.5')
+      each option in ACCOUNT_PLAN_VALUES key option
+        button(
+          ~ type='button'
+          ~ onClick={() => field.handleChange(option)}
+          ~ aria-pressed={field.state.value === option}
+          ~ className={cn(chipClassName, field.state.value === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+          ~ )
+          | #{ACCOUNT_PLAN_LABEL[option]}
 
 component AccountIdentity
   props { account }: { account: AccountRow }
@@ -54,26 +117,50 @@ component AccountIdentity
 component CreateAccountForm
   props { onCreated, onCancel }: { onCreated: (accounts: AccountRow[], adminClaim: { granted: boolean; reason: string | null }) => void; onCancel: () => void }
   setup
-    const [name, setName] = useState('')
-    const [slug, setSlug] = useState('')
-    const [plan, setPlan] = useState<AccountPlan>('trial')
-    const [contactName, setContactName] = useState('')
-    const [contactEmail, setContactEmail] = useState('')
-    const [contactPhone, setContactPhone] = useState('')
-    const [contactTitle, setContactTitle] = useState('')
-    const [legalName, setLegalName] = useState('')
-    const [website, setWebsite] = useState('')
-    const [industry, setIndustry] = useState('')
-    const [billingEmail, setBillingEmail] = useState('')
-    const [notes, setNotes] = useState('')
-    const [isPending, setIsPending] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+    const [draft, setDraft] = useAccountDraft()
+
+    // The query string seeds the form once. From there the form owns the
+    // values and pushes them back out through its own change listener, so the
+    // two never fight over who is authoritative.
+    const [initialValues] = useState(() => draft)
+
+    const accountForm = useAccountForm({
+      defaultValues: initialValues,
+      onDraftChange: (values) => {
+        void setDraft(values)
+      },
+      onSubmit: async (input) => {
+        const response = await createAccount(input)
+        await setDraft(null, IMMEDIATE_URL_UPDATE)
+        accountForm.reset(ACCOUNT_FORM_DEFAULTS)
+        onCreated(response.accounts, response.adminClaim)
+      }
+    })
+
+    const isSubmitting = useSelector(accountForm.store, (state) => state.isSubmitting)
+    // `canSubmit` alone stays true on a pristine form, before any validator
+    // has run, so the same whole-form check the validator uses is applied here.
+    const canSubmit = useSelector(
+      accountForm.store,
+      (state) => state.canSubmit && validateAccountForm(state.values) === undefined
+    )
+    const submitError = useSelector(accountForm.store, (state) =>
+      typeof state.errorMap.onSubmit === 'string' ? state.errorMap.onSubmit : null
+    )
+    const nameValue = useSelector(accountForm.store, (state) => state.values.name)
+    const contactName = useSelector(accountForm.store, (state) => state.values.contactName)
+    const contactEmail = useSelector(accountForm.store, (state) => state.values.contactEmail)
+    const contactUid = useSelector(accountForm.store, (state) => state.values.contactUid)
 
     const [contactQuery, setContactQuery] = useState('')
     const [contactResults, setContactResults] = useState<GodUser[]>([])
     const [isSearching, setIsSearching] = useState(false)
     const [searchError, setSearchError] = useState<string | null>(null)
+    // Only the uid is persisted, so a draft restored from the URL knows the
+    // contact is linked but not the directory flags. Those come back with the
+    // user record when the link is made in this session.
     const [linkedUser, setLinkedUser] = useState<GodUser | null>(null)
+    const isLinked = contactUid.length > 0
 
     useEffect(() => {
       const trimmedQuery = contactQuery.trim()
@@ -110,8 +197,9 @@ component CreateAccountForm
 
     const linkUser = (user: GodUser) => {
       setLinkedUser(user)
-      setContactName(getGodUserLabel(user))
-      setContactEmail(user.email ?? '')
+      accountForm.setFieldValue('contactUid', user.uid)
+      accountForm.setFieldValue('contactName', getGodUserLabel(user))
+      accountForm.setFieldValue('contactEmail', user.email ?? '')
       setContactQuery('')
       setContactResults([])
     }
@@ -129,76 +217,38 @@ component CreateAccountForm
 
     const unlinkUser = () => {
       setLinkedUser(null)
-      setContactName('')
-      setContactEmail('')
+      accountForm.setFieldValue('contactUid', '')
+      accountForm.setFieldValue('contactName', '')
+      accountForm.setFieldValue('contactEmail', '')
     }
 
-    const trimmed = (value: string) => {
-      const next = value.trim()
-      return next.length > 0 ? next : undefined
-    }
-
-    const canSubmit =
-      name.trim().length > 0 && contactName.trim().length > 0 && contactEmail.trim().length > 0 && !isPending
-
-    const submit = async (event: SubmitEvent) => {
+    const submit = (event: SubmitEvent) => {
       event.preventDefault()
-      if (!canSubmit) return
+      void accountForm.handleSubmit()
+    }
 
-      setIsPending(true)
-      setError(null)
-
-      try {
-        const response = await createAccount({
-          name: name.trim(),
-          slug: trimmed(slug),
-          plan,
-          organization: {
-            legalName: trimmed(legalName),
-            website: trimmed(website),
-            industry: trimmed(industry)
-          },
-          primaryContact: {
-            name: contactName.trim(),
-            email: contactEmail.trim(),
-            phone: trimmed(contactPhone),
-            title: trimmed(contactTitle),
-            firebaseUid: linkedUser?.uid
-          },
-          billingEmail: trimmed(billingEmail),
-          notes: trimmed(notes)
-        })
-
-        onCreated(response.accounts, response.adminClaim)
-      } catch (submitError: unknown) {
-        setError(readErrorMessage(submitError, 'Could not create the account.'))
-      } finally {
-        setIsPending(false)
-      }
+    // Cancelling discards the draft; closing the panel from the header only
+    // hides it, so a half-filled form can be reopened from the same URL.
+    const cancel = () => {
+      void setDraft(null, IMMEDIATE_URL_UPDATE)
+      accountForm.reset(ACCOUNT_FORM_DEFAULTS)
+      onCancel()
     }
 
   form(className='mt-4 border-t border-border/50 border-dotted pt-4' onSubmit={submit})
     p(className='font-sans text-sm text-muted-foreground capitalize') New account
 
-    if error
-      p(className='mt-3 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{error}
+    if submitError
+      p(className='mt-3 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{submitError}
 
     div(className='mt-4 grid gap-4 md:grid-cols-2')
-      Field(label='Account name')
-        Input(
-          ~ value={name}
-          ~ required={true}
-          ~ autoComplete='off'
-          ~ placeholder='Northwind Logistics'
-          ~ onInput={(event: Event) => setName((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Slug')
-        Input(
-          ~ value={slug}
-          ~ autoComplete='off'
-          ~ placeholder={toAccountSlug(name) || 'auto-generated from the name'}
-          ~ onInput={(event: Event) => setSlug((event.currentTarget as HTMLInputElement).value)}
-          ~ )
+      TextField(form={accountForm} name='name' label='Account name' required={true} placeholder='Northwind Logistics')
+      TextField(
+        ~ form={accountForm}
+        ~ name='slug'
+        ~ label='Slug'
+        ~ placeholder={toAccountSlug(nameValue) || 'auto-generated from the name'}
+        ~ )
 
 
     div(className='w-full mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-6')
@@ -206,16 +256,16 @@ component CreateAccountForm
       div(className='flex flex-col gap-1.5 w-full')
         p(className='mt-5 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Primary contact
 
-        if linkedUser
+        if isLinked
           div(className='mt-2')
             div(className='flex flex-wrap items-center justify-between gap-3 rounded-sm border border-active/30 bg-active/5 px-3 py-2')
               div(className='min-w-0')
-                p(className='truncate text-sm text-foreground') #{getGodUserLabel(linkedUser)}
-                p(className='truncate font-mono text-xs text-muted-foreground') #{linkedUser.email ?? linkedUser.uid}
+                p(className='truncate text-sm text-foreground') #{contactName}
+                p(className='truncate font-mono text-xs text-muted-foreground') #{contactEmail || contactUid}
               div(className='flex shrink-0 items-center gap-2')
-                if linkedUser.admin
+                if linkedUser?.admin
                   span(className='rounded-xs bg-taupe-500/5 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
-                if !linkedUser.admin && !linkedUser.emailVerified
+                if linkedUser !== null && !linkedUser.admin && !linkedUser.emailVerified
                   span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-amber-500') unverified
                 button(type='button' onClick={unlinkUser} className={actionButtonClassName}) Change
             p(className='mt-1.5 font-mono text-2xs text-muted-foreground') This user becomes the account owner and is granted admin access.
@@ -229,10 +279,11 @@ component CreateAccountForm
               ~ onInput={(event: Event) => setContactQuery((event.currentTarget as HTMLInputElement).value)}
               ~ className='w-full'
               ~ )
-            if contactSearchHint
-              p(className={cn('mt-1.5 font-mono text-xs', searchError ? 'text-destructive' : 'text-muted-foreground')}) #{contactSearchHint}
+            div(className={cn('mt-1.5 h-7 flex items-center', {hidden: contactResults.length > 0})})
+              if contactSearchHint
+                p(className={cn('font-mono text-xs', searchError ? 'text-destructive' : 'text-muted-foreground')}) #{contactSearchHint}
             if contactResults.length > 0
-              ul(className='mt-1.5 divide-y divide-border/60 divide-dotted rounded-sm border border-border/60')
+              ul(className='mt-1.5 divide-y divide-border/60 divide-dotted rounded-sm border border-border/60 overflow-hidden')
                 each user in contactResults key user.uid
                   li
                     button(
@@ -245,113 +296,48 @@ component CreateAccountForm
                         p(className='truncate font-mono text-xs text-muted-foreground') #{user.email ?? user.uid}
                       if user.admin
                         span(className='shrink-0 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
-
-      div(className='mt-4 flex flex-col gap-1.5')
-        span(className={fieldLabelClassName}) Plan
-        div(className='mt-3 flex gap-1.5')
-          each option in ACCOUNT_PLAN_VALUES key option
-            button(
-              ~ type='button'
-              ~ onClick={() => setPlan(option)}
-              ~ className={cn(chipClassName, plan === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
-              ~ )
-              | #{ACCOUNT_PLAN_LABEL[option]}
+      PlanField(form={accountForm} results={contactResults.length})
 
 
     div(className='mt-3 grid gap-4 md:grid-cols-2')
-      Field(label='Contact name')
-        Input(
-          ~ value={contactName}
-          ~ required={true}
-          ~ autoComplete='off'
-          ~ placeholder='Ada Reyes'
-          ~ onInput={(event: Event) => setContactName((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Contact email')
-        Input(
-          ~ type='email'
-          ~ value={contactEmail}
-          ~ required={true}
-          ~ autoComplete='off'
-          ~ placeholder='ada@northwind.com'
-          ~ onInput={(event: Event) => setContactEmail((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Contact phone')
-        Input(
-          ~ value={contactPhone}
-          ~ autoComplete='off'
-          ~ placeholder='Optional'
-          ~ onInput={(event: Event) => setContactPhone((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Contact title')
-        Input(
-          ~ value={contactTitle}
-          ~ autoComplete='off'
-          ~ placeholder='Optional'
-          ~ onInput={(event: Event) => setContactTitle((event.currentTarget as HTMLInputElement).value)}
-          ~ )
+      TextField(form={accountForm} name='contactName' label='Contact name' required={true} placeholder='Ada Reyes')
+      TextField(form={accountForm} name='contactEmail' label='Contact email' type='email' required={true} placeholder='ada@northwind.com')
+      TextField(form={accountForm} name='contactPhone' label='Contact phone' type='tel' placeholder='Optional')
+      TextField(form={accountForm} name='contactTitle' label='Contact title' placeholder='Optional')
 
     p(className='mt-5 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Organization
 
     div(className='mt-2 grid gap-4 md:grid-cols-2')
-      Field(label='Legal name')
-        Input(
-          ~ value={legalName}
-          ~ autoComplete='off'
-          ~ placeholder='Optional'
-          ~ onInput={(event: Event) => setLegalName((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Website')
-        Input(
-          ~ value={website}
-          ~ autoComplete='off'
-          ~ placeholder='https://northwind.com'
-          ~ onInput={(event: Event) => setWebsite((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Industry')
-        Input(
-          ~ value={industry}
-          ~ autoComplete='off'
-          ~ placeholder='Optional'
-          ~ onInput={(event: Event) => setIndustry((event.currentTarget as HTMLInputElement).value)}
-          ~ )
-      Field(label='Billing email')
-        Input(
-          ~ type='email'
-          ~ value={billingEmail}
-          ~ autoComplete='off'
-          ~ placeholder='Defaults to the contact email'
-          ~ onInput={(event: Event) => setBillingEmail((event.currentTarget as HTMLInputElement).value)}
-          ~ )
+      TextField(form={accountForm} name='legalName' label='Legal name' placeholder='Optional')
+      TextField(form={accountForm} name='website' label='Website' type='url' placeholder='https://northwind.com')
+      TextField(form={accountForm} name='industry' label='Industry' placeholder='Optional')
+      TextField(form={accountForm} name='billingEmail' label='Billing email' type='email' placeholder='Defaults to the contact email')
 
     div(className='mt-4')
-      Field(label='Notes')
-        Input(
-          ~ value={notes}
-          ~ autoComplete='off'
-          ~ placeholder='Optional'
-          ~ onInput={(event: Event) => setNotes((event.currentTarget as HTMLInputElement).value)}
-          ~ )
+      TextField(form={accountForm} name='notes' label='Notes' placeholder='Optional')
 
     div(className='mt-5 flex items-center justify-end gap-2')
-      button(type='button' onClick={onCancel} disabled={isPending} className={actionButtonClassName}) Cancel
+      button(type='button' onClick={cancel} disabled={isSubmitting} className={actionButtonClassName}) Cancel
       button(
         ~ type='submit'
         ~ disabled={!canSubmit}
-        ~ className={cn(actionButtonClassName, 'border-active/40 text-active hover:border-active')}
+        ~ aria-busy={isSubmitting}
+        ~ className={cn(actionButtonClassName, 'border-active! text-white! hover:border-active bg-active hover:text-white')}
         ~ )
-        Icon(name={isPending ? 'spinner-ring' : 'check'} className='size-3')
-        span #{isPending ? 'Creating…' : 'Create account'}
+        Icon(name={isSubmitting ? 'spinner-ring' : 'check'} className='size-3')
+        span #{isSubmitting ? 'Creating…' : 'Create account'}
 
 setup
   const [accounts, setAccounts] = useState<AccountRow[]>([])
   const [rosterStatus, setRosterStatus] = useState<RosterStatus>('loading')
   const [rosterError, setRosterError] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
-  const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<AccountStatusFilter>('all')
-  const [isCreating, setIsCreating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+
+  const [filters, setFilters] = useQueryStates(ROSTER_PARSERS, {
+    history: 'replace',
+    limitUrlUpdates: debounce(ROSTER_URL_DEBOUNCE_MS)
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -374,14 +360,14 @@ setup
 
   const counts = countAccountsByStatus(accounts)
   const visibleAccounts = accounts.filter(
-    (account) => (statusFilter === 'all' || account.status === statusFilter) && matchesAccountQuery(account, query)
+    (account) => (filters.status === 'all' || account.status === filters.status) && matchesAccountQuery(account, filters.q)
   )
 
   const onAccountCreated = (nextAccounts: AccountRow[], adminClaim: { granted: boolean; reason: string | null }) => {
     setAccounts(nextAccounts)
     setRosterStatus('ready')
     setRosterError(null)
-    setIsCreating(false)
+    void setFilters({ create: false })
     setNotice(
       adminClaim.granted
         ? 'Account created. The contact was granted admin access.'
@@ -396,10 +382,11 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
         h2(className='font-poly font-medium tracking-tight') Accounts
         button(
           ~ type='button'
-          ~ onClick={() => setIsCreating((creating) => !creating)}
-          ~ className={cn(addButtonClassName, { 'bg-[#1b1b1b]! dark:bg-[#f0f0f0]': isCreating })}
+          ~ onClick={() => void setFilters({ create: !filters.create })}
+          ~ aria-expanded={filters.create}
+          ~ className={cn(addButtonClassName, { 'bg-[#1b1b1b]! dark:bg-[#f0f0f0]': filters.create })}
           ~ )
-          Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', {'rotate-68': isCreating})})
+          Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', {'rotate-68': filters.create})})
       p(className='mt-1 text-sm text-muted-foreground') Organizations using the platform, and where each one stands.
     div(className='flex items-center gap-3')
       if rosterStatus === 'ready'
@@ -407,66 +394,56 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
 
 
   if notice
-    div(className='mt-4 flex items-start justify-between gap-3 rounded-sm border border-border/60 bg-sidebar/40 px-3 py-2')
-      p(className='text-sm text-muted-foreground') #{notice}
+    div(className='mt-4 flex items-start justify-between gap-3 rounded-sm border border-brand/60 bg-sidebar/40 px-3 py-2')
+      p(className='text-sm text-brand') #{notice}
       button(type='button' onClick={() => setNotice(null)} aria-label='Dismiss' className='shrink-0 text-muted-foreground hover:text-foreground')
         Icon(name='close' className='size-3')
 
-  if isCreating
-    CreateAccountForm(onCreated={onAccountCreated} onCancel={() => setIsCreating(false)})
+  if filters.create
+    CreateAccountForm(onCreated={onAccountCreated} onCancel={() => void setFilters({ create: false })})
+  else
+    fragment
+      div(className='relative mt-3')
+        Input(
+          ~ id='citadel-account-search'
+          ~ type='search'
+          ~ value={filters.q}
+          ~ placeholder='Search by name, slug, contact, or industry'
+          ~ autoComplete='off'
+          ~ onInput={(event: Event) => void setFilters({ q: (event.currentTarget as HTMLInputElement).value })}
+          ~ )
 
-  // HIDDEN
-  div(className='mt-6 hidden _flex flex-wrap items-center gap-2')
-    each filter in ACCOUNT_STATUS_FILTERS key filter
-      button(
-        ~ type='button'
-        ~ onClick={() => setStatusFilter(filter)}
-        ~ className={cn(chipClassName, statusFilter === filter ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
-        ~ )
-        | #{ACCOUNT_STATUS_FILTER_LABEL[filter]}
-        span(className='opacity-60') #{counts[filter]}
+      if rosterError
+        p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{rosterError}
 
-  div(className='relative mt-3')
-    Input(
-      ~ id='citadel-account-search'
-      ~ type='search'
-      ~ value={query}
-      ~ placeholder='Search by name, slug, contact, or industry'
-      ~ autoComplete='off'
-      ~ onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)}
-      ~ )
-
-  if rosterError
-    p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{rosterError}
-
-  div(className='mt-4')
-    if rosterStatus === 'loading'
-      div(className='flex items-center gap-2 py-6')
-        Icon(name='spinner-ferris' className='size-4')
-        p(className='text-sm text-muted-foreground') Loading accounts…
-    elseif rosterStatus === 'error'
-      button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
-    elseif accounts.length === 0
-      div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
-        p(className='text-sm text-muted-foreground') No accounts yet.
-        p(className='mt-1 text-xs text-muted-foreground') Create the first one to start onboarding an organization.
-    elseif visibleAccounts.length === 0
-      p(className='px-1 py-6 text-sm text-muted-foreground') No accounts match this filter.
-    else
-      ul(className='divide-y divide-border/60 divide-dotted rounded-sm')
-        each account in visibleAccounts key account._id
-          li
-            Link(
-              ~ to='/citadel/accounts/$accountSlug'
-              ~ params={{ accountSlug: account.slug }}
-              ~ className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-accent'
-              ~ )
-              AccountIdentity(account={account})
-              div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
-                div(className='min-w-0 md:block')
-                  p(className='truncate text-xs text-foreground/80') #{account.primaryContact.name}
-                span(className='hidden truncate font-mono text-xs text-muted-foreground') #{account.primaryContact.email}
-                span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{ACCOUNT_PLAN_LABEL[account.plan]}
-                span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatAccountDate(account.createdAt)}
-                StatusBadge(status={account.status})
-                Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')
+      div(className='mt-4')
+        if rosterStatus === 'loading'
+          div(className='flex items-center gap-2 py-6')
+            Icon(name='spinner-ferris' className='size-4')
+            p(className='text-sm text-muted-foreground') Loading accounts…
+        elseif rosterStatus === 'error'
+          button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
+        elseif accounts.length === 0
+          div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
+            p(className='text-sm text-muted-foreground') No accounts yet.
+            p(className='mt-1 text-xs text-muted-foreground') Create the first one to start onboarding an organization.
+        elseif visibleAccounts.length === 0
+          p(className='px-1 py-6 text-sm text-muted-foreground') No accounts match this filter.
+        else
+          ul(className='divide-y divide-border/60 divide-dotted rounded-sm')
+            each account in visibleAccounts key account._id
+              li
+                Link(
+                  ~ to='/citadel/accounts/$accountSlug'
+                  ~ params={{ accountSlug: account.slug }}
+                  ~ className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 transition-colors hover:bg-accent'
+                  ~ )
+                  AccountIdentity(account={account})
+                  div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
+                    div(className='min-w-0 md:block')
+                      p(className='truncate text-sm text-foreground/80') #{account.primaryContact.name}
+                    span(className='hidden truncate font-mono text-xs text-muted-foreground') #{account.primaryContact.email}
+                    span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{ACCOUNT_PLAN_LABEL[account.plan]}
+                    span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatAccountDate(account.createdAt)}
+                    StatusBadge(status={account.status})
+                    Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')

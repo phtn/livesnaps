@@ -1,4 +1,4 @@
-import { type DeviceLocation } from '@/lib/location/type'
+import type { DeviceLocation } from '@/lib/location/type'
 
 const readApiError = async (response: Response, fallback: string) => {
   const result = (await response.json().catch(() => null)) as { error?: unknown } | null

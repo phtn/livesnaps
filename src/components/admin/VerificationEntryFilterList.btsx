@@ -1,0 +1,201 @@
+import { useId, useMemo, useState } from 'octane'
+import type { DateRange } from '@octanejs/day-picker'
+import Faceted, { FacetedBadgeList, FacetedContent, FacetedEmpty, FacetedGroup, FacetedItem, FacetedList, FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
+import Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
+import DateRangePicker from '@/components/ui/DateRangePicker.btsx'
+import { Button } from '@/components/ui'
+import { getFilterValueToken } from '@/components/ui/table/hyper/filter-utils'
+import type { DataTableFilterListProps } from '@/components/ui/table/types'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import type { ClassName } from '@/types'
+import type { snapsFeatures } from './table-config'
+import { verificationEntryStatus, type VerificationEntryRow } from './data'
+import { VERIFICATION_ENTRY_STATUS_FILTERS } from './verification-entry-columns'
+import { createInclusiveDateRangeFilterValue, getRangeBounds, getRangeDate, isOpenRangeBound } from './snaps-filter-ranges'
+
+module
+  type EntryFilterProps = DataTableFilterListProps<VerificationEntryRow, typeof snapsFeatures>
+  type EntryFilterColumn = EntryFilterProps['columns'][number]
+
+  type EntryFilterOption = {
+    count: number
+    label: string
+    value: string
+  }
+
+  // Entries carry no numeric measurements, so unlike the snaps list this one
+  // needs only a faceted status and a created-date range.
+  const STATUS_COLUMN_ID = 'status'
+  const CREATED_COLUMN_ID = 'createdAt'
+
+  const getStatusOptions = (column: EntryFilterColumn, selectedValues: readonly unknown[]): EntryFilterOption[] => {
+    const countByValue = new Map<string, number>()
+
+    for (const [rawValue, count] of column.getFacetedUniqueValues()) {
+      const token = getFilterValueToken(rawValue)
+      if (!token) continue
+      countByValue.set(token, (countByValue.get(token) ?? 0) + count)
+    }
+
+    const selectedTokens = new Set(selectedValues.map(getFilterValueToken).filter(Boolean))
+    const options = new Map<string, EntryFilterOption>()
+
+    // The declared status list is already in lifecycle order, so it is used as
+    // the option source rather than whatever the current page happens to hold.
+    for (const status of VERIFICATION_ENTRY_STATUS_FILTERS) {
+      const token = getFilterValueToken(status)
+      if (!token || options.has(token)) continue
+
+      options.set(token, {
+        count: countByValue.get(token) ?? 0,
+        label: verificationEntryStatus[status].label,
+        value: token
+      })
+    }
+
+    // A status filtered out of existence still has to render, or it cannot be
+    // unselected.
+    for (const token of selectedTokens) {
+      if (!options.has(token)) options.set(token, { count: 0, label: token, value: token })
+    }
+
+    return Array.from(options.values())
+  }
+
+  const triggerClassName: ClassName =
+    'bg-background hover:border-indigo-500 hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
+  const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
+  // A calendar grid sits over table rows, so it needs more cover than the
+  // faceted list does — that only ever overlaps the filter panel itself.
+  const calendarContentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-zinc-900/95 backdrop-blur-3xl'
+
+  type EntryStatusFilterProps = {
+    column: EntryFilterColumn
+    fieldLabelId: string
+    rawFilterValue: unknown
+  }
+
+  type EntryDateRangeFilterProps = {
+    column: EntryFilterColumn
+    fieldLabelId: string
+    rawFilterValue: unknown
+  }
+
+component EntryStatusFilter
+  props { column, fieldLabelId, rawFilterValue }: EntryStatusFilterProps
+  setup
+    const selectedValues = Array.isArray(rawFilterValue) ? rawFilterValue : rawFilterValue === undefined ? [] : [rawFilterValue]
+    const selectedTokens = [...new Set(selectedValues.map(getFilterValueToken).filter(Boolean))]
+    const options = getStatusOptions(column, selectedValues)
+
+  Faceted(
+    ~ multiple={true}
+    ~ value={selectedTokens}
+    ~ onValueChange={(value) => column.setFilterValue(value?.length ? value : undefined)}
+    ~ )
+    FacetedTrigger(aria-labelledby={fieldLabelId} disabled={options.length === 0} className={cn('h-8 w-full rounded-sm ps-1 pe-2', triggerClassName)})
+      FacetedBadgeList(
+        ~ options={options}
+        ~ max={1}
+        ~ placeholder={options.length > 0 ? 'Any' : 'No values'}
+        ~ className='min-w-0 flex-nowrap overflow-hidden'
+        ~ )
+    FacetedContent(className={cn('w-54', contentClassName)})
+      FacetedList
+        FacetedEmpty No values found.
+        FacetedGroup
+          each option in options key option.value
+            FacetedItem(value={option.value} className='pe-0')
+              div(className='flex w-full items-center justify-between gap-2')
+                span(className='truncate') #{option.label}
+                span(className={cn('font-mono text-xs text-foreground/40', { 'text-indigo-400 dark:text-indigo-300': option.count > 0 })}) #{option.count}
+
+component EntryDateRangeFilter
+  props { column, fieldLabelId, rawFilterValue }: EntryDateRangeFilterProps
+  setup
+    const [rawFrom, rawTo] = getRangeBounds(rawFilterValue)
+    const from = getRangeDate(rawFrom)
+    const to = getRangeDate(rawTo)
+    const selectedRange = from || to ? { from, to } : undefined
+    // The stored bounds stay whole-day inclusive ISO timestamps, matching what
+    // the snaps table writes for the same filter function.
+    const handleValueChange = (range: DateRange | undefined) => {
+      column.setFilterValue(createInclusiveDateRangeFilterValue(range?.from, range?.to))
+    }
+
+  DateRangePicker(
+    ~ id={`${fieldLabelId}-picker`}
+    ~ aria-labelledby={fieldLabelId}
+    ~ value={selectedRange}
+    ~ onValueChange={handleValueChange}
+    ~ placeholder='Any date'
+    ~ className={cn('font-okx text-xs', triggerClassName)}
+    ~ contentClassName={calendarContentClassName}
+    ~ numberOfMonths={2}
+    ~ )
+
+props { columns, columnFilters, onReset }: EntryFilterProps
+setup
+  const [open, setOpen] = useState(false)
+  const baseId = useId()
+  const labelId = `${baseId}-label`
+  const descriptionId = `${baseId}-description`
+  const columnsById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns])
+  const filterValuesById = useMemo(() => new Map(columnFilters.map((filter) => [filter.id, filter.value] as const)), [columnFilters])
+
+  const statusColumn = columnsById.get(STATUS_COLUMN_ID)
+  const createdColumn = columnsById.get(CREATED_COLUMN_ID)
+  const statusFilterValue = filterValuesById.get(STATUS_COLUMN_ID)
+  const createdFilterValue = filterValuesById.get(CREATED_COLUMN_ID)
+
+  const [createdFrom, createdTo] = getRangeBounds(createdFilterValue)
+  const activeFilterCount =
+    (Array.isArray(statusFilterValue) ? (statusFilterValue.length > 0 ? 1 : 0) : statusFilterValue === undefined ? 0 : 1) +
+    (isOpenRangeBound(createdFrom) && isOpenRangeBound(createdTo) ? 0 : 1)
+  const activeFilterLabel = activeFilterCount > 99 ? '99+' : String(activeFilterCount)
+
+  const statusLabelId = `${baseId}-status-label`
+  const createdLabelId = `${baseId}-created-label`
+
+  const buttonClass = useMemo(() => cn(
+    'relative md:h-9 h-8.5 flex items-center justify-center gap-2',
+    'rounded-[4px] text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5 w-9',
+    'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
+    'border border-transparent hover:border hover:border-indigo-500 hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
+    'active:bg-foreground/10 dark:active:bg-indigo-100/5',
+    'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1',
+    {'gap-0.5! md:ps-2 md:pe-2.5': activeFilterCount > 0},
+  ), [activeFilterCount])
+
+Popover(open={open} onOpenChange={setOpen})
+  PopoverTrigger(type='button' aria-label='Filter' className={cn({'border-indigo-500!': activeFilterCount > 0}, buttonClass)})
+    if activeFilterCount > 0
+      span(className='min-w-6 w-6 rounded-xs bg-indigo-500 px-1.5 font-okx font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
+    else
+      Icon(name='filter' className='size-4')
+    span(className='hidden opacity-80 md:inline') Filter
+  PopoverContent(
+    ~ aria-describedby={descriptionId}
+    ~ aria-labelledby={labelId}
+    ~ align='start'
+    ~ sideOffset={3}
+    ~ className='w-80 gap-2 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl'
+    ~ )
+    div(className='flex flex-col gap-1 border-b border-dashed border-border px-3 py-2')
+      h4(id={labelId} className='select-none font-okx text-sm text-muted-foreground') Add Filter
+      p(id={descriptionId} className='sr-only') Filter the verification entries table by status or the date an entry was created.
+    div(className='space-y-2 _p-3')
+      if statusColumn
+        div(className='grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2')
+          span(id={statusLabelId} className='truncate font-okx text-sm') Status
+          EntryStatusFilter(column={statusColumn} fieldLabelId={statusLabelId} rawFilterValue={statusFilterValue})
+      if createdColumn
+        div(className='grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2')
+          span(id={createdLabelId} className='truncate font-okx text-sm') Created
+          EntryDateRangeFilter(column={createdColumn} fieldLabelId={createdLabelId} rawFilterValue={createdFilterValue})
+    if activeFilterCount > 0
+      div(className='flex justify-end border-t border-dashed border-border pt-3')
+        Button(type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md')
+          Icon(name='no-filter' className='size-3.5')
+          span Reset Filters

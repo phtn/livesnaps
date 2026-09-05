@@ -58,7 +58,7 @@ div(className='relative w-full min-w-0 md:w-auto')
     ~ ref={inputRef}
     ~ className={cn(
     ~   'peer h-9 w-full min-w-0 rounded-xs border-none ps-3 outline-0 md:w-48 md:min-w-60',
-    ~   'placeholder:text-foreground/80 placeholder:select-none placeholder:ps-0.75',
+    ~   'uppercase placeholder:text-foreground/80 placeholder:select-none placeholder:ps-0.75',
     ~   'font-mono text-sm bg-sidebar/80 opacity-60 focus:opacity-100 focus:placeholder:text-foreground/60',
     ~   hasValue && 'pe-10 opacity-100',
     ~ )}
@@ -70,8 +70,8 @@ div(className='relative w-full min-w-0 md:w-auto')
     ~ inputMode='search'
     ~ aria-label='Search'
     ~ )
-  div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-foreground/80 peer-disabled:opacity-50')
-    Icon(name={isMobile ? 'search': 'slash'} aria-hidden='true' className='size-4 md:size-5')
+  div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-foreground/40 peer-disabled:opacity-40')
+    Icon(name={isMobile ? 'search': 'slash'} aria-hidden='true' className='size-3.5 md:size-5')
   if hasValue
     button(
       ~ type='button'

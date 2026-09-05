@@ -1,8 +1,8 @@
+import type { Node, NodeMetadata } from '@takumi-rs/helpers'
+import { container, text } from '@takumi-rs/helpers'
 import type { FontLoader } from 'takumi-pdf/no-init'
 import initializeTakumiPdf from 'takumi-pdf/no-init'
 import * as takumiPdfWasmAsset from 'takumi-pdf/takumi_pdf_wasm_bg.wasm'
-import { container, text } from '@takumi-rs/helpers'
-import type { Node, NodeMetadata } from '@takumi-rs/helpers'
 
 /**
  * Styles accepted by a Takumi node. Sourced from the node types rather than

@@ -307,7 +307,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
       ~ )
     div(className='flex items-center gap-4 md:gap-8')
       p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
-      div(className='flex overflow-hidden h-9 rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
+      div(className='flex items-center overflow-hidden h-9.5 rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='First page' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}) ⏮
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Previous page' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}) ⯇
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Next page' disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}) ⯈

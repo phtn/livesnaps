@@ -31,19 +31,21 @@ const isLlmProvider = (v: unknown): v is LlmProvider =>
 const asString = (v: unknown): string | undefined =>
   typeof v === 'string' && v.trim().length > 0 ? v.trim() : undefined
 
-const asBoolean = (v: unknown): boolean | undefined =>
-  typeof v === 'boolean' ? v : undefined
+const asBoolean = (v: unknown): boolean | undefined => (typeof v === 'boolean' ? v : undefined)
 
-const isRecord = (v: unknown): v is Record<string, unknown> =>
-  v !== null && typeof v === 'object' && !Array.isArray(v)
+const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 export const normalizeLlmProviderConfig = (value: unknown): LlmProviderConfig => {
   const record = isRecord(value) ? value : {}
-  const primaryProvider = isLlmProvider(record.primaryProvider) ? record.primaryProvider : DEFAULT_LLM_PROVIDER_CONFIG.primaryProvider
+  const primaryProvider = isLlmProvider(record.primaryProvider)
+    ? record.primaryProvider
+    : DEFAULT_LLM_PROVIDER_CONFIG.primaryProvider
   const fallbackEnabled = asBoolean(record.fallbackEnabled) ?? DEFAULT_LLM_PROVIDER_CONFIG.fallbackEnabled
   const metaModel = asString(record.metaModel)
   const cohereModel = asString(record.cohereModel)
-  const visionProvider = isLlmProvider(record.visionProvider) ? record.visionProvider : DEFAULT_LLM_PROVIDER_CONFIG.visionProvider
+  const visionProvider = isLlmProvider(record.visionProvider)
+    ? record.visionProvider
+    : DEFAULT_LLM_PROVIDER_CONFIG.visionProvider
   const updatedAt = typeof record.updatedAt === 'number' ? record.updatedAt : null
 
   return {

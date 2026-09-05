@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
+import type { FirebaseAdminUserSummary } from './admin-users'
+import type { FirebaseCustomClaims } from './custom-claims'
 import {
   authorizeManagedClaimChange,
   matchesFirebaseUserSearch,
   normalizeUserSearchQuery,
   readFirebaseCustomClaims
 } from './god-directory'
-import type { FirebaseAdminUserSummary } from './admin-users'
-import type { FirebaseCustomClaims } from './custom-claims'
 
 const user = (overrides: Partial<FirebaseAdminUserSummary> = {}): FirebaseAdminUserSummary => ({
   admin: false,

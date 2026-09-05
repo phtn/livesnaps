@@ -23,8 +23,7 @@ interface CachedIdToken {
 
 const idTokenCache = new Map<string, CachedIdToken>()
 
-const getWebApiKey = () =>
-  process.env.FIREBASE_API_KEY?.trim() || process.env.PUBLIC_FIREBASE_API_KEY?.trim() || null
+const getWebApiKey = () => process.env.FIREBASE_API_KEY?.trim() || process.env.PUBLIC_FIREBASE_API_KEY?.trim() || null
 
 export class AdminIdTokenError extends Error {
   constructor(message: string) {

@@ -1,8 +1,8 @@
 import { createTableExportFileName, downloadTableExport } from '@/components/admin/export-utils'
+import { convexClient } from '@/lib/convex-client'
 import { createSnapFullReportDocument } from '@/lib/snaps/full-report'
 import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
-import { convexClient } from '@/lib/convex-client'
 
 export async function downloadSnapFullReport(snap: Doc<'snaps'>) {
   const report = createSnapFullReportDocument(snap)

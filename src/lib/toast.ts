@@ -38,7 +38,7 @@ const addToast = (kind: ToastKind, message: OctaneNode, options?: ToastOptions) 
 }
 
 const updateToast = (id: string, kind: ToastKind, message: OctaneNode) => {
-  records = records.map((record) => record.id === id ? { ...record, kind, message, dismissed: false } : record)
+  records = records.map((record) => (record.id === id ? { ...record, kind, message, dismissed: false } : record))
   notify()
 }
 
@@ -48,21 +48,27 @@ export const onWarn = (message: string, options?: ToastOptions) => addToast('war
 export const onError = (message: string, options?: ToastOptions) => addToast('error', message, options)
 export const onLoading = (message: string, options?: ToastOptions) => addToast('loading', message, options)
 
-export function onPromise<T>(promise: Promise<T>, messages: PromiseToastMessages<T>, options?: ToastOptions): Promise<T> {
+export function onPromise<T>(
+  promise: Promise<T>,
+  messages: PromiseToastMessages<T>,
+  options?: ToastOptions
+): Promise<T> {
   const id = addToast('loading', messages.loading, { ...options, duration: Infinity })
-  return promise.then((value) => {
-    updateToast(id, 'success', typeof messages.success === 'function' ? messages.success(value) : messages.success)
-    window.setTimeout(() => dismissToast(id), options?.duration ?? 4000)
-    return value
-  }).catch((error) => {
-    updateToast(id, 'error', typeof messages.error === 'function' ? messages.error(error) : messages.error)
-    window.setTimeout(() => dismissToast(id), options?.duration ?? 4000)
-    throw error
-  })
+  return promise
+    .then((value) => {
+      updateToast(id, 'success', typeof messages.success === 'function' ? messages.success(value) : messages.success)
+      window.setTimeout(() => dismissToast(id), options?.duration ?? 4000)
+      return value
+    })
+    .catch((error) => {
+      updateToast(id, 'error', typeof messages.error === 'function' ? messages.error(error) : messages.error)
+      window.setTimeout(() => dismissToast(id), options?.duration ?? 4000)
+      throw error
+    })
 }
 
 export const dismissToast = (id?: string) => {
-  records = records.map((record) => !id || record.id === id ? { ...record, dismissed: true } : record)
+  records = records.map((record) => (!id || record.id === id ? { ...record, dismissed: true } : record))
   notify()
   window.setTimeout(() => removeToast(id), 180)
 }

@@ -1,6 +1,6 @@
 import { buildSnapObjectKey, SNAP_SLOTS, type SnapSlotIndex } from '@/lib/r2/snap-images'
-import { CAPTURE_INTEGRITY_MODEL } from '@/lib/snaps/capture-integrity'
 import type { AdminSnapListItem, AdminSnapPhoto } from '@/lib/snaps/admin-photo-types'
+import { CAPTURE_INTEGRITY_MODEL } from '@/lib/snaps/capture-integrity'
 
 /**
  * Deterministic in-memory `snaps` rows for UI work.
@@ -34,28 +34,70 @@ const createRandom = (seed: number) => {
 }
 
 const FIRST_NAMES = [
-  'Mateo', 'Liwayway', 'Grace', 'Dexter', 'Ines', 'Rafael', 'Nori', 'Bea',
-  'Caleb', 'Amihan', 'Jomar', 'Perla', 'Diego', 'Ruby', 'Elias', 'Tala'
+  'Mateo',
+  'Liwayway',
+  'Grace',
+  'Dexter',
+  'Ines',
+  'Rafael',
+  'Nori',
+  'Bea',
+  'Caleb',
+  'Amihan',
+  'Jomar',
+  'Perla',
+  'Diego',
+  'Ruby',
+  'Elias',
+  'Tala'
 ]
 const LAST_NAMES = [
-  'Santos', 'Reyes', 'Cruz', 'Bautista', 'Ocampo', 'Villanueva', 'Del Rosario',
-  'Aguilar', 'Mercado', 'Navarro', 'Salazar', 'Domingo', 'Fernandez', 'Lim'
+  'Santos',
+  'Reyes',
+  'Cruz',
+  'Bautista',
+  'Ocampo',
+  'Villanueva',
+  'Del Rosario',
+  'Aguilar',
+  'Mercado',
+  'Navarro',
+  'Salazar',
+  'Domingo',
+  'Fernandez',
+  'Lim'
 ]
 const STREETS = [
-  'Katipunan Ave', 'Shaw Blvd', 'Ortigas Ave', 'Roxas Blvd', 'EDSA',
-  'Marcos Hwy', 'Aurora Blvd', 'C5 Road', 'Commonwealth Ave', 'Taft Ave'
+  'Katipunan Ave',
+  'Shaw Blvd',
+  'Ortigas Ave',
+  'Roxas Blvd',
+  'EDSA',
+  'Marcos Hwy',
+  'Aurora Blvd',
+  'C5 Road',
+  'Commonwealth Ave',
+  'Taft Ave'
 ]
 const CITIES = [
-  ['Quezon City', 'Metro Manila', '1100'], ['Makati', 'Metro Manila', '1200'],
-  ['Pasig', 'Metro Manila', '1600'], ['Cebu City', 'Central Visayas', '6000'],
-  ['Davao City', 'Davao Region', '8000'], ['Taguig', 'Metro Manila', '1630']
+  ['Quezon City', 'Metro Manila', '1100'],
+  ['Makati', 'Metro Manila', '1200'],
+  ['Pasig', 'Metro Manila', '1600'],
+  ['Cebu City', 'Central Visayas', '6000'],
+  ['Davao City', 'Davao Region', '8000'],
+  ['Taguig', 'Metro Manila', '1630']
 ] as const
 const MAKES = ['Toyota', 'Honda', 'Mitsubishi', 'Nissan', 'Hyundai', 'Ford', 'Isuzu', 'Suzuki']
 const MODELS = ['Vios', 'Civic', 'Montero', 'Navara', 'Tucson', 'Ranger', 'D-Max', 'Ertiga']
 // `pending` is what `listForAdmin` falls back to when a snap has no location
 // session, so the fixtures cover it too.
 const STATUSES: AdminSnapListItem['status'][] = [
-  'pending', 'active', 'abandoned', 'completed', 'cancelled', 'invalidated'
+  'pending',
+  'active',
+  'abandoned',
+  'completed',
+  'cancelled',
+  'invalidated'
 ]
 const HANDLERS = [
   { email: 'ops.dela.cruz@livesnapsnow.com', name: 'Ops Dela Cruz' },
@@ -77,12 +119,10 @@ export const createSnapFixtures = (
   const random = createRandom(seed)
   const pick = <T>(values: readonly T[]): T => values[Math.floor(random() * values.length)]
   const between = (min: number, max: number) => min + Math.floor(random() * (max - min + 1))
-  const hex = (length: number) =>
-    Array.from({ length }, () => Math.floor(random() * 16).toString(16)).join('')
+  const hex = (length: number) => Array.from({ length }, () => Math.floor(random() * 16).toString(16)).join('')
 
   // Matches the UUID shape `isSnapUploadId` enforces (version 1-8, variant 8-b).
-  const uuid = () =>
-    `${hex(8)}-${hex(4)}-4${hex(3)}-${pick(['8', '9', 'a', 'b'])}${hex(3)}-${hex(12)}`
+  const uuid = () => `${hex(8)}-${hex(4)}-4${hex(3)}-${pick(['8', '9', 'a', 'b'])}${hex(3)}-${hex(12)}`
 
   return Array.from({ length: count }, (_, index): AdminSnapListItem => {
     const firstName = pick(FIRST_NAMES)

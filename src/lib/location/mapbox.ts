@@ -104,8 +104,7 @@ export const parseMapboxAddress = (value: unknown): ReverseGeocodedAddress | nul
   const secondaryIdentifier = readString(secondaryAddress?.identifier)
   const lotNumber = secondaryDesignator?.toLowerCase() === 'lot' ? secondaryIdentifier : undefined
   const addressNumber = readContextString(context, 'address', 'address_number')
-  const streetName =
-    readContextString(context, 'address', 'street_name') ?? readContextString(context, 'street')
+  const streetName = readContextString(context, 'address', 'street_name') ?? readContextString(context, 'street')
   const optionalFields = {
     accuracy: readString(coordinates.accuracy),
     address_number: addressNumber,
@@ -134,7 +133,9 @@ export const parseMapboxAddress = (value: unknown): ReverseGeocodedAddress | nul
     full_address: fullAddress,
     latitude,
     longitude,
-    ...Object.fromEntries(Object.entries(optionalFields).filter((entry): entry is [string, string] => Boolean(entry[1]))),
+    ...Object.fromEntries(
+      Object.entries(optionalFields).filter((entry): entry is [string, string] => Boolean(entry[1]))
+    ),
     components: flattenScalars(properties, {})
   } as ReverseGeocodedAddress
 }

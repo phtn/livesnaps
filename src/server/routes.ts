@@ -1,15 +1,15 @@
 import type { Context } from '@octanejs/rsbuild-plugin'
-import { api } from '../../convex/_generated/api'
 import { CATEGORY_NAMES, categoryFromFileType } from '@/constants/meta'
 import type { CategoryName, StoredFile } from '@/types/file'
+import { api } from '../../convex/_generated/api'
 import { authenticateRequest, RequestError } from './convex'
 import {
   createObjectKey,
   createStoredFileUrl,
   deleteStoredFile,
+  type FileRecord,
   storageError,
-  uploadStoredFile,
-  type FileRecord
+  uploadStoredFile
 } from './storage'
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024
@@ -23,7 +23,12 @@ function json(body: unknown, status = 200) {
 
 function cleanText(value: FormDataEntryValue | null, fallback: string, limit: number) {
   if (typeof value !== 'string') return fallback
-  return value.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, limit) || fallback
+  return (
+    value
+      .replace(/[\u0000-\u001f]/g, ' ')
+      .trim()
+      .slice(0, limit) || fallback
+  )
 }
 
 function cleanMimeType(value: string) {
@@ -32,7 +37,12 @@ function cleanMimeType(value: string) {
 }
 
 function cleanFilename(value: string) {
-  return value.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 255) || 'untitled'
+  return (
+    value
+      .replace(/[\u0000-\u001f]/g, ' ')
+      .trim()
+      .slice(0, 255) || 'untitled'
+  )
 }
 
 async function toStoredFile(record: FileRecord): Promise<StoredFile> {
@@ -41,8 +51,9 @@ async function toStoredFile(record: FileRecord): Promise<StoredFile> {
     name: record.name,
     size: record.size,
     mimeType: record.mimeType,
-    category: CATEGORY_NAMES.find((category) => category === record.category)
-      ?? categoryFromFileType(record.name, record.mimeType),
+    category:
+      CATEGORY_NAMES.find((category) => category === record.category) ??
+      categoryFromFileType(record.name, record.mimeType),
     kind: record.kind,
     confidence: record.confidence,
     excerpt: record.excerpt,

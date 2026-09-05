@@ -1,15 +1,8 @@
-import {
-  getFirebaseCustomClaimsFromDecodedToken,
-  hasFirebaseGodAccess
-} from '@/lib/firebase-admin/custom-claims'
-import { getAppRootHostname } from '@/lib/routing/admin-subdomain'
 import type { DecodedIdToken } from 'firebase-admin/auth'
+import { getFirebaseCustomClaimsFromDecodedToken, hasFirebaseGodAccess } from '@/lib/firebase-admin/custom-claims'
+import { getAppRootHostname } from '@/lib/routing/admin-subdomain'
 import { getFirebaseAdminAuth } from './admin'
-import {
-  firebaseAdminSessionCookieName,
-  firebaseGodsSessionCookieName,
-  firebaseSessionCookieName
-} from './session'
+import { firebaseAdminSessionCookieName, firebaseGodsSessionCookieName, firebaseSessionCookieName } from './session'
 
 type VerifiedSession = {
   customClaims: ReturnType<typeof getFirebaseCustomClaimsFromDecodedToken>

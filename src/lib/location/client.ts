@@ -1,8 +1,8 @@
 import {
+  type DeviceLocation,
   deviceLocationFromPosition,
   isSnapLocationCurrentAndAccurate,
-  MAX_SNAP_LOCATION_ACCURACY_METERS,
-  type DeviceLocation
+  MAX_SNAP_LOCATION_ACCURACY_METERS
 } from './type'
 
 const INITIAL_LOCATION_TIMEOUT_MS = 45_000

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { parseLiteData, type LiteData } from './type'
+import { type LiteData, parseLiteData } from './type'
 
 const liteData: LiteData = {
   ip: '8.8.8.8',

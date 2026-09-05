@@ -1,8 +1,8 @@
-import rspack from '@rspack/core'
-import { beastOctane } from 'beast-tsrx/rspack'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import rspack from '@rspack/core'
+import { beastOctane } from 'beast-tsrx/rspack'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const root = path.dirname(fileURLToPath(import.meta.url))

@@ -1,8 +1,8 @@
 import type { Context } from '@octanejs/rsbuild-plugin'
 import { api } from '../../convex/_generated/api'
-import { getIpinfoLiteData, getClientIpAddress, IpinfoError } from '../lib/ipinfo/server'
-import { parseDeviceLocation } from '../lib/location/type'
+import { getClientIpAddress, getIpinfoLiteData, IpinfoError } from '../lib/ipinfo/server'
 import { MapboxGeocodingError, reverseGeocodeWithMapbox } from '../lib/location/mapbox-server'
+import { parseDeviceLocation } from '../lib/location/type'
 import { authenticateRequest, createConvexClient, RequestError } from './convex'
 
 const SESSION_STATUSES = ['completed', 'cancelled', 'invalidated'] as const
@@ -116,10 +116,7 @@ export async function handleSnapSessionRequest(request: Request, environment: Sn
       return json({ error: error.message }, error.status >= 400 && error.status < 600 ? error.status : 503)
     }
 
-    return json(
-      { error: error instanceof Error ? error.message : 'Unable to start location verification.' },
-      503
-    )
+    return json({ error: error instanceof Error ? error.message : 'Unable to start location verification.' }, 503)
   }
 }
 

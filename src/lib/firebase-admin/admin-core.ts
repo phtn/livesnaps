@@ -1,6 +1,6 @@
 import { cert, getApp, getApps, initializeApp, type ServiceAccount } from 'firebase-admin/app'
-import { getAuth, type Auth, type ListUsersResult, type UserRecord } from 'firebase-admin/auth'
-import { isFirebaseCustomClaims, type FirebaseCustomClaims } from './custom-claims'
+import { type Auth, getAuth, type ListUsersResult, type UserRecord } from 'firebase-admin/auth'
+import { type FirebaseCustomClaims, isFirebaseCustomClaims } from './custom-claims'
 
 type FirebaseServiceAccountInput = {
   project_id?: string
