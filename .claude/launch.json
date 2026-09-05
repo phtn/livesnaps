@@ -4,14 +4,32 @@
     {
       "name": "livesnaps-preview",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "preview"],
+      "runtimeArgs": [
+        "run",
+        "preview"
+      ],
       "port": 3000
     },
     {
       "name": "livesnaps-dev-client",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:client", "--", "--port", "3101"],
+      "runtimeArgs": [
+        "run",
+        "dev:client",
+        "--",
+        "--port",
+        "3101"
+      ],
       "port": 3101
+    },
+    {
+      "name": "livesnaps-worker-api",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "dev:api"
+      ],
+      "port": 8787
     }
   ]
 }

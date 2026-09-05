@@ -7,6 +7,7 @@ import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/sn
 import { handleAdminSession } from './server/admin-auth-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
 import { handleGodsSession } from './server/gods-auth-routes'
+import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
 
 interface WorkerEnvironment {
   ASSETS: {
@@ -25,6 +26,8 @@ interface WorkerEnvironment {
 const SESSION_PATH = '/api/snaps/session'
 const ADMIN_SESSION_PATH = '/api/admin/session'
 const GODS_SESSION_PATH = '/api/gods/session'
+const GODS_USERS_PATH = '/api/gods/users'
+const GODS_USER_CLAIMS_PATH = '/api/gods/users/claims'
 const PHOTO_PATH = '/api/proofs'
 const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
@@ -61,6 +64,14 @@ export default {
 
     if (pathname === GODS_SESSION_PATH) {
       return handleGodsSession(request)
+    }
+
+    if (pathname === GODS_USER_CLAIMS_PATH) {
+      return handleGodsUserClaims(request)
+    }
+
+    if (pathname === GODS_USERS_PATH) {
+      return handleGodsUsers(request)
     }
 
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
