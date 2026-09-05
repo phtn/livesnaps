@@ -13,7 +13,7 @@ export const icons = {
   },
   theme: {
     symbol:
-      '<g transform="scale(0.667)"><path fill="none" d="M0 0h24v24H0z" transform-origin="0 0"/><path fill="none" stroke="oklch(14.5% 0 0)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 3v18M12 9l4.65-4.65M12 14.3l7.37-7.37M12 19.6l8.85-8.85" transform-origin="0 0"/></g>',
+      '<g transform="scale(0.667)"><path fill="none" d="M0 0h24v24H0z" transform-origin="0 0"/><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 3v18M12 9l4.65-4.65M12 14.3l7.37-7.37M12 19.6l8.85-8.85" transform-origin="0 0"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },

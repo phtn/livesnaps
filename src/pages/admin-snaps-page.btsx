@@ -34,41 +34,38 @@ setup
     if (!open) setReportViewerSnapId(null)
   }, [])
 
-main(className='p-8')
-  p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
-  h1(className='mt-3 font-poly text-3xl font-medium') Snaps
-  div(className='p-6')
+main
+  div
     if isLoading && !hasRows
       p(className='text-sm text-muted-foreground') Loading snaps…
     elseif error && !hasRows
       ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
     else
-      fragment
-        div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
-          if error
-            span(className='text-destructive') #{error} — showing the last successful load.
-          else
-            span #{freshnessLabel}
-          button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
-        SnapRowActions.Provider(
-          ~ onExportReport={exportSnapReportById}
-          ~ onOpenPhotoViewer={setActivePhotoSnapId}
-          ~ onOpenReportViewer={setReportViewerSnapId}
+      SnapRowActions.Provider(
+        ~ onExportReport={exportSnapReportById}
+        ~ onOpenPhotoViewer={setActivePhotoSnapId}
+        ~ onOpenReportViewer={setReportViewerSnapId}
+        ~ )
+        DataTable(
+          ~ title='Snaps'
+          ~ data={rows}
+          ~ columns={snapColumns}
+          ~ filterList={SnapFilterList}
+          ~ getRowId={(row) => row._id}
+          ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+          ~ initialPageSize={50}
+          ~ pageSizes={PAGE_SIZES}
+          ~ emptyTitle='No snaps'
+          ~ emptyDescription='Try a shorter query or clear the search.'
           ~ )
-          DataTable(
-            ~ title='Snaps'
-            ~ eyebrow='Search + sort + filter'
-            ~ data={rows}
-            ~ columns={snapColumns}
-            ~ filterList={SnapFilterList}
-            ~ getRowId={(row) => row._id}
-            ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
-            ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-            ~ initialPageSize={50}
-            ~ pageSizes={PAGE_SIZES}
-            ~ emptyTitle='No snaps'
-            ~ emptyDescription='Try a shorter query or clear the search.'
-            ~ )
+          fragment
+            div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
+              if error
+                span(className='text-destructive') #{error} — showing the last successful load.
+              else
+                span #{freshnessLabel}
+              button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
   if gallery
     PhotoViewer(
       ~ open={true}

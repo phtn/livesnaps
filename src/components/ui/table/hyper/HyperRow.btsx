@@ -50,7 +50,7 @@ setup
 TableRow(data-state={isSelected ? 'selected' : undefined}
   ~ data-drop-position={dropPosition ?? undefined}
   ~ data-reorder-row-id={row.id}
-  ~ className={cn('group/row h-8 font-mono text-foreground/80 text-sm uppercase bg-surface active:bg-background/20 dark:hover:bg-background/80', {
+  ~ className={cn('group/row h-8 font-mono text-foreground/80 text-sm uppercase active:bg-background/20 dark:hover:bg-sidebar', {
       ~ 'dark:bg-blue-200/50': isHighlighted,
       ~ 'bg-active hover:bg-brand/15 dark:bg-brand/20': isSelected && !isHighlighted,
       ~ 'bg-sky-300/20 hover:bg-brand/10 dark:bg-background/20 dark:hover:bg-background/30': isPinned && !isHighlighted && !isSelected,

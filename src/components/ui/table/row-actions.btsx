@@ -351,7 +351,7 @@ Dropdown.Root
   Dropdown.Content(
     ~ align='end'
     ~ sideOffset={4}
-    ~ className='w-64 rounded-md border shadow-sm'
+    ~ className='w-64 rounded-md border border-border shadow-sm'
     ~ onClick={(event: MouseEvent) => event.stopPropagation()}
     ~ )
     Dropdown.Group

@@ -203,12 +203,12 @@ component FacetedContent
     ~ align='start'
     ~ sideOffset={8}
     ~ className={cn(
-    ~   'w-64 origin-(--transform-origin) rounded-md border border-border/60 bg-transparent p-0 ring-0 dark:border-indigo-200/30 overflow-hidden',
+    ~   'w-64 origin-(--transform-origin) rounded-md border border-border/60 bg-transparent p-0! ring-0 dark:border-indigo-200/30 overflow-hidden',
     ~   className
     ~ )}
     ~ onFocus={onFocus}
     ~ )
-    Command(className='rounded-md p-0 backdrop-blur-3xl dark:bg-indigo-100/5')
+    Command(className='rounded-md p-1 backdrop-blur-3xl dark:bg-indigo-100/5')
       | #{children}
 
 component FacetedInput
@@ -285,7 +285,7 @@ component FacetedItem
     ~ value={value}
     ~ aria-selected={isSelected}
     ~ data-selected={isSelected}
-    ~ className={cn('relative flex cursor-default select-none items-center gap-2 ps-2 pe-3 py-2 text-sm outline-hidden hover:bg-white! data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50', className)}
+    ~ className={cn('relative flex cursor-default select-none items-center gap-2 ps-2 pe-3 py-2 text-sm outline-hidden hover:bg-sidebar! data-[disabled=true]:pointer-events-none data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground data-[disabled=true]:opacity-50', className)}
     ~ onSelect={onItemSelect}
     ~ )
     Checkbox(checked={isSelected} onChange={onItemSelect})

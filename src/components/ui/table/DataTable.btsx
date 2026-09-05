@@ -239,8 +239,10 @@ setup
     : Math.min(100, (queryState.completed / queryState.total) * 100)
   const queryLabel = queryState.phase === 'sorting' ? 'Ranking' : 'Searching'
 
-section(className='relative overflow-hidden rounded-xs border border-sidebar-border bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
-  Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
+section(className='relative overflow-hidden rounded-xs border border-sidebar-border bg-background dark:bg-sidebar shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+  div(className='flex items-center justify-between p-2')
+    Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
+    fragment #{children}
 
   div(className='flex min-h-12 items-center justify-between px-1 pb-2 max-[680px]:flex-col max-[680px]:items-start')
     div(className='flex items-center gap-0.75')
@@ -263,7 +265,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
       span(className='uppercase text-sm') #{visibleRows.length.toLocaleString()} ROWS
       Search(value={globalFilter} onChange={handleSearchChange})
 
-  div(className='h-[calc(100vh-145px)] w-full overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
+  div(className='h-[calc(100vh-157px)] w-full overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
     HyperTable(
       ~ table={table}
       ~ title={title}
@@ -300,7 +302,6 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
       ~ options={safePageSizes.map((size) => ({ value: String(size), label: String(size) }))}
       ~ direction='up'
       ~ )
-    fragment #{children}
     div(className='flex items-center gap-4 md:gap-8')
       p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
       div(className='flex overflow-hidden h-9 rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
