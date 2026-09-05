@@ -7,6 +7,7 @@ import {
   readFirebaseCustomClaims
 } from './god-directory'
 import type { FirebaseAdminUserSummary } from './admin-users'
+import type { FirebaseCustomClaims } from './custom-claims'
 
 const user = (overrides: Partial<FirebaseAdminUserSummary> = {}): FirebaseAdminUserSummary => ({
   admin: false,
@@ -25,7 +26,15 @@ const user = (overrides: Partial<FirebaseAdminUserSummary> = {}): FirebaseAdminU
   ...overrides
 })
 
-const target = (overrides: Partial<{ email: string | null; emailVerified: boolean; uid: string }> = {}) => ({
+const target = (
+  overrides: Partial<{
+    claims: FirebaseCustomClaims
+    email: string | null
+    emailVerified: boolean
+    uid: string
+  }> = {}
+) => ({
+  claims: {},
   email: 'ada@example.com',
   emailVerified: true,
   uid: 'target-uid',
@@ -75,7 +84,7 @@ describe('managed claim change authorization', () => {
     assert.deepEqual(decision, { allowed: true })
   })
 
-  test('refuses a god account that is not topg', () => {
+  test('refuses a god account that is not topg from granting god', () => {
     const decision = authorizeManagedClaimChange({
       actorClaims: { god: true },
       actorUid: 'actor-uid',
@@ -85,6 +94,50 @@ describe('managed claim change authorization', () => {
     })
 
     assert.equal(decision.allowed, false)
+    assert.equal(decision.allowed === false && decision.status, 403)
+  })
+
+  test('refuses a god account that is not topg from REVOKING god', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { god: true },
+      actorUid: 'actor-uid',
+      claim: 'god',
+      enabled: false,
+      target: target({ claims: { god: true } })
+    })
+
+    assert.equal(decision.allowed, false)
+    assert.equal(decision.allowed === false && decision.status, 403)
+  })
+
+  test('refuses an account with no claims at all', () => {
+    for (const enabled of [true, false]) {
+      assert.equal(
+        authorizeManagedClaimChange({
+          actorClaims: {},
+          actorUid: 'actor-uid',
+          claim: 'god',
+          enabled,
+          target: target()
+        }).allowed,
+        false
+      )
+    }
+  })
+
+  test('refuses a non-topg actor targeting a topg account, without revealing the target is topg', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { god: true },
+      actorUid: 'actor-uid',
+      claim: 'god',
+      enabled: false,
+      target: target({ claims: { god: true, topg: true } })
+    })
+
+    assert.equal(decision.allowed, false)
+    // The top-god check fires first, so the refusal is about the actor's rights
+    // and says nothing about the target. The visibility guard behind it is
+    // unreachable today and exists only to survive a loosened manage rule.
     assert.equal(decision.allowed === false && decision.status, 403)
   })
 
@@ -115,15 +168,52 @@ describe('managed claim change authorization', () => {
 
   test('refuses self-revocation so the last god cannot lock themselves out', () => {
     const decision = authorizeManagedClaimChange({
-      actorClaims: { topg: true },
+      actorClaims: { god: true, topg: true },
       actorUid: 'actor-uid',
       claim: 'god',
       enabled: false,
-      target: target({ uid: 'actor-uid' })
+      target: target({ claims: { god: true, topg: true }, uid: 'actor-uid' })
     })
 
     assert.equal(decision.allowed, false)
     assert.equal(decision.allowed === false && decision.status, 409)
+  })
+
+  test('refuses self-revocation of admin too, not just god', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { admin: true, topg: true },
+      actorUid: 'actor-uid',
+      claim: 'admin',
+      enabled: false,
+      target: target({ claims: { admin: true, topg: true }, uid: 'actor-uid' })
+    })
+
+    assert.equal(decision.allowed, false)
+    assert.equal(decision.allowed === false && decision.status, 409)
+  })
+
+  test('refuses self-revocation even for a topg acting on a topg peer record', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { topg: true },
+      actorUid: 'shared-uid',
+      claim: 'god',
+      enabled: false,
+      target: target({ claims: { topg: true }, uid: 'shared-uid' })
+    })
+
+    assert.equal(decision.allowed, false)
+  })
+
+  test('still lets an actor grant to themselves, which cannot cause a lock-out', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { topg: true },
+      actorUid: 'actor-uid',
+      claim: 'god',
+      enabled: true,
+      target: target({ uid: 'actor-uid' })
+    })
+
+    assert.deepEqual(decision, { allowed: true })
   })
 
   test('allows revoking someone else, and does not require a verified email to do it', () => {
@@ -132,7 +222,19 @@ describe('managed claim change authorization', () => {
       actorUid: 'actor-uid',
       claim: 'god',
       enabled: false,
-      target: target({ emailVerified: false })
+      target: target({ claims: { god: true }, emailVerified: false, uid: 'other-uid' })
+    })
+
+    assert.deepEqual(decision, { allowed: true })
+  })
+
+  test('lets a topg revoke a topg peer, since they can see each other', () => {
+    const decision = authorizeManagedClaimChange({
+      actorClaims: { topg: true },
+      actorUid: 'actor-uid',
+      claim: 'god',
+      enabled: false,
+      target: target({ claims: { god: true, topg: true }, uid: 'other-topg-uid' })
     })
 
     assert.deepEqual(decision, { allowed: true })

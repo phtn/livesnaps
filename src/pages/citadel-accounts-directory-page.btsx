@@ -1,0 +1,3 @@
+import AccountsPanel from '@/components/citadel/accounts-panel.btsx'
+
+AccountsPanel

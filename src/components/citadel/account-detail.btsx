@@ -1,0 +1,163 @@
+import { useEffect, useState } from 'octane'
+import { Link, useNavigate } from '@octanejs/tanstack-router'
+import { Icon } from '@/lib/icons'
+import { Badge } from '@/components/ui'
+import { cn } from '@/lib/utils'
+import { ACCOUNT_MEMBER_STATUS_TONE, ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, deleteAccount, fetchAccount, formatAccountDate, type AccountDetail, type AccountMemberRow } from '@/lib/citadel/accounts'
+
+module
+  type DetailStatus = 'loading' | 'ready' | 'error'
+
+  const readErrorMessage = (error: unknown, fallback: string) =>
+    error instanceof Error && error.message.length > 0 ? error.message : fallback
+
+  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
+
+  const labelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
+
+  const actionButtonClassName =
+    'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm border border-border/60 px-2.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50'
+
+component DetailRow
+  props { label, value }: { label: string; value: string | null }
+  div(className='flex flex-col gap-1 border-b border-border/50 py-2.5')
+    span(className={labelClassName}) #{label}
+    span(className='text-sm text-foreground') #{value && value.length > 0 ? value : '—'}
+
+component MemberRow
+  props { member }: { member: AccountMemberRow }
+  li(className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5')
+    div(className='min-w-0')
+      p(className='truncate text-sm text-foreground') #{member.name ?? member.email}
+      p(className='truncate font-mono text-xs text-muted-foreground') #{member.email}
+    div(className='flex shrink-0 items-center gap-2')
+      span(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{member.role}
+      Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{member.status}
+
+props { slug }: { slug: string }
+
+setup
+  const [detail, setDetail] = useState<AccountDetail | null>(null)
+  const [status, setStatus] = useState<DetailStatus>('loading')
+  const [error, setError] = useState<string | null>(null)
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const navigate = useNavigate()
+
+  const confirmDelete = async () => {
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      await deleteAccount(slug)
+      await navigate({ to: '/citadel/accounts' })
+    } catch (removeError: unknown) {
+      setDeleteError(readErrorMessage(removeError, 'Could not delete this account.'))
+      setIsDeleting(false)
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    setStatus('loading')
+    fetchAccount(slug, controller.signal)
+      .then((response) => {
+        setDetail(response)
+        setError(null)
+        setStatus('ready')
+      })
+      .catch((loadError: unknown) => {
+        if (isAbortError(loadError)) return
+        setError(readErrorMessage(loadError, 'Could not load this account.'))
+        setStatus('error')
+      })
+
+    return () => controller.abort()
+  }, [slug])
+
+section(className='p-5')
+  Link(to='/citadel/accounts' className='inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground')
+    Icon(name='arrow-left' className='size-3')
+    span All accounts
+
+  if status === 'loading'
+    div(className='flex items-center gap-2 py-6')
+      Icon(name='spinner-ferris' className='size-4')
+      p(className='text-sm text-muted-foreground') Loading account…
+  elseif status === 'error'
+    p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{error}
+  elseif detail
+    div
+      header(className='mt-4 flex flex-wrap items-start justify-between gap-3')
+        div(className='min-w-0')
+          h2(className='font-poly text-2xl font-medium') #{detail.account.name}
+          p(className='mt-1 font-mono text-xs text-muted-foreground') #{detail.account.slug}
+        div(className='flex shrink-0 items-center gap-2')
+          span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_PLAN_LABEL[detail.account.plan]}
+          Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[detail.account.status])}) #{ACCOUNT_STATUS_LABEL[detail.account.status]}
+
+      if detail.account.closeReason
+        p(className='mt-3 rounded-sm border border-border/60 bg-sidebar/40 px-3 py-2 text-sm text-muted-foreground') Closed: #{detail.account.closeReason}
+
+      div(className='mt-6 grid gap-x-8 md:grid-cols-2')
+        div
+          p(className='pb-1 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Primary contact
+          DetailRow(label='Name' value={detail.account.primaryContact.name})
+          DetailRow(label='Email' value={detail.account.primaryContact.email})
+          DetailRow(label='Phone' value={detail.account.primaryContact.phone})
+          DetailRow(label='Title' value={detail.account.primaryContact.title})
+        div
+          p(className='pb-1 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Organization
+          DetailRow(label='Legal name' value={detail.account.organization.legalName ?? null})
+          DetailRow(label='Website' value={detail.account.organization.website ?? null})
+          DetailRow(label='Industry' value={detail.account.organization.industry ?? null})
+          DetailRow(label='Billing email' value={detail.account.billingEmail})
+
+      div(className='mt-6 grid gap-x-8 md:grid-cols-2')
+        DetailRow(label='Created' value={formatAccountDate(detail.account.createdAt)})
+        DetailRow(label='Last updated' value={formatAccountDate(detail.account.updatedAt)})
+
+      if detail.account.notes
+        div(className='mt-6')
+          p(className={labelClassName}) Notes
+          p(className='mt-1 text-sm text-foreground') #{detail.account.notes}
+
+      div(className='mt-8')
+        div(className='flex items-baseline justify-between gap-3')
+          p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Members
+          span(className='font-mono text-xs text-muted-foreground') #{`${detail.members.length} ${detail.members.length === 1 ? 'member' : 'members'}`}
+        if detail.members.length === 0
+          p(className='mt-3 text-sm text-muted-foreground') This account has no members yet.
+        else
+          ul(className='mt-3 divide-y divide-border/60 divide-dotted rounded-sm border border-border/60')
+            each member in detail.members key member._id
+              MemberRow(member={member})
+
+      if detail.canDelete
+        div(className='mt-8 rounded-sm border border-destructive/30 p-4')
+          p(className='font-mono text-2xs uppercase tracking-[0.18em] text-destructive') Danger zone
+          p(className='mt-1.5 text-sm text-muted-foreground') Deleting removes this account and every membership on it. Closing the account keeps the record instead.
+
+          if deleteError
+            p(className='mt-3 rounded-sm border border-destructive/40 px-3 py-2 text-sm text-destructive') #{deleteError}
+
+          if isConfirmingDelete
+            div(className='mt-3 flex flex-wrap items-center gap-2')
+              p(className='text-sm text-foreground') Permanently delete #{detail.account.name}? This cannot be undone.
+              button(type='button' onClick={() => setIsConfirmingDelete(false)} disabled={isDeleting} className={actionButtonClassName}) Cancel
+              button(
+                ~ type='button'
+                ~ disabled={isDeleting}
+                ~ onClick={() => void confirmDelete()}
+                ~ className={cn(actionButtonClassName, ' text-base text-white border-destructive bg-destructive hover:border-foreground hover:bg-foreground hover:text-background')}
+                ~ )
+                span #{isDeleting ? 'Deleting…' : 'Delete permanently'}
+          else
+            button(
+              ~ type='button'
+              ~ onClick={() => setIsConfirmingDelete(true)}
+              ~ className={cn(actionButtonClassName, 'mt-3 text-base text-white border-destructive bg-destructive hover:border-foreground hover:bg-foreground hover:text-background')}
+              ~ )
+              span Delete account

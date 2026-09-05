@@ -1,0 +1,8 @@
+import { useParams } from '@octanejs/tanstack-router'
+import AccountDetailPanel from '@/components/citadel/account-detail.btsx'
+
+setup
+  const params = useParams({ strict: false })
+  const slug = String(params.accountSlug)
+
+AccountDetailPanel(slug={slug})

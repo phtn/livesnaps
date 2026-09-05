@@ -36,10 +36,10 @@ module
   }
 
   const navigationItems = [
-    { href: '#profile', label: 'Profile', icon: 'pencil-bold' },
+    { href: '#profile', label: 'Profile', icon: 'person' },
     { href: '#appearance', label: 'Appearance', icon: 'theme' },
     { href: '#security', label: 'Security', icon: 'safe-shield' },
-    { href: '#data', label: 'Data', icon: 'download-line' }
+    { href: '#data', label: 'Data', icon: 'cloud' }
   ] as const satisfies ReadonlyArray<{ href: string; label: string; icon: IconName }>
 
   const REDUCE_MOTION_STORAGE_KEY = 'livesnaps-reduce-motion'
@@ -327,8 +327,6 @@ component AuthenticatedAccount
               span #{getProviderLabel(user)}
             InfoRow(icon='clock' label='Last sign-in')
               span #{formatDateTime(user.metadata.lastSignInTime)}
-            InfoRow(icon='user-settings' label='Firebase UID')
-              code(className='font-mono text-xs') #{user.uid}
             if claimEntries.length > 0
               InfoRow(icon='user-settings' label='Access roles')
                 span(className='flex flex-wrap justify-end gap-1.5')
@@ -345,9 +343,9 @@ component AuthenticatedAccount
             p(className='mt-3 text-sm text-destructive' role='alert') #{signOutError}
 
         SettingsSection(id='data' eyebrow='Portability' icon='download-line' title='Data privacy' description='Download a portable snapshot of the account information available on this device.')
-          div(className='flex flex-col gap-4 rounded-xl bg-muted/25 p-4 sm:flex-row sm:items-center sm:justify-between')
-            div(className='flex items-start gap-3')
-              span(className='mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
+          div(className='flex items-center justify-between')
+            div(className='flex items-start gap-4')
+              span(className='mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
                 Icon(name='json' className='size-4')
               div
                 p(className='text-sm font-medium') Export account data

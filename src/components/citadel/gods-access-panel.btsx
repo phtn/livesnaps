@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'octane'
+import { useEffect, useState, useRef } from 'octane'
 import { Icon } from '@/lib/icons'
 import Input from '@/components/ui/input.btsx'
 import { cn, getInitials } from '@/lib/utils'
@@ -36,17 +36,18 @@ component ClaimBadges
   props { user }: { user: GodUser }
   div(className='flex shrink-0 items-center gap-1')
     if user.topg
-      span(className='rounded-xs bg-mist-500/5 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-mist-500') topg
+      span(className='rounded-xs bg-mist-500/5 px-1.5 py-0.5 font-mono text-2xs md:text-xs uppercase tracking-wider text-mist-500') topg
     if user.admin
-      span(className='rounded-xs bg-taupe-500/5 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
+      span(className='rounded-xs bg-taupe-500/5 px-1.5 py-0.5 font-mono text-2xs md:text-xs uppercase tracking-wider text-taupe-500') admin
     if !user.emailVerified
-      span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-amber-500') unverified
+      span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs md:text-xs uppercase tracking-wider text-amber-500') unverified
 
 setup
   const [roster, setRoster] = useState<GodUser[]>([])
   const [rosterStatus, setRosterStatus] = useState<RosterStatus>('loading')
   const [rosterError, setRosterError] = useState<string | null>(null)
   const [canManage, setCanManage] = useState(false)
+  const [actorUid, setActorUid] = useState<string | null>(null)
   const [truncated, setTruncated] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
@@ -57,6 +58,7 @@ setup
 
   const [pendingUid, setPendingUid] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -65,6 +67,7 @@ setup
     fetchGodUsers(controller.signal)
       .then((response) => {
         setRoster(response.users)
+        setActorUid(response.actorUid)
         setCanManage(response.canManage)
         setTruncated(response.truncated)
         setRosterError(null)
@@ -131,51 +134,75 @@ setup
 
   const rosterUidSet = new Set(roster.map((user) => user.uid))
   const showSearchEmpty = searchStatus === 'ready' && results.length === 0
+  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
+    if (event.defaultPrevented) return
+    const target = event.target
+    const isTyping =
+      target instanceof HTMLElement
+      && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+
+    if (event.key === '/' && !isTyping && inputRef.current && document.activeElement !== inputRef.current) {
+      event.preventDefault()
+      inputRef.current.focus()
+    }
+  })
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown, true)
+    return () => document.removeEventListener('keydown', onKeyDown, true)
+  }, [])
 
 section(className='p-5')
   header(className='flex items-baseline justify-between gap-3')
     div
       h2(className='font-poly text-2xl font-medium') Gods
-      p(className='mt-1 flex items-center gap-1 text-sm text-foreground')
-        | Accounts holding the
-        code(className='rounded-xs bg-active/5 px-1 font-mono text-xs') god
-        | custom claim.
+
     if rosterStatus === 'ready'
-      span(className='shrink-0 font-mono text-xs text-muted-foreground') #{roster.length} #{roster.length === 1 ? 'account' : 'accounts'}
+      span(className='shrink-0 font-mono text-xs text-muted-foreground capitalize') #{roster.length} #{roster.length === 1 ? ' account' : ' accounts'}
 
   if actionError
     p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{actionError}
 
   if canManage
     div(className='mt-6')
-      label(htmlFor='god-user-search' className='font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground') Grant access
+      label(htmlFor='god-user-search' className='')
+        p(className='flex items-center gap-1 text-sm text-foreground')
+        | Accounts holding the
+        code(className='rounded-xs bg-active/5 px-1 mx- text-1 font-mono text-active text-base uppercase') god
+        | claim.
       div(className='relative mt-2')
+        Icon(name='slash' className={cn('absolute right-1 top-[2.5px] text-border/60', {'hidden': query})})
         Input(
           ~ id='god-user-search'
           ~ type='search'
           ~ value={query}
+          ~ ref={inputRef}
           ~ placeholder='Search by email, name, or uid'
           ~ autoComplete='off'
-          ~ className='ps-3'
+          ~ className='ps-3 '
           ~ onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)}
           ~ )
 
-      if searchStatus === 'searching'
-        p(className='mt-2 text-xs text-muted-foreground') Searching the user directory…
-      elseif searchStatus === 'error'
-        p(className='mt-2 text-xs text-destructive') #{searchError}
-      elseif showSearchEmpty
-        p(className='mt-2 text-xs text-muted-foreground') No accounts match that search.
+      div(className='flex items-center h-8 w-full')
+        if (query)
+          if searchStatus === 'searching'
+            p(className='font-mono text-xs text-muted-foreground') Searching…
+          elseif searchStatus === 'error'
+            p(className='font-mono text-xs text-destructive') #{searchError}
+          elseif showSearchEmpty
+            p(className='font-mono text-xs text-muted-foreground') No accounts match search query.
+          else
+            p(className='font-mono text-xs text-muted-foreground') #{results.length}
+              span(className='ps-1.5') #{results.length === 1 ? 'account' : 'accounts'} found
 
       if results.length > 0
-        ul(className='mt-3 divide-y divide-border/60 rounded-sm border border-border/60')
+        ul(className='mt-2 divide-y divide-border/60 divide-dotted rounded-sm')
           each user in results key user.uid
             li(className='flex items-center justify-between gap-3 px-3 py-2')
               UserIdentity(user={user})
               div(className='flex shrink-0 items-center gap-2')
                 ClaimBadges(user={user})
                 if rosterUidSet.has(user.uid) || user.god
-                  span(className='font-mono text-xs text-muted-foreground') Already a god
+                  span(className='font-mono text-xs text-active uppercase') God
                 else
                   button(
                     ~ type='button'
@@ -184,10 +211,12 @@ section(className='p-5')
                     ~ onClick={() => void applyGodClaim(user, true)}
                     ~ )
                     Icon(name='check' className='size-3')
-                    span #{pendingUid === user.uid ? 'Granting…' : 'Grant god'}
+                    span #{pendingUid === user.uid ? 'Granting Access …' : 'Grant God Access'}
 
-  div(className='mt-8')
-    p(className='font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground') Current gods
+  div(className='mt-6')
+    if roster.length
+      p(className='font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground') Active gods
+
 
     if rosterStatus === 'loading'
       p(className='mt-3 text-sm text-muted-foreground') Loading the god roster…
@@ -202,7 +231,9 @@ section(className='p-5')
             UserIdentity(user={user})
             div(className='flex shrink-0 items-center gap-2')
               ClaimBadges(user={user})
-              if canManage
+              if user.uid === actorUid
+                span(className='uppercase font-mono text-xs text-muted-foreground') You
+              elseif canManage
                 button(
                   ~ type='button'
                   ~ disabled={pendingUid !== null}

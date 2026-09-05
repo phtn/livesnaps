@@ -2,7 +2,6 @@ import { getFirebaseAdminAuth, getFirebaseUserByUid, setFirebaseCustomUserClaims
 import { toFirebaseAdminUserSummary, type FirebaseAdminUserSummary } from '@/lib/firebase-admin/admin-users'
 import {
   canManageFirebaseAccessClaim,
-  canViewTopgFirebaseUser,
   isFirebaseManagedAccessClaimName,
   updateFirebaseManagedAccessClaim,
   type FirebaseManagedAccessClaimName
@@ -20,6 +19,9 @@ import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
 
 export type GodsUserListResponse = {
+  // The caller's own uid, so the UI can decline to offer an action the server
+  // will refuse — self-revocation.
+  actorUid: string
   canManage: boolean
   scanned: number
   truncated: boolean
@@ -85,6 +87,7 @@ export async function handleGodsUsers(request: Request): Promise<Response> {
             })
 
     const body: GodsUserListResponse = {
+      actorUid: session.decodedToken.uid,
       canManage: canManageFirebaseAccessClaim(actorClaims, 'god'),
       scanned: scan.scanned,
       truncated: scan.truncated,
@@ -129,6 +132,14 @@ export async function handleGodsUserClaims(request: Request): Promise<Response> 
   const managedClaim: FirebaseManagedAccessClaimName = claim
   const actorClaims = session.customClaims
 
+  // Refuse before reading the directory, in both directions: a god who is not
+  // topg can neither grant nor revoke, and should not be able to probe uids for
+  // existence on the way to finding that out. `authorizeManagedClaimChange`
+  // checks this again once the target is loaded.
+  if (!canManageFirebaseAccessClaim(actorClaims, managedClaim)) {
+    return json({ error: `Changing \`${managedClaim}\` access requires a top-god account.` }, 403)
+  }
+
   let target
   try {
     target = await getFirebaseUserByUid(uid)
@@ -137,15 +148,18 @@ export async function handleGodsUserClaims(request: Request): Promise<Response> 
   }
 
   const targetClaims = readFirebaseCustomClaims(target.customClaims)
-  // Refuse before the authorization message can confirm the account exists.
-  if (!canViewTopgFirebaseUser(actorClaims, targetClaims)) return json({ error: 'That user could not be found.' }, 404)
 
   const decision = authorizeManagedClaimChange({
     actorClaims,
     actorUid: session.decodedToken.uid,
     claim: managedClaim,
     enabled,
-    target: { email: target.email ?? null, emailVerified: target.emailVerified, uid: target.uid }
+    target: {
+      claims: targetClaims,
+      email: target.email ?? null,
+      emailVerified: target.emailVerified,
+      uid: target.uid
+    }
   })
 
   if (!decision.allowed) return json({ error: decision.error }, decision.status)

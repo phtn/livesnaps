@@ -6,6 +6,7 @@ import {
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
 import { handleAdminSession } from './server/admin-auth-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
+import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
 import { handleGodsSession } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
 
@@ -26,6 +27,8 @@ interface WorkerEnvironment {
 const SESSION_PATH = '/api/snaps/session'
 const ADMIN_SESSION_PATH = '/api/admin/session'
 const GODS_SESSION_PATH = '/api/gods/session'
+const GODS_ACCOUNTS_PATH = '/api/gods/accounts'
+const GODS_ACCOUNT_DETAIL_PATH = /^\/api\/gods\/accounts\/([^/]+)$/
 const GODS_USERS_PATH = '/api/gods/users'
 const GODS_USER_CLAIMS_PATH = '/api/gods/users/claims'
 const PHOTO_PATH = '/api/proofs'
@@ -75,6 +78,24 @@ export default {
     }
 
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
+
+    if (pathname === GODS_ACCOUNTS_PATH) {
+      return handleGodsAccounts(request, { convexUrl })
+    }
+
+    const godsAccountDetailMatch = GODS_ACCOUNT_DETAIL_PATH.exec(pathname)
+
+    if (godsAccountDetailMatch) {
+      let accountSlug: string
+
+      try {
+        accountSlug = decodeURIComponent(godsAccountDetailMatch[1])
+      } catch {
+        return Response.json({ error: 'The account slug is invalid.' }, { status: 400 })
+      }
+
+      return handleGodsAccountDetail(request, accountSlug, { convexUrl })
+    }
 
     if (pathname === ADMIN_SNAPS_PATH) {
       return handleAdminSnapList(request, { convexUrl })

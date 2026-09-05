@@ -30,7 +30,6 @@ setup
   const hasValue = value.trim().length > 0 || Boolean(col?.getFilterValue?.()?.toString())
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (event.defaultPrevented) return
-
     const target = event.target
     const isTyping =
       target instanceof HTMLElement

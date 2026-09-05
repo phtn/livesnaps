@@ -1,9 +1,35 @@
-import {Icon} from "@/lib/icons";
-import {Button} from "@/components/ui";
+import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
+import Tabs from '@/components/ui/tabs.btsx'
+import type { PanelRoute } from '@/components/ui/tabs.btsx'
+
+module
+  // One entry per child route under `citadelAccountsRoute` in `router.ts`.
+  export const panelRoutes: readonly PanelRoute[] = [
+    { id: 'directory', href: '/citadel/accounts', label: 'Accounts', shortLabel: 'Accounts', icon: 'account' }
+  ]
+
+  // Longest href wins, otherwise the `/citadel/accounts` index would also claim
+  // its child routes and two tabs could read as active at once.
+  const panelRoutesByDepth = [...panelRoutes].sort((left, right) => right.href.length - left.href.length)
+
+  const resolveActiveId = (pathname: string) =>
+    panelRoutesByDepth.find((route) => pathname === route.href || pathname.startsWith(`${route.href}/`))?.id ??
+    panelRoutes[0].id
+
+setup
+  const location = useLocation()
+  const navigate = useNavigate()
+  const activeId = resolveActiveId(location.pathname)
+  const handleNavigate = (href: string) => {
+    void navigate({ to: href })
+  }
+
 main(className='')
-  div(className='flex items-center justify-between w-full ps-4 h-12 md:h-16 border-b border-border/70')
-    p(className='font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground') Accounts
-    Button(variant='ghost')
-      Icon(name='more-v')
-  div(className='p-6')
-    div(className='bg-sidebar w-full h-10')
+  div(className='flex items-end h-12 md:h-16 border-b border-border/70')
+    Tabs(
+      ~ activeId={activeId}
+      ~ items={panelRoutes}
+      ~ label='Citadel accounts'
+      ~ onNavigate={handleNavigate}
+      ~ )
+  Outlet

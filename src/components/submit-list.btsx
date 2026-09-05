@@ -6,6 +6,7 @@ import { getMySubmissions } from '@/lib/convex-client'
 import { cn } from '@/lib/utils'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
+import { format } from 'date-fns'
 
 module
   type SnapSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
@@ -52,33 +53,25 @@ module
 component SubmissionRow
   props { submission }: { submission: SnapSubmission }
   setup
-    const presentation = statusPresentation[submission.status]
-    const timestamp = new Date(submission.startedAt)
+    const formatDate = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
   li
     Link(to='/snaps/$snapId' params={{ snapId: String(submission._id) }} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
-      span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', presentation.iconFrame)})
-        Icon(name={presentation.icon as any} className='size-5')
+      span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', statusPresentation[submission.status].iconFrame)})
+        Icon(name={statusPresentation[submission.status].icon as any} className='size-5')
       div(className='min-w-0 flex-1')
         div(className='flex min-w-0 items-center gap-2')
           p(className='truncate font-poly text-sm font-medium uppercase tracking-tight') #{submission.plateNumber.trim() || 'No Plate'}
-          Badge(variant='outline' className={cn('capitalize font-normal', presentation.badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
+          Badge(variant='outline' className={cn('capitalize font-normal', statusPresentation[submission.status].badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
         p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
-      time(dateTime={timestamp.toISOString()} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{dateFormatter.format(timestamp)}
+      time(dateTime={formatDate(submission.startedAt)} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{formatDate(submission.startedAt)}
       Icon(name='down' className='size-3.5 -rotate-45 shrink-0 text-muted-foreground')
 
 component EmptyState
   props { isAuthenticated }: { isAuthenticated: boolean }
   div(className='grid min-h-56 place-items-center px-6 py-10 text-center')
     div(className='max-w-sm')
-      span(className='mx-auto grid size-12 place-items-center rounded-2xl border border-border/50 bg-background/75 text-muted-foreground shadow-xs')
-        Icon(name={isAuthenticated ? 'folder' : 'person'} className='size-5')
-      p(className='mt-4 font-poly text-lg font-medium') #{isAuthenticated ? 'No snaps yet' : 'Sign in to see your snaps'}
-      p(className='mt-2 text-sm leading-6 text-muted-foreground') #{isAuthenticated ? 'Completed and in-progress vehicle verifications will appear here.' : 'Use the account button above to continue with the Google account that owns your submissions.'}
-      if isAuthenticated
-        Link(to='/' hash='discover' className='mt-5 inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-4 text-sm font-medium text-background transition hover:opacity-85')
-          Icon(name='camera-enhance' className='size-4')
-          span Start a snap
-
+      p(className='mt-4 font-poly text-lg font-medium') #{isAuthenticated ? 'No snaps yet.' : 'Sign in to view your snaps'}
+      p(className='mt-2 text-sm leading-6 text-muted-foreground text-balance') #{isAuthenticated ? 'Completed and in-progress vehicle verifications will appear here.' : 'Use the account button above to continue with the Google account that owns your submissions.'}
 props { authenticatedUserId, className, eyebrow = 'Activity', heading = 'Your snaps', isAuthenticated, isAuthLoading }: SubmitListProps
 
 setup

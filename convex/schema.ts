@@ -1,4 +1,6 @@
 import { defineSchema, defineTable } from 'convex/server'
+import { accountMemberSchema } from './accountMembers/d'
+import { accountSchema } from './accounts/d'
 import { adminSchema } from './admin/d'
 import { resendWebhookEventSchema } from './resendWebhooks/d'
 import { snapValidator } from './snaps/d'
@@ -8,6 +10,20 @@ import { verificationEntrySchema } from './verificationEntries/d'
 import { visionLogSchema } from './vision_logs/d'
 
 export default defineSchema({
+  accounts: defineTable(accountSchema)
+    .index('by_slug', ['slug'])
+    .index('by_createdAt', ['createdAt'])
+    .index('by_status_and_createdAt', ['status', 'createdAt'])
+    .index('by_ownerTokenIdentifier_and_createdAt', ['ownerTokenIdentifier', 'createdAt'])
+    .index('by_primaryContact_tokenIdentifier', ['primaryContact.tokenIdentifier'])
+    .index('by_primaryContact_email', ['primaryContact.email']),
+  accountMembers: defineTable(accountMemberSchema)
+    .index('by_accountId_and_status', ['accountId', 'status'])
+    .index('by_accountId_and_role', ['accountId', 'role'])
+    .index('by_accountId_and_email', ['accountId', 'email'])
+    .index('by_accountId_and_tokenIdentifier', ['accountId', 'tokenIdentifier'])
+    .index('by_tokenIdentifier_and_status', ['tokenIdentifier', 'status'])
+    .index('by_email_and_status', ['email', 'status']),
   admin: defineTable(adminSchema).index('by_identifier', ['identifier']),
   users: defineTable(userValidator)
     .index('by_tokenIdentifier', ['tokenIdentifier'])

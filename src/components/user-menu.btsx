@@ -86,18 +86,15 @@ setup
 
 div(ref={menuRef} className='relative z-100!')
   button(type='button' aria-haspopup='menu' aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
-    div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-sand/10 dark:hover:bg-sand/80 md:size-12')
+    div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-lime-200/10 dark:hover:bg-lime-200/80 md:size-12')
       Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
   if isOpen
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
-      if hasGodAccess
-        RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
         Item(role='menuitem' label='admin' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
-        // button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60')
-        //   Icon(name='rook' className='size-5 shrink-0')
-        //   span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
+      if hasGodAccess
+        RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       div(className='-mx-1 my-1 h-px bg-input' role='separator')
       SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

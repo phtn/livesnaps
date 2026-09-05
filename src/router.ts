@@ -72,10 +72,24 @@ const citadelIndexRoute = createRoute({
   component: lazyRoute(() => import('./pages/citadel-overview-page.btsx'))
 })
 
+// `citadel-accounts-page.btsx` renders its tab bar above an `Outlet`, the same
+// shape as the settings shell; these are the panels its `panelRoutes` point at.
 const citadelAccountsRoute = createRoute({
   getParentRoute: () => citadelRoute,
   path: 'accounts',
   component: lazyRoute(() => import('./pages/citadel-accounts-page.btsx'))
+})
+
+const citadelAccountsIndexRoute = createRoute({
+  getParentRoute: () => citadelAccountsRoute,
+  path: '/',
+  component: lazyRoute(() => import('./pages/citadel-accounts-directory-page.btsx'))
+})
+
+const citadelAccountDetailRoute = createRoute({
+  getParentRoute: () => citadelAccountsRoute,
+  path: '$accountSlug',
+  component: lazyRoute(() => import('./pages/citadel-account-detail-page.btsx'))
 })
 
 const citadelSettingsRoute = createRoute({
@@ -113,7 +127,7 @@ const snapRoute = createRoute({
 const accountRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'account',
-  component: lazyRoute(() => import('./pages/account-page.btsx'))
+  component: lazyRoute(() => import('./pages/user-account-page.btsx'))
 })
 
 const legalRoute = createRoute({
@@ -136,7 +150,7 @@ const routeTree = rootRoute.addChildren([
   adminSettingsRoute,
   citadelRoute.addChildren([
     citadelIndexRoute,
-    citadelAccountsRoute,
+    citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),
     citadelSettingsRoute.addChildren([citadelSettingsIndexRoute, citadelSettingsGodsRoute])
   ]),
   snapsRoute,

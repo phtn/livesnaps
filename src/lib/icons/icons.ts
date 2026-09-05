@@ -711,6 +711,12 @@ export const icons = {
       '<path fill-rule="evenodd" d="M3.335 6.947a4.336 4.336 0 0 1 8.395-1.47 4.003 4.003 0 0 1-1.058 7.863H4.669a3.335 3.335 0 0 1-1.334-6.393" clip-rule="evenodd" fill="currentColor"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  add: {
+    symbol:
+      '<path fill-rule="evenodd" d="M8.004 2.335a1 1 0 0 1 1 1v3.669h3.669a1 1 0 0 1 0 2H9.004v3.669a1 1 0 0 1-2 0V9.004H3.335a1 1 0 0 1 0-2h3.669V3.335a1 1 0 0 1 1-1" clip-rule="evenodd" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

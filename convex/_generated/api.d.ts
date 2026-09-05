@@ -8,6 +8,14 @@
  * @module
  */
 
+import type * as accountMembers_d from "../accountMembers/d.js";
+import type * as accountMembers_helpers from "../accountMembers/helpers.js";
+import type * as accountMembers_m from "../accountMembers/m.js";
+import type * as accountMembers_q from "../accountMembers/q.js";
+import type * as accounts_d from "../accounts/d.js";
+import type * as accounts_helpers from "../accounts/helpers.js";
+import type * as accounts_m from "../accounts/m.js";
+import type * as accounts_q from "../accounts/q.js";
 import type * as admin_d from "../admin/d.js";
 import type * as admin_m from "../admin/m.js";
 import type * as admin_q from "../admin/q.js";
@@ -41,6 +49,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  "accountMembers/d": typeof accountMembers_d;
+  "accountMembers/helpers": typeof accountMembers_helpers;
+  "accountMembers/m": typeof accountMembers_m;
+  "accountMembers/q": typeof accountMembers_q;
+  "accounts/d": typeof accounts_d;
+  "accounts/helpers": typeof accounts_helpers;
+  "accounts/m": typeof accounts_m;
+  "accounts/q": typeof accounts_q;
   "admin/d": typeof admin_d;
   "admin/m": typeof admin_m;
   "admin/q": typeof admin_q;

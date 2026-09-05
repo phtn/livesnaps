@@ -26,6 +26,7 @@ export type FirebaseUserScan = {
 }
 
 export type ManagedClaimChangeTarget = {
+  claims: FirebaseCustomClaims
   email: string | null
   emailVerified: boolean
   uid: string
@@ -54,10 +55,19 @@ export function readFirebaseCustomClaims(customClaims: UserRecord['customClaims'
 /**
  * Decides whether `actor` may flip a managed access claim on `target`.
  *
- * The rules come from `custom-claims.ts`: only a `topg` account can grant or
- * revoke `admin`/`god`, and a grant needs a verified email to land on. The
- * self-revoke guard is this module's own — it stops the last god locking
- * themselves out of the citadel.
+ * Every rule that gates a claim change lives here, so a caller cannot acquire
+ * the decision without them:
+ *
+ * - only a `topg` account may grant or revoke `admin`/`god`
+ *   (`canManageFirebaseAccessClaim`), which covers both directions — a plain
+ *   god can no more revoke god than grant it;
+ * - an actor may not act on a `topg` account it is not allowed to see;
+ * - nobody may revoke their own access, which stops the last god locking
+ *   themselves out of the citadel;
+ * - a grant needs a verified email to land on (`canReceiveFirebaseClaimGrant`).
+ *
+ * `topg` itself is deliberately not reachable: `isFirebaseManagedAccessClaimName`
+ * accepts only `admin` and `god`, so the route rejects it before this runs.
  */
 export function authorizeManagedClaimChange({
   actorClaims,
@@ -76,8 +86,12 @@ export function authorizeManagedClaimChange({
     return { allowed: false, error: `Changing \`${claim}\` access requires a top-god account.`, status: 403 }
   }
 
-  if (!canViewTopgFirebaseUser(actorClaims, { topg: actorClaims.topg ?? false })) {
-    return { allowed: false, error: 'Your account cannot manage this user.', status: 403 }
+  // Defence in depth, and currently unreachable: managing a claim already
+  // requires `topg`, and a `topg` actor can see every account. It stays so the
+  // visibility rule still holds if `canManageFirebaseAccessClaim` is ever
+  // loosened to admit non-`topg` actors.
+  if (!canViewTopgFirebaseUser(actorClaims, target.claims)) {
+    return { allowed: false, error: 'That user could not be found.', status: 404 }
   }
 
   if (!enabled && target.uid === actorUid) {

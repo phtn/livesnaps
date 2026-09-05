@@ -36,7 +36,7 @@ header(className='relative z-40 mx-auto flex h-16 w-full max-w-[1520px] items-ce
       span(className='uppercase dark:text-lime-200') Snaps
       span(className='text-sand dark:text-foreground') Now
   nav(className='hidden items-center gap-[clamp(22px,3vw,42px)] md:flex' aria-label='Primary navigation')
-    Link(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 after:bg-[#ff784b] after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' to='/' hash='discover') My Snaps
+    Link(className='relative text-sm font-medium transition-colors after:absolute after:bottom-[-7px] after:left-0 after:h-px after:w-full after:origin-right after:scale-x-0 dark:after:bg-lime-200 after:bg-sand after:transition-transform hover:text-foreground hover:after:origin-left hover:after:scale-x-100' to='/snaps' hash='top') My Snaps
 
   div(className='flex items-center gap-4 md:gap-6')
     ThemeToggle
