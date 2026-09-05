@@ -1,7 +1,8 @@
 import { useId, useMemo, useState } from 'octane'
-import { format } from 'date-fns'
+import type { DateRange } from '@octanejs/day-picker'
 import Faceted, { FacetedBadgeList, FacetedContent, FacetedEmpty, FacetedGroup, FacetedItem, FacetedList, FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
 import Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
+import DateRangePicker from '@/components/ui/DateRangePicker.btsx'
 import Input from '@/components/ui/input.btsx'
 import { Button } from '@/components/ui'
 import { getFilterValueLabel, getFilterValueToken } from '@/components/ui/table/hyper/filter-utils'
@@ -129,30 +130,12 @@ module
     return definition.values ? resolvedOptions : resolvedOptions.sort((left, right) => left.label.localeCompare(right.label))
   }
 
-  const getDateRangeLabel = (from: Date | undefined, to: Date | undefined) => {
-    if (!from) return to ? `Through ${format(to, 'MMM d, yyyy')}` : 'Any date'
-    if (!to) return `From ${format(from, 'MMM d, yyyy')}`
-    if (from.toDateString() === to.toDateString()) return format(from, 'MMM d, yyyy')
-    if (from.getFullYear() === to.getFullYear()) return `${format(from, 'MMM d')} - ${format(to, 'MMM d, yyyy')}`
-    return `${format(from, 'MMM d, yyyy')} - ${format(to, 'MMM d, yyyy')}`
-  }
-
-  // `<input type="date">` wants `yyyy-MM-dd` in local time; `toISOString()`
-  // would shift the day backwards for negative UTC offsets.
-  const toDateInputValue = (date: Date | undefined) => (date ? format(date, 'yyyy-MM-dd') : '')
-
-  const toDateInputDate = (value: string) => {
-    if (!value) return undefined
-    const parsed = new Date(`${value}T00:00:00`)
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed
-  }
-
-  const dateInputClassName =
-    'h-7! w-full min-w-0 bg-background! border-none px-1 font-okx text-xs [&::-webkit-calendar-picker-indicator]:opacity-50'
-
   const triggerClassName: ClassName =
     'bg-background hover:border-indigo-500 hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
   const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
+  // A calendar grid sits over table rows, so it needs more cover than the
+  // faceted lists do — those only ever overlap the filter panel itself.
+  const calendarContentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-zinc-900/95 backdrop-blur-3xl'
 
   const getActiveFilterCount = (definition: SnapFilterDefinition, value: unknown) => {
     if (definition.variant === 'faceted') {
@@ -280,36 +263,23 @@ component SnapDateRangeFilter
     const [rawFrom, rawTo] = getRangeBounds(rawFilterValue)
     const from = getRangeDate(rawFrom)
     const to = getRangeDate(rawTo)
-    const fromInputId = `${fieldLabelId}-from`
-    const toInputId = `${fieldLabelId}-to`
-    const handleFromChange = (event: Event) => {
-      const next = (event.currentTarget as HTMLInputElement).value
-      column.setFilterValue(createInclusiveDateRangeFilterValue(toDateInputDate(next), to))
-    }
-    const handleToChange = (event: Event) => {
-      const next = (event.currentTarget as HTMLInputElement).value
-      column.setFilterValue(createInclusiveDateRangeFilterValue(from, toDateInputDate(next)))
+    const selectedRange = from || to ? { from, to } : undefined
+    // The stored bounds stay whole-day inclusive ISO timestamps, so a day
+    // picked in the calendar filters the same rows the date inputs used to.
+    const handleValueChange = (range: DateRange | undefined) => {
+      column.setFilterValue(createInclusiveDateRangeFilterValue(range?.from, range?.to))
     }
 
-  div(aria-labelledby={fieldLabelId} className='flex h-8 items-center gap-1 rounded-sm border-2 border-border/25 bg-background px-1.5 hover:bg-indigo-600/5')
-    Icon(name='calendar' className='size-3.5 shrink-0 opacity-60')
-    Input(
-      ~ id={fromInputId}
-      ~ type='date'
-      ~ value={toDateInputValue(from)}
-      ~ aria-label='Created from'
-      ~ title={getDateRangeLabel(from, to)}
-      ~ className={dateInputClassName}
-      ~ onChange={handleFromChange}
-      ~ )
-    Input(
-      ~ id={toInputId}
-      ~ type='date'
-      ~ value={toDateInputValue(to)}
-      ~ aria-label='Created to'
-      ~ className={dateInputClassName}
-      ~ onChange={handleToChange}
-      ~ )
+  DateRangePicker(
+    ~ id={`${fieldLabelId}-picker`}
+    ~ aria-labelledby={fieldLabelId}
+    ~ value={selectedRange}
+    ~ onValueChange={handleValueChange}
+    ~ placeholder='Any date'
+    ~ className={cn('font-okx text-xs', triggerClassName)}
+    ~ contentClassName={calendarContentClassName}
+    ~ numberOfMonths={2}
+    ~ )
 
 component SnapFilterField
   props { baseId, columnsById, definition, rawFilterValue }: SnapFilterFieldProps

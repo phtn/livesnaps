@@ -87,7 +87,7 @@ component HeaderCell
         button(
           ~ type='button'
           ~ aria-label={`Resize ${header.column.id} column`}
-          ~ className={`absolute right-0 top-0 z-100 h-full w-3 touch-none border-0 bg-transparent hover:bg-brand/3 p-0 after:absolute after:right-0 after:top-0 after:h-[38px] after:w-1 after:rounded-[1px] after:bg-brand/5 after:content-[''] hover:after:w-1 hover:after:bg-active ${header.column.getIsResizing() ? 'cursor-col-resize after:w-1 after:bg-active' : ' '}`}
+          ~ className={`absolute right-0 top-0 z-100 h-full w-3 touch-none rounded-[2px] border-0 bg-transparent hover:bg-active/10 p-0 after:absolute after:right-0 after:top-0 after:h-[38px] after:w-1 after:rounded-[1px] after:bg-brand/5 after:content-[''] hover:after:w-1 hover:after:bg-active ${header.column.getIsResizing() ? 'cursor-col-resize after:w-1 after:bg-active' : ' '}`}
           ~ onMouseDown={header.getResizeHandler()}
           ~ onTouchStart={header.getResizeHandler()}
           ~ onDoubleClick={() => header.column.resetSize()}

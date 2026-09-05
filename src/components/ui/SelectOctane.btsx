@@ -1,40 +1,136 @@
-import SelectBase from '@octanejs/select'
+import SelectBase, { mergeStyles } from '@octanejs/select'
 import makeAnimated from '@octanejs/select/animated'
 import CreatableSelect from '@octanejs/select/creatable'
 import AsyncCreatableSelect from '@octanejs/select/async-creatable'
-import type { SingleValue } from '@octanejs/select'
-import type { ClassName } from '../../types'
+import type { ClassNamesConfig, Props, SingleValue, StylesConfig } from '@octanejs/select'
 import { cn } from '@/lib/utils'
 
-
 module
-  type Option = {
+  export type Option = {
     value: string
     label: string
   }
 
-  // type SelectBaseProps = Parameters<typeof SelectBase<Option, false>>[0]
+  /**
+   * A single-select over plain string values: `value` and `onChange` speak
+   * strings, and the underlying option objects stay internal to this wrapper.
+   */
+  export type SelectOctaneProps = Omit<Props<Option, false>, 'onChange' | 'options' | 'value'> & {
+    className?: string
+    onChange: (value: string) => void
+    options: readonly Option[]
+    value: string
+  }
 
-  // type SelectOctaneProps = SelectBase.SelectProps // Omit<SelectBaseProps, 'onChange' | 'options' | 'value'> & {
-  //   onChange: (value: string) => void
-  //   options: readonly Option[]
-  //   value: string
-  //   className?: ClassName
-  // }
+  /** The shape the per-part callbacks actually receive; the package types it as `unknown`. */
+  interface PartState {
+    isDisabled?: boolean
+    isFocused?: boolean
+    isSelected?: boolean
+  }
+
+  /**
+   * Rendered with `unstyled`, which strips Emotion's default (light-themed)
+   * chrome but keeps the layout primitives — the flex control, the grid-sized
+   * input, absolute menu positioning — so these classes only supply the theme.
+   */
+  const DEFAULT_CLASS_NAMES: ClassNamesConfig<Option, false> = {
+    container: () => 'relative z-50',
+    control: (props) => {
+      const state = props as PartState
+      return cn(
+        'flex min-h-9 cursor-pointer items-center gap-1 rounded-[4px] border border-input/50 bg-background px-2 text-sm text-foreground transition-colors',
+        state.isFocused && 'border-input ring-2 ring-ring/40',
+        state.isDisabled && 'cursor-not-allowed opacity-50'
+      )
+    },
+    valueContainer: () => 'flex min-w-0 flex-1 flex-wrap items-center gap-1',
+    singleValue: () => 'truncate text-foreground',
+    placeholder: () => 'truncate text-muted-foreground',
+    input: () => 'text-foreground',
+    indicatorsContainer: () => 'flex shrink-0 items-center',
+    // Emotion keeps a 1px stretched spacer here even when unstyled.
+    indicatorSeparator: () => 'hidden',
+    dropdownIndicator: () =>
+      'flex items-center px-1 text-muted-foreground transition-colors hover:text-foreground [&_svg]:size-4',
+    clearIndicator: () =>
+      'flex items-center px-1 text-muted-foreground transition-colors hover:text-foreground [&_svg]:size-4',
+    menu: () =>
+      'mt-1 overflow-hidden rounded-[6px] border border-input/50 bg-popover text-popover-foreground shadow-lg',
+    menuList: () => 'max-h-60 overflow-y-auto p-0',
+    option: (props) => {
+      const state = props as PartState
+      return cn(
+        'cursor-pointer select-none rounded-[4px] px-2 py-1.5 text-sm',
+        state.isFocused && 'bg-accent text-accent-foreground',
+        state.isSelected && 'bg-active font-medium text-white',
+        state.isDisabled && 'pointer-events-none opacity-50'
+      )
+    },
+    groupHeading: () => 'px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground',
+    noOptionsMessage: () => 'px-2 py-1.5 text-sm text-muted-foreground',
+    loadingMessage: () => 'px-2 py-1.5 text-sm text-muted-foreground',
+    multiValue: () => 'flex items-center gap-1 rounded-[4px] bg-muted px-1.5 py-0.5 text-xs',
+    multiValueLabel: () => 'truncate',
+    multiValueRemove: () => 'cursor-pointer rounded-[2px] px-0.5 hover:bg-destructive/20 hover:text-destructive'
+  }
+
+  /**
+   * Emotion still emits these three properties under `unstyled`, and a utility
+   * class can't reliably outrank a generated one, so they are set as styles.
+   */
+  const DEFAULT_STYLES: StylesConfig<Option, false> = {
+    menu: (base) => ({ ...base, zIndex: 50 }),
+    menuPortal: (base) => ({ ...base, zIndex: 60 }),
+    option: (base) => ({ ...base, cursor: 'pointer' })
+  }
+
+  /**
+   * Per-part overrides append to the defaults rather than replacing them, so a
+   * call site adds to the theme instead of restating it. `cn` does not resolve
+   * conflicting Tailwind utilities, so an override that fights a default (say a
+   * different `bg-`) is decided by stylesheet order, not by argument order.
+   */
+  const mergeClassNames = (overrides?: ClassNamesConfig<Option, false>): ClassNamesConfig<Option, false> => {
+    if (!overrides) return DEFAULT_CLASS_NAMES
+
+    const merged: ClassNamesConfig<Option, false> = { ...DEFAULT_CLASS_NAMES }
+
+    for (const key of Object.keys(overrides) as (keyof ClassNamesConfig<Option, false>)[]) {
+      const base = DEFAULT_CLASS_NAMES[key]
+      const override = overrides[key]
+      merged[key] = (props) => cn(base?.(props), override?.(props))
+    }
+
+    return merged
+  }
 
   export { makeAnimated, CreatableSelect, AsyncCreatableSelect }
-  export type { Option, SelectOctaneProps }
 
-props { options, value, onChange, className, ...selectProps }: SelectBase.SelectProps
+props {
+  ~ className,
+  ~ classNames,
+  ~ onChange,
+  ~ options,
+  ~ styles,
+  ~ unstyled = true,
+  ~ value,
+  ~ ...selectProps}: SelectOctaneProps
+
 setup
   const selectedOption = options.find((option) => option.value === value) ?? null
   const handleChange = (option: SingleValue<Option>) => onChange(option?.value ?? '')
+  const resolvedClassNames = mergeClassNames(classNames)
+  const resolvedStyles = styles ? mergeStyles(DEFAULT_STYLES, styles) : DEFAULT_STYLES
 
 fragment
   SelectBase(
     ~ {...selectProps}
-    ~ options={options}
-    ~ value={selectedOption}
+    ~ className={className}
+    ~ classNames={resolvedClassNames}
     ~ onChange={handleChange}
-    ~ className={cn('relative z-50',className)}
+    ~ options={options}
+    ~ styles={resolvedStyles}
+    ~ unstyled={unstyled}
+    ~ value={selectedOption}
     ~ )

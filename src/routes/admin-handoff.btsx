@@ -56,6 +56,6 @@ main(className='grid min-h-screen place-items-center bg-background px-6 text-cen
     if error
       p(className='mt-4 text-sm text-destructive') #{error}
     else
-      div(className='flex items-center justify-center gap-1.5')
+      div(className='mt-4 flex items-center justify-center gap-1.5')
         Icon(name='spinner-ferris')
-        p(className='mt-4 text-sm text-muted-foreground') Hnnn Verifying your administrator access…
+        p(className='text-sm text-muted-foreground') Hnnn Verifying your administrator access…

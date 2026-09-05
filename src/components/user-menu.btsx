@@ -16,9 +16,10 @@ module
   }
 
   interface ItemProps {
-    path: string
     label: string
     icon: IconName
+    onClick: (path: string) => void
+    disabled?: boolean
   }
 
   interface RouteItemProps {
@@ -34,10 +35,10 @@ component RouteItem
     span(className='text-base font-medium tracking-tight') #{label}
 
 component Item
-  props { item, onNavigate }: { item: ItemProps; onNavigate: (path: string) => void }
-  button(type='button' role='menuitem' className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-4 text-left text-sm outline-hidden select-none hover:bg-accent/60 focus:bg-accent focus:text-accent-foreground' onClick={() => onNavigate(item.path)})
-    Icon(name={item.icon} className='size-4.5')
-    span(className='font-medium text-base tracking-tight') #{item.label}
+  props { icon,label, onClick, disabled=false }: ItemProps
+  button(role='menuitem' disabled={disabled} className='group/dropdown-menu-item relative flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-4 text-left text-sm outline-hidden select-none hover:bg-accent focus:bg-accent focus:text-accent-foreground' onClick={onClick})
+    Icon(name={icon} className='size-4.5')
+    span(className='font-medium text-base tracking-tight') #{label}
 
 props { user, hasAdminClaim, hasGodAccess }: UserMenuProps
 
@@ -94,8 +95,9 @@ div(ref={menuRef} className='relative z-100!')
       if hasGodAccess
         RouteItem(to='/citadel' label='citadel' icon='horse' onNavigate={() => setIsOpen(false)})
       if hasAdminClaim
-        button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60' onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
-          Icon(name='rook' className='size-5 shrink-0')
-          span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
+        Item(role='menuitem' label='admin' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+        // button(type='button' role='menuitem' className='flex w-full items-center justify-start gap-3 rounded-lg px-2.5 py-2 text-left text-foreground/70 transition hover:bg-transparent hover:text-foreground disabled:cursor-wait disabled:opacity-60')
+        //   Icon(name='rook' className='size-5 shrink-0')
+        //   span(className='text-base font-medium tracking-tight') #{isNavigatingToAdmin ? 'opening admin' : 'admin'}
       div(className='-mx-1 my-1 h-px bg-input' role='separator')
       SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

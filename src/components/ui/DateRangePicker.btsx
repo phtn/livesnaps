@@ -1,0 +1,110 @@
+import { useState } from 'octane'
+import { format } from 'date-fns'
+import type { DateRange } from '@octanejs/day-picker'
+import Calendar from './calendar.btsx'
+import Popover, { PopoverContent, PopoverTrigger } from './Popover.btsx'
+import type { PopoverContentProps, PopoverProps } from './Popover.btsx'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import type { ClassName } from '@/types'
+
+module
+  type PopoverAlign = PopoverContentProps['align']
+  type PopoverSide = PopoverContentProps['side']
+
+  export interface DateRangePickerProps {
+    value: DateRange | undefined
+    onValueChange: (range: DateRange | undefined) => void
+    id?: string
+    open?: PopoverProps['open']
+    onOpenChange?: PopoverProps['onOpenChange']
+    align?: PopoverAlign
+    side?: PopoverSide
+    sideOffset?: number
+    numberOfMonths?: number
+    placeholder?: string
+    disabled?: boolean
+    clearLabel?: string
+    className?: ClassName
+    contentClassName?: ClassName
+    'aria-labelledby'?: string
+  }
+
+  // Shadcn's range trigger renders `LLL dd, y - LLL dd, y`. Half-open ranges
+  // and repeated month/year parts are collapsed so the label survives a
+  // trigger only wide enough for about twenty characters.
+  export const formatDateRangeLabel = (range: DateRange | undefined, placeholder: string) => {
+    const from = range?.from
+    const to = range?.to
+
+    if (!from) return to ? `Through ${format(to, 'LLL d, y')}` : placeholder
+    if (!to) return `From ${format(from, 'LLL d, y')}`
+    if (from.toDateString() === to.toDateString()) return format(from, 'LLL d, y')
+    if (from.getFullYear() !== to.getFullYear()) return `${format(from, 'LLL d, y')} - ${format(to, 'LLL d, y')}`
+    if (from.getMonth() === to.getMonth()) return `${format(from, 'LLL d')} - ${format(to, 'd, y')}`
+    return `${format(from, 'LLL d')} - ${format(to, 'LLL d, y')}`
+  }
+
+  // A popover nested inside another popover only survives the click that opens
+  // it if the trigger hands back the pointer capture the outer layer is holding.
+  const releaseNestedPointerCapture = (event: PointerEvent) => {
+    const target = event.target
+    if (!(target instanceof Element)) return
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
+    if (event.button === 0 && event.ctrlKey === false && event.pointerType === 'mouse') event.preventDefault()
+  }
+
+props { value, onValueChange, id, open, onOpenChange, align = 'start', side, sideOffset = 4, numberOfMonths = 1, placeholder = 'Any date', disabled = false, clearLabel = 'Clear', className, contentClassName, 'aria-labelledby': ariaLabelledBy }: DateRangePickerProps
+
+setup
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isOpen = open ?? uncontrolledOpen
+  const contentId = id ? `${id}-content` : undefined
+  const hasValue = Boolean(value?.from || value?.to)
+  const label = formatDateRangeLabel(value, placeholder)
+  const handleOpenChange = (next: boolean) => {
+    if (open === undefined) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
+  // DayPicker reports an emptied range as `{ from: undefined }`, which is not
+  // the same as "no filter" to callers — normalise it back to `undefined`.
+  const handleSelect = (range: DateRange | undefined) => {
+    onValueChange(range?.from || range?.to ? range : undefined)
+  }
+  const handleClear = () => onValueChange(undefined)
+
+Popover(open={isOpen} onOpenChange={handleOpenChange})
+  PopoverTrigger(
+    ~ id={id}
+    ~ type='button'
+    ~ disabled={disabled}
+    ~ aria-controls={contentId}
+    ~ aria-labelledby={ariaLabelledBy}
+    ~ data-empty={!hasValue}
+    ~ title={label}
+    ~ className={cn(
+    ~   'flex h-8 w-full min-w-0 items-center justify-start gap-2 overflow-hidden rounded-sm px-2 font-normal',
+    ~   'disabled:pointer-events-none disabled:opacity-50 data-[empty=true]:text-muted-foreground',
+    ~   className
+    ~ )}
+    ~ onPointerDown={releaseNestedPointerCapture}
+    ~ )
+    Icon(name='calendar' className='size-3.5 shrink-0 opacity-60')
+    span(className='truncate') #{label}
+  PopoverContent(
+    ~ id={contentId}
+    ~ align={align}
+    ~ side={side}
+    ~ sideOffset={sideOffset}
+    ~ className={cn('w-auto gap-0 overflow-hidden rounded-sm border border-border/60 p-0!', contentClassName)}
+    ~ )
+    Calendar(selectedRange={value} handleSelect={handleSelect} numberOfMonths={numberOfMonths})
+    if hasValue
+      div(className='flex justify-end border-t border-dashed border-border px-2 py-1.5')
+        button(
+          ~ type='button'
+          ~ className='inline-flex items-center gap-1.5 rounded-sm px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+          ~ onClick={handleClear}
+          ~ )
+          Icon(name='close' className='size-3')
+          span #{clearLabel}
