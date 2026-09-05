@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
-import { buildSnapGallery, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
 import DataTable from '@/components/ui/table/DataTable.btsx'
+import { SnapRowActions } from '@/components/ui/table/row-actions.btsx'
 import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
 import PhotoViewer from '@/components/photo-viewer.btsx'
 import ErrorPage from '@/components/error.btsx'
@@ -27,6 +29,11 @@ setup
     if (!open) setActivePhotoSnapId(null)
   }, [])
 
+  const [reportViewerSnapId, setReportViewerSnapId] = useState<SnapRow['_id'] | null>(null)
+  const closeReportViewer = useCallback((open: boolean) => {
+    if (!open) setReportViewerSnapId(null)
+  }, [])
+
 main(className='p-8')
   p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
   h1(className='mt-3 font-poly text-3xl font-medium') Snaps
@@ -43,19 +50,25 @@ main(className='p-8')
           else
             span #{freshnessLabel}
           button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
-        DataTable(
-          ~ title='Snaps'
-          ~ eyebrow='Search + sort + filter'
-          ~ data={rows}
-          ~ columns={snapColumns}
-          ~ filterList={SnapFilterList}
-          ~ getRowId={(row) => row._id}
-          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-          ~ initialPageSize={50}
-          ~ pageSizes={PAGE_SIZES}
-          ~ emptyTitle='No snaps'
-          ~ emptyDescription='Try a shorter query or clear the search.'
+        SnapRowActions.Provider(
+          ~ onExportReport={exportSnapReportById}
+          ~ onOpenPhotoViewer={setActivePhotoSnapId}
+          ~ onOpenReportViewer={setReportViewerSnapId}
           ~ )
+          DataTable(
+            ~ title='Snaps'
+            ~ eyebrow='Search + sort + filter'
+            ~ data={rows}
+            ~ columns={snapColumns}
+            ~ filterList={SnapFilterList}
+            ~ getRowId={(row) => row._id}
+            ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+            ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+            ~ initialPageSize={50}
+            ~ pageSizes={PAGE_SIZES}
+            ~ emptyTitle='No snaps'
+            ~ emptyDescription='Try a shorter query or clear the search.'
+            ~ )
   if gallery
     PhotoViewer(
       ~ open={true}
@@ -63,3 +76,8 @@ main(className='p-8')
       ~ title={gallery.title}
       ~ onOpenChange={closePhotoViewer}
       ~ )
+  SnapRowActions.ReportViewerDialog(
+    ~ snapId={reportViewerSnapId}
+    ~ open={reportViewerSnapId !== null}
+    ~ onOpenChange={closeReportViewer}
+    ~ )

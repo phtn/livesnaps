@@ -151,7 +151,7 @@ module
     'h-6 w-full min-w-0 rounded-sm bg-background px-1 font-okx text-xs [&::-webkit-calendar-picker-indicator]:opacity-50'
 
   const triggerClassName: ClassName =
-    'bg-background hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
+    'bg-background hover:border-indigo-500 hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
   const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
 
   const getActiveFilterCount = (definition: SnapFilterDefinition, value: unknown) => {
@@ -345,19 +345,20 @@ setup
   )
   const activeFilterLabel = activeFilterCount > 99 ? '99+' : String(activeFilterCount)
 
-  const buttonClass = cn(
-    'relative h-7.5 flex items-center justify-center gap-1',
-    'rounded-xs text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5',
+  const buttonClass = useMemo(() => cn(
+    'relative h-9 flex items-center justify-center gap-2',
+    'rounded-[4px] text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5',
     'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
-    'hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
+    'border border-transparent hover:border hover:border-indigo-500 hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
     'active:bg-foreground/10 dark:active:bg-indigo-100/5',
-    'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1'
-  )
+    'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1',
+    {'gap-0.5! md:ps-2 md:pe-2.5': activeFilterCount > 0},
+  ), [activeFilterCount])
 
 Popover(open={open} onOpenChange={setOpen})
-  PopoverTrigger(type='button' aria-label='Filter' className={buttonClass})
+  PopoverTrigger(type='button' aria-label='Filter' className={cn({'border-indigo-500!': activeFilterCount > 0},buttonClass)})
     if activeFilterCount > 0
-      span(className='rounded-xs bg-indigo-500 px-1.5 font-okx font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
+      span(className='min-w-6 w-6 rounded-xs bg-indigo-500 px-1.5 font-okx font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
     else
       Icon(name='filter' className='size-4 opacity-70')
     span(className='hidden opacity-80 md:inline') Filter
@@ -371,11 +372,11 @@ Popover(open={open} onOpenChange={setOpen})
     div(className='flex flex-col gap-1 border-b border-dashed px-3 py-2')
       h4(id={labelId} className='select-none font-okx text-sm text-muted-foreground') Add Filter
       p(id={descriptionId} className='sr-only') Filter the snaps table by status, vehicle, location match, accuracy, or creation date.
-    div(className='space-y-2 p-3')
+    div(className='space-y-2 _p-3')
       each definition in DEFAULT_FILTERABLE key definition.id
         SnapFilterField(baseId={baseId} columnsById={columnsById} definition={definition} rawFilterValue={filterValuesById.get(definition.id)})
     if activeFilterCount > 0
       div(className='flex justify-end border-t border-dashed p-1')
         Button(type='button' variant='ghost' size='sm' onClick={onReset} className='rounded-md')
-          Icon(name='cancel' className='size-3.5')
+          Icon(name='no-filter' className='size-3.5')
           span Reset Filters

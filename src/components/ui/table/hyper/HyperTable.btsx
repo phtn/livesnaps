@@ -121,7 +121,7 @@ table(
   ~ data-slot='table'
   ~ aria-busy={loading}
   ~ aria-label={title ?? 'Data table'}
-  ~ className='w-fit min-w-full table-fixed border-separate border-spacing-0 whitespace-nowrap caption-bottom text-sm transition-[width] duration-200 ease-out motion-reduce:transition-none md:min-w-4xl'
+  ~ className='w-fit min-w-full table-fixed border-separate border-spacing-0 whitespace-nowrap caption-bottom text-sm transition-[width] duration-200 ease-out motion-reduce:transition-none md:min-w-4xl border-b border-sidebar-border border-dotted'
   ~ style={{ width: layout.visibleTableSize }}
   ~ )
   colgroup

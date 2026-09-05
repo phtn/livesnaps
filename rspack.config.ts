@@ -84,6 +84,12 @@ export default {
       {
         test: /\.(woff2?|png|jpe?g|webp|svg|ico)$/i,
         type: 'asset/resource'
+      },
+      {
+        // takumi-pdf is initialised explicitly via its `no-init` entry, so the
+        // wasm binary is wanted as a URL, not as a linked WebAssembly module.
+        test: /\.wasm$/,
+        type: 'asset/resource'
       }
     ]
   },

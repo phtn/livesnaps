@@ -6,6 +6,12 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "preview"],
       "port": 3000
+    },
+    {
+      "name": "livesnaps-dev-client",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev:client", "--", "--port", "3101"],
+      "port": 3101
     }
   ]
 }

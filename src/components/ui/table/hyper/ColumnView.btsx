@@ -48,7 +48,7 @@ component ColumnViewTrigger
     ~   'hover:bg-orange-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
     ~   'active:bg-zinc-300 dark:active:bg-zinc-700/40',
     ~   'focus-visible:bg-none focus-visible:-outline-offset-1 focus-visible:outline-1',
-    ~   invisibleCount > 0 && 'gap-1.5 md:ps-2 md:pe-2.5',
+    ~   {'gap-0.5! md:ps-2 md:pe-2.5 border-orange-400!': invisibleCount > 0},
     ~   className,
     ~ )}
     ~ )

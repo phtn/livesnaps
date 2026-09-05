@@ -32,8 +32,8 @@ export interface PinnedColumnLayout {
   position: DefaultColumnPinningPosition
 }
 
-const DEFAULT_COLUMN_SIZE = 150
-const DEFAULT_MIN_COLUMN_SIZE = 50
+const DEFAULT_COLUMN_SIZE = 40
+const DEFAULT_MIN_COLUMN_SIZE = 40
 const DEFAULT_MAX_COLUMN_SIZE = Number.MAX_SAFE_INTEGER
 
 export const getColumnSize = (column: SizedColumnLike) => {

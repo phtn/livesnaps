@@ -1,0 +1,372 @@
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'octane'
+import type { OctaneNode } from 'octane'
+import type { Doc, Id } from '../../../../convex/_generated/dataModel'
+import { api } from '../../../../convex/_generated/api'
+import { Dialog } from '@octanejs/base-ui/dialog'
+import { Document, Page, pdfjs } from '@octanejs/pdf'
+import { ScrollArea } from '@/components/ui/'
+import { Dropdown } from '@/components/ui/dropdown-menu.btsx'
+import { Icon } from '@/lib/icons'
+import { convexClient } from '@/lib/convex-client'
+import { createSnapFullReportDocument } from '@/lib/snaps/full-report'
+import { renderSnapFullReportPdf } from '@/components/admin/snap-report-pdf'
+import { createTableExportFileName, downloadTableExport } from '@/components/admin/export-utils'
+import { downloadSnapPhotoArchive } from '@/lib/snaps/photo-download'
+import { onPromise } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+import type { SnapRow } from '@/components/admin/snap-columns'
+
+module
+  export type OpenSnapPhotoViewer = (snapId: SnapRow['_id']) => void
+  export type OpenSnapReportViewer = (snapId: SnapRow['_id']) => void
+  export type ExportSnapReport = (snapId: SnapRow['_id']) => Promise<void>
+
+  export const SnapPhotoViewerContext = createContext<OpenSnapPhotoViewer | null>(null)
+  export const SnapReportViewContext = createContext<OpenSnapReportViewer | null>(null)
+  export const SnapReportExportContext = createContext<ExportSnapReport | null>(null)
+
+  // The source used a shadcn-style `<Button variant='ghost'>`. This project's
+  // Button is a filled pill with its own variant set, so the ghost affordance
+  // is expressed directly on a native button instead.
+  const GHOST_BUTTON_CLASS = 'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+
+  const plural = (count: number, word: string) => (count === 1 ? word : `${word}s`)
+
+  const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
+
+  // pdf.js needs its worker before any document is parsed. Resolved through the
+  // bundler so the worker ships as an app asset rather than a bare CDN URL.
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
+
+  interface PreviewState {
+    blob: Blob | null
+    error: string | null
+    fileName: string
+  }
+
+  // The sibling components are hoisted function declarations, so the namespace
+  // can reference them here. Mirrors how `dropdown-menu.btsx` publishes parts.
+  export const SnapRowActions = {
+    PhotosCell: SnapPhotosCell,
+    Provider: SnapRowActionsProvider,
+    ReportViewerContent: SnapReportViewerContent,
+    ReportViewerDialog: SnapReportViewerDialog
+  }
+
+  interface SnapRowActionsProviderProps {
+    children?: OctaneNode
+    onExportReport: ExportSnapReport
+    onOpenPhotoViewer: OpenSnapPhotoViewer
+    onOpenReportViewer: OpenSnapReportViewer
+  }
+
+component SnapRowActionsProvider
+  props { children, onExportReport, onOpenPhotoViewer, onOpenReportViewer }: SnapRowActionsProviderProps
+
+  SnapPhotoViewerContext.Provider(value={onOpenPhotoViewer})
+    SnapReportViewContext.Provider(value={onOpenReportViewer})
+      SnapReportExportContext.Provider(value={onExportReport})
+        fragment #{children}
+
+component SnapPhotosCell
+  props { snap }: { snap: SnapRow }
+  setup
+    const openPhotoViewer = use(SnapPhotoViewerContext)
+    const [isDownloading, setIsDownloading] = useState(false)
+    const photoCount = snap.photos.length
+    const photoWord = plural(photoCount, 'photo')
+
+    if (!openPhotoViewer) {
+      throw new Error('SnapPhotosCell must be rendered within SnapPhotoViewerContext.')
+    }
+
+    const handleDownload = async () => {
+      if (photoCount === 0 || isDownloading) return
+
+      setIsDownloading(true)
+
+      try {
+        await onPromise(downloadSnapPhotoArchive(snap.photos, snap.uploadId), {
+          loading: `Preparing ${photoCount} ${photoWord}…`,
+          success: `Downloaded ${photoCount} ${photoWord}.`,
+          error: (error) => errorMessage(error, 'Unable to download proof photos.')
+        }).catch(() => undefined)
+      } finally {
+        setIsDownloading(false)
+      }
+    }
+
+  div(className='flex items-center gap-4 opacity-80')
+    button(
+      ~ type='button'
+      ~ disabled={photoCount === 0}
+      ~ aria-label={`View ${photoCount} proof ${photoWord}`}
+      ~ title={photoCount === 0 ? 'No proof photos available' : 'View proof photos'}
+      ~ onClick={(event: MouseEvent) => { event.stopPropagation(); openPhotoViewer(snap._id) }}
+      ~ className={cn(GHOST_BUTTON_CLASS, 'h-8 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400')}
+      ~ )
+      span(className='font-okx text-base font-medium') #{photoCount}
+      Icon(name='gallery' className='size-5')
+
+    button(
+      ~ type='button'
+      ~ disabled={photoCount === 0 || isDownloading}
+      ~ aria-label={`Download all ${photoCount} proof ${photoWord}`}
+      ~ title={photoCount === 0 ? 'No proof photos available' : 'Download all photos as ZIP'}
+      ~ onClick={(event: MouseEvent) => { event.stopPropagation(); void handleDownload() }}
+      ~ className={cn(GHOST_BUTTON_CLASS, 'size-8 hover:text-blue-600 dark:hover:text-blue-400')}
+      ~ )
+      Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className={cn('size-5', isDownloading && 'animate-spin')})
+
+component SnapReportViewerContent
+  props { reportSnap, isLoading, loadError, onRetry }: { reportSnap: Doc<'snaps'> | null; isLoading: boolean; loadError: string | null; onRetry: () => void }
+  setup
+    const [preview, setPreview] = useState<PreviewState | null>(null)
+    const [pageCount, setPageCount] = useState(0)
+    const [containerWidth, setContainerWidth] = useState(0)
+    const containerRef = useRef<HTMLDivElement | null>(null)
+
+    // The dialog previews the exact bytes the download produces, so the PDF is
+    // built once here and reused for both. The blob is dropped when the source
+    // snap changes or the component unmounts.
+    useEffect(() => {
+      if (!reportSnap) {
+        setPreview(null)
+        setPageCount(0)
+        return
+      }
+
+      let cancelled = false
+      setPreview(null)
+      setPageCount(0)
+
+      void (async () => {
+        try {
+          const report = createSnapFullReportDocument(reportSnap)
+          const bytes = await renderSnapFullReportPdf(report)
+          if (cancelled) return
+          setPreview({
+            blob: new Blob([Uint8Array.from(bytes)], { type: 'application/pdf' }),
+            error: null,
+            fileName: createTableExportFileName(`snap-report-${report.recordId.slice(-12)}`, 'pdf', report.generatedAt)
+          })
+        } catch (error) {
+          if (cancelled) return
+          setPreview({ blob: null, error: errorMessage(error, String(error)), fileName: '' })
+        }
+      })()
+
+      return () => {
+        cancelled = true
+      }
+    }, [reportSnap])
+
+    // pdf.js renders to a fixed pixel width, so the page has to be told how wide
+    // its container actually is.
+    useEffect(() => {
+      const element = containerRef.current
+      if (!element) return
+
+      const observer = new ResizeObserver((entries) => {
+        const width = entries[0]?.contentRect.width ?? 0
+        setContainerWidth((current) => (Math.abs(current - width) < 1 ? current : width))
+      })
+      observer.observe(element)
+
+      return () => observer.disconnect()
+    }, [preview?.blob])
+
+    const handleDownload = () => {
+      if (!preview?.blob) return
+      // Reuses the previewed bytes; nothing is re-rendered on download.
+      void onPromise(
+        preview.blob.arrayBuffer().then((buffer) => {
+          downloadTableExport(buffer, 'application/pdf', preview.fileName)
+        }),
+        {
+          loading: 'Preparing the proof report…',
+          success: 'Full row report downloaded.',
+          error: (error) => errorMessage(error, 'Unable to export the full row report.')
+        }
+      ).catch(() => undefined)
+    }
+
+    const pageNumbers = useMemo(() => Array.from({ length: pageCount }, (_, index) => index + 1), [pageCount])
+
+  if isLoading
+    div(className='grid place-items-center py-16 text-sm text-muted-foreground')
+      Icon(name='spinner-ring' className='size-5 animate-spin')
+      span(className='mt-2') Loading report…
+  elseif loadError
+    div(className='grid place-items-center py-16 text-center')
+      p(className='text-sm text-destructive') #{loadError}
+      button(type='button' className={cn(GHOST_BUTTON_CLASS, 'mt-4 h-8 border border-input px-3 text-sm')} onClick={onRetry}) Retry
+  elseif preview?.error
+    div(className='grid place-items-center py-16 text-center text-sm text-muted-foreground')
+      p Unable to build the report preview.
+      p(className='mt-1 text-xs') #{preview.error}
+  elseif !preview
+    div(className='grid place-items-center py-16 text-sm text-muted-foreground')
+      Icon(name='spinner-ring' className='size-5 animate-spin')
+      span(className='mt-2') Building report…
+  else
+    div(className='flex h-full flex-col gap-3')
+      ScrollArea(className='h-[55vh] rounded-lg border border-border bg-muted/30')
+        div(ref={containerRef} className='flex flex-col items-center gap-4 p-4')
+          Document(
+            ~ file={preview.blob}
+            ~ onLoadSuccess={(document) => setPageCount(document.numPages)}
+            ~ onLoadError={(error) => setPreview({ blob: null, error: errorMessage(error, 'Unable to open the report.'), fileName: '' })}
+            ~ loading={LoadingPdf}
+            ~ error={FailedPdf}
+            ~ )
+            each pageNumber in pageNumbers key pageNumber
+              Page(
+                ~ pageNumber={pageNumber}
+                ~ width={containerWidth > 0 ? containerWidth - 32 : undefined}
+                ~ renderTextLayer={false}
+                ~ renderAnnotationLayer={false}
+                ~ className='shadow-sm'
+                ~ )
+
+      div(className='flex items-center justify-between gap-2 border-t border-border pt-3')
+        p(className='font-mono text-xs text-muted-foreground')
+          if pageCount > 0
+            fragment #{pageCount} #{plural(pageCount, 'page')}
+        button(
+          ~ type='button'
+          ~ className={cn(GHOST_BUTTON_CLASS, 'h-9 gap-2 border border-input px-4 text-sm')}
+          ~ onClick={handleDownload}
+          ~ title='Download the full report as a PDF'
+          ~ )
+          Icon(name='download-line' className='size-4')
+          span Download PDF
+
+component LoadingPdf
+  div(className='grid place-items-center py-16 text-sm text-muted-foreground')
+    Icon(name='spinner-ring' className='size-5 animate-spin')
+    span(className='mt-2') Rendering report…
+
+component FailedPdf
+  div(className='grid place-items-center py-16 text-sm text-muted-foreground')
+    p Unable to display the report.
+
+component SnapReportViewerDialog
+  props { snapId, open, onOpenChange }: { snapId: SnapRow['_id'] | null; open: boolean; onOpenChange: (open: boolean) => void }
+  setup
+    const [reportSnap, setReportSnap] = useState<Doc<'snaps'> | null>(null)
+    const [isLoading, setIsLoading] = useState(false)
+    const [loadError, setLoadError] = useState<string | null>(null)
+
+    // `convex/react`'s `useConvex` is React-only, so the shared browser client
+    // owns the fetch. It is a module singleton and therefore not a dependency.
+    const loadSnap = useCallback(async () => {
+      if (!snapId || !open) return
+      if (!convexClient) {
+        setLoadError('The Convex client is unavailable.')
+        return
+      }
+      setIsLoading(true)
+      setLoadError(null)
+      try {
+        const snap = await convexClient.query(api.snaps.q.getForAdmin, { snapId: snapId as Id<'snaps'> })
+        if (!snap) throw new Error('Snap not found.')
+        setReportSnap(snap)
+      } catch (error) {
+        setLoadError(errorMessage(error, 'Unable to load report.'))
+      } finally {
+        setIsLoading(false)
+      }
+    }, [snapId, open])
+
+    useEffect(() => {
+      if (open && snapId) {
+        void loadSnap()
+      } else if (!open) {
+        setReportSnap(null)
+        setLoadError(null)
+        setIsLoading(false)
+      }
+    }, [open, snapId, loadSnap])
+
+  Dialog.Root(open={open} onOpenChange={onOpenChange})
+    Dialog.Portal
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/60')
+      Dialog.Popup(className='fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl outline-none')
+        div(className='shrink-0 px-6 pb-4 pt-6')
+          Dialog.Title(className='font-poly text-lg') Proof Report
+          Dialog.Description(className='font-mono text-xs') #{snapId ? `Report for ${String(snapId).slice(0, 8)}…` : 'Loading report'}
+        div(className='min-h-0 flex-1 px-6 pb-6')
+          SnapReportViewerContent(
+            ~ reportSnap={reportSnap}
+            ~ isLoading={isLoading}
+            ~ loadError={loadError}
+            ~ onRetry={loadSnap}
+            ~ )
+
+props { snap }: { snap: SnapRow }
+setup
+  const exportSnapReport = use(SnapReportExportContext)
+  const openReportViewer = use(SnapReportViewContext)
+  const [isExporting, setIsExporting] = useState(false)
+  const hasPhotos = snap.photos.length > 0
+  const snapLabel = snap.plateNumber || snap.uploadId
+
+  if (!exportSnapReport) {
+    throw new Error('SnapRowActionsCell must be rendered within SnapReportExportContext.')
+  }
+  if (!openReportViewer) {
+    throw new Error('SnapRowActionsCell must be rendered within SnapReportViewContext.')
+  }
+
+  const handleExport = async () => {
+    if (!hasPhotos || isExporting) return
+
+    setIsExporting(true)
+    try {
+      await onPromise(exportSnapReport(snap._id), {
+        loading: 'Building authoritative proof report...',
+        success: 'Full row report downloaded.',
+        error: (error) => errorMessage(error, 'Unable to export the full row report.')
+      }).catch(() => undefined)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const handleView = () => {
+    openReportViewer(snap._id)
+  }
+
+Dropdown.Root
+  Dropdown.Trigger(
+    ~ disabled={isExporting}
+    ~ onClick={(event: MouseEvent) => event.stopPropagation()}
+    ~ aria-label={isExporting ? `Exporting report for ${snapLabel}` : `Open actions for ${snapLabel}`}
+    ~ title={isExporting ? 'Exporting full row report' : 'Open proof actions'}
+    ~ className={cn(GHOST_BUTTON_CLASS, '-ml-2.5 size-7 rounded-xs text-foreground/70 hover:text-foreground data-popup-open:bg-mist-300/60 dark:data-popup-open:bg-mist-700/40')}
+    ~ )
+    Icon(name={isExporting ? 'spinner-ring' : 'more-v'} className={cn('size-4.5 opacity-80', isExporting && 'animate-spin')})
+
+  Dropdown.Content(
+    ~ align='end'
+    ~ sideOffset={4}
+    ~ className='w-64 rounded-md border shadow-sm'
+    ~ onClick={(event: MouseEvent) => event.stopPropagation()}
+    ~ )
+    Dropdown.Group
+      Dropdown.Label(className='border-b border-dashed') Row Actions
+      Dropdown.Item(onClick={handleView} className='h-12 rounded-sm')
+        Icon(name='eye' className='size-5 text-blue-600 dark:text-blue-400')
+        span(className='flex min-w-0 flex-col')
+          span View Report
+          span(className='text-xs text-muted-foreground') Preview full row report
+      Dropdown.Item(
+        ~ disabled={!hasPhotos || isExporting}
+        ~ onClick={() => void handleExport()}
+        ~ className='h-12 rounded-sm'
+        ~ )
+        Icon(name='download-line' className='size-5 text-red-600 dark:text-red-400')
+        span(className='flex min-w-0 flex-col')
+          span Full Report
+          span(className='text-xs text-muted-foreground') #{hasPhotos ? 'Download as PDF' : 'Requires at least one proof photo'}

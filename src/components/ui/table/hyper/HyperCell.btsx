@@ -17,21 +17,20 @@ props {cell, isEditing, isVisible, pinnedColumnLayout}: RenderCellProps
 
 
 
-
 td(
   ~ aria-hidden={!isVisible}
   ~ data-column-visible={isVisible}
   ~ data-column-pinned={pinnedColumnLayout?.position || undefined}
   ~ inert={!isVisible}
   ~ style={getPinnedColumnStyle(pinnedColumnLayout)}
-  ~ className={cn('overflow-hidden p-0 [&:last-child>div]:py-0 border-b border-r border-border border-dotted first:border-l-0',
+  ~ className={cn('overflow-hidden p-0 border-b border-r border-sidebar-border _border-dotted first:border-l-0 last:border-r-0',
     ~ {
-      ~ 'sticky z-10 transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none': pinnedColumnLayout,
-      ~ 'border-r border-sidebar-border': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start',
-      ~ '': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end',
+      ~ 'sticky z-10 border-r-0 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none': pinnedColumnLayout,
+      ~ 'border-sidebar-border': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start',
+      ~ 'border-l': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end',
       ~ 'dark:bg-background/10': isEditing && !pinnedColumnLayout,
       ~ 'pointer-events-none': !isVisible
       ~ })}
   ~ )
-  div(className={cn('min-w-0 overflow-hidden p-3 transition-all duration-180 ease-out motion-reduce:transition-none origin-left opacity-0 scale-50',{'opacity-100 scale-100': isVisible})})
+  div(className={cn('min-w-0 overflow-hidden py-3 ps-4 transition-all duration-180 ease-out motion-reduce:transition-none origin-left opacity-0 scale-50',{'opacity-100 scale-100': isVisible})})
     FlexRender(cell={cell})

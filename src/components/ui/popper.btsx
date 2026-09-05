@@ -1,0 +1,34 @@
+
+import type { ClassValue } from 'octane/jsx-runtime'
+import { AnimatePresence, motion } from '@octanejs/motion'
+import { cn } from '@/lib/utils'
+import {useId} from 'octane'
+
+module
+  type Props = {
+    condition: boolean
+    value?: string | number
+    className?: ClassValue
+    trail?: string
+    lead?: string
+    role?: string
+  }
+  const MotionDiv = motion.div
+
+props {condition, value, className, trail, lead}: Props
+setup
+  const id = useId()
+AnimatePresence(mode='wait')
+  if (condition)
+    MotionDiv(
+      ~ key={id}
+      ~ initial={undefined}
+      ~ animate={{ opacity: 1 }}
+      ~ exit={{ opacity: 0 }}
+      ~ transition={{ type: 'spring', duration: 0.3, bounce: 0.35, delay: 0.45 }}
+      ~ className={cn('inline-block text-muted-foreground/50 px-1 space-x-2 min-w-40 flex items-center justify-end', className)}
+      ~ )
+      span #{lead}
+      span #{value}
+      span #{trail}
+      span(className='text-muted-foreground/50' aria-hidden='true') ·

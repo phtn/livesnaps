@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils"
 
 
 component PopoverTrigger
-  props {...props}: PopoverPrimitive.Trigger.Props
+  props {className, ...props}: PopoverPrimitive.Trigger.Props
   fragment
-    PopoverPrimitive.Trigger(data-slot="popover-trigger" {...props})
+    PopoverPrimitive.Trigger(data-slot="popover-trigger" className={className} {...props})
 
 component PopoverContent
   props {className, align, alignOffset, side, sideOffset, ...props}: PopoverPrimitive.Content.Props & Pick<PopoverPrimitive.Positioner.Props, "align" | "alignOffset" | "side" | "sideOffset">

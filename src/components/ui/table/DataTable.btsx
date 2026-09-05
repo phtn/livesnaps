@@ -1,7 +1,7 @@
 import { functionalUpdate, useTable } from '@octanejs/tanstack-table'
-import type {  ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
+import type { ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
 import { useMemo, useState } from 'octane'
-import { Button, Header } from '@/components/ui/'
+import { Button } from '@/components/ui/'
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import { TableBody, TableCell, TableRow } from '@/components/ui/table'
 import Header from '@/components/ui/header.btsx'
@@ -13,6 +13,9 @@ import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/t
 import { snapsFeatures } from '@/components/admin/table-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import type { OctaneNode } from 'octane'
+import Popper from '@/components/ui/popper.btsx'
+import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from '@octanejs/nuqs'
+import { createColumnFiltersParser, createColumnOrderParser, createColumnVisibilityParser } from '@/components/ui/table/hyper/parsers'
 
 module
   /**
@@ -38,19 +41,48 @@ module
     initialPageSize?: number
     initialSorting?: SortingState
     pageSizes?: number[]
+    /**
+     * Progress of an out-of-band (async) filter/sort pass, when the consumer
+     * runs one. Left unset the table filters synchronously and the progress
+     * readouts stay hidden.
+     */
+    queryState?: QueryState
     title?: string
+    /**
+     * Namespace for this table's query-string keys (`q` becomes `<prefix>q`,
+     * and so on). Set it when more than one table shares a route so they don't
+     * write over each other's state.
+     */
+    urlKeyPrefix?: string
     children?: OctaneNode
+  }
+  interface QueryState {
+    completed: number
+    elapsedMs: number
+    error: string | null
+    matched: number
+    phase: 'idle' | 'filtering' | 'sorting' | 'ready' | 'error'
+    total: number
   }
 
   const DEFAULT_PAGE_SIZES = [50, 100, 250, 500]
   const DEFAULT_PINNING: ColumnPinningState = { start: [], end: [] }
+  const IDLE_QUERY_STATE: QueryState = {
+    completed: 0,
+    elapsedMs: 0,
+    error: null,
+    matched: 0,
+    phase: 'idle',
+    total: 0,
+  }
+  const QUERY_KEYS = ['q', 'page', 'size', 'sort', 'desc', 'filters', 'visibility', 'order'] as const
 
 props {
   ~ columns,
   ~ data,
   ~ emptyDescription = 'Try a shorter query or clear the search.',
   ~ emptyTitle = 'No matching rows',
-  ~ eyebrow = 'Search + sort + select',
+  ~ eyebrow,
   ~ filterList,
   ~ getRowId,
   ~ initialColumnPinning = DEFAULT_PINNING,
@@ -58,27 +90,78 @@ props {
   ~ initialPageSize,
   ~ initialSorting = [],
   ~ pageSizes = DEFAULT_PAGE_SIZES,
+  ~ queryState = IDLE_QUERY_STATE,
+  ~ urlKeyPrefix = '',
   ~ children,
   ~ title = ''}: Props
 
 setup
 
-
   // Capitalised alias so the template can render the prop as a component.
   const FilterList = filterList
   const safePageSizes = pageSizes.length > 0 ? pageSizes : DEFAULT_PAGE_SIZES
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [columnFilters, setColumnFilters] = useState([])
-  const [columnOrder, setColumnOrder] = useState([])
+  const defaultPageSize = safePageSizes.includes(initialPageSize ?? safePageSizes[0])
+    ? initialPageSize ?? safePageSizes[0]
+    : safePageSizes[0]
+  const defaultSort = initialSorting[0]
+  // Only real column ids are accepted from the URL, so `?sort=` can't be used
+  // to push an arbitrary key into the sorting state.
+  const sortIds = columns.map((column) => String(column.id)).filter((id) => id.length > 0)
+
+  // Column pinning stays local: it is a layout preference, not part of the
+  // shareable query the URL describes.
   const [columnPinning, setColumnPinning] = useState(initialColumnPinning)
-  const [columnVisibility, setColumnVisibility] = useState(initialColumnVisibility)
-  const [sorting, setSorting] = useState(initialSorting)
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: safePageSizes.includes(initialPageSize ?? safePageSizes[0])
-      ? initialPageSize ?? safePageSizes[0]
-      : safePageSizes[0],
-  })
+
+  const queryParsers = useMemo(
+    () => ({
+      q: parseAsString.withDefault(''),
+      page: parseAsInteger.withDefault(1),
+      size: parseAsInteger.withDefault(defaultPageSize),
+      sort: parseAsStringLiteral(sortIds).withDefault(defaultSort?.id ?? ''),
+      desc: parseAsBoolean.withDefault(defaultSort?.desc ?? true),
+      filters: createColumnFiltersParser(),
+      visibility: createColumnVisibilityParser(initialColumnVisibility),
+      order: createColumnOrderParser(),
+    }),
+    [sortIds.join(','), defaultPageSize, defaultSort?.id, defaultSort?.desc],
+  )
+  const queryOptions = useMemo(
+    () =>
+      urlKeyPrefix
+        ? { urlKeys: Object.fromEntries(QUERY_KEYS.map((key) => [key, `${urlKeyPrefix}${key}`])) }
+        : {},
+    [urlKeyPrefix],
+  )
+  const [query, setQuery] = useQueryStates(queryParsers, queryOptions)
+
+  const globalFilter = query.q
+  const columnFilters = query.filters
+  const columnOrder = query.order
+  const columnVisibility = query.visibility
+  const sorting = useMemo<SortingState>(
+    () => (query.sort ? [{ id: query.sort, desc: query.desc }] : []),
+    [query.sort, query.desc],
+  )
+  const pagination = useMemo<PaginationState>(
+    () => ({
+      pageIndex: Math.max(0, query.page - 1),
+      pageSize: safePageSizes.includes(query.size) ? query.size : defaultPageSize,
+    }),
+    [query.page, query.size, defaultPageSize, safePageSizes.join(',')],
+  )
+  // The table re-announces its controlled state while mounting. Writing those
+  // echoes back would clear `?page` before the reader ever sees it, so every
+  // handler drops updates that don't actually change anything.
+  const isSameState = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
+  const trace = (what: string, next: unknown, current: unknown) => {
+    console.log('DTTRACE', what, JSON.stringify(next), '<-', JSON.stringify(current))
+  }
+  const setPagination = (updater: unknown) => {
+    const next = functionalUpdate(updater, pagination) as PaginationState
+    trace('pagination', next, pagination)
+    if (isSameState(next, pagination)) return
+    void setQuery({ page: next.pageIndex + 1, size: next.pageSize })
+  }
 
   const table = useTable(
     {
@@ -90,18 +173,40 @@ setup
       getRowId: getRowId ?? ((row, index) => String(row.id ?? row._id ?? index)),
       state: { columnFilters, columnOrder, columnPinning, columnVisibility, globalFilter, pagination, sorting },
       onColumnFiltersChange: (updater) => {
-        setColumnFilters(functionalUpdate(updater, columnFilters))
-        setPagination((current) => ({ ...current, pageIndex: 0 }))
+        const next = functionalUpdate(updater, columnFilters)
+        trace('filters', next, columnFilters)
+        if (isSameState(next, columnFilters)) return
+        // Narrowing the result set can strand the reader on a page that no
+        // longer exists, so every filter/search change rewinds to page 1.
+        void setQuery({ filters: next, page: 1 })
       },
-      onColumnOrderChange: setColumnOrder,
+      onColumnOrderChange: (updater) => {
+        const next = functionalUpdate(updater, columnOrder)
+        trace('order', next, columnOrder)
+        if (isSameState(next, columnOrder)) return
+        void setQuery({ order: next })
+      },
       onColumnPinningChange: setColumnPinning,
-      onColumnVisibilityChange: setColumnVisibility,
+      onColumnVisibilityChange: (updater) => {
+        const next = functionalUpdate(updater, columnVisibility)
+        trace('visibility', next, columnVisibility)
+        if (isSameState(next, columnVisibility)) return
+        void setQuery({ visibility: next })
+      },
       onGlobalFilterChange: (updater) => {
-        setGlobalFilter(String(functionalUpdate(updater, globalFilter) ?? ''))
-        setPagination((current) => ({ ...current, pageIndex: 0 }))
+        const next = String(functionalUpdate(updater, globalFilter) ?? '')
+        trace('globalFilter', next, globalFilter)
+        if (next === globalFilter) return
+        void setQuery({ q: next, page: 1 })
       },
       onPaginationChange: setPagination,
-      onSortingChange: setSorting,
+      onSortingChange: (updater) => {
+        const next = functionalUpdate(updater, sorting) as SortingState
+        trace('sorting', next, sorting)
+        if (isSameState(next, sorting)) return
+        const primary = next[0]
+        void setQuery({ sort: primary?.id ?? null, desc: primary?.desc ?? null })
+      },
     },
     (state) => ({
       columnFilters: state.columnFilters,
@@ -123,18 +228,22 @@ setup
     ),
     [table, table.state.columnPinning, table.state.columnVisibility],
   )
-  const selectedCount = Object.keys(table.state.rowSelection).length
   const handleResetFilters = () => {
-    setColumnFilters([])
-    setPagination((current) => ({ ...current, pageIndex: 0 }))
+    void setQuery({ filters: null, page: null })
   }
   const handleSearchChange = (event: Event) => table.setGlobalFilter((event.currentTarget as HTMLInputElement).value)
 
-section(className='relative overflow-hidden rounded-sm border border-slate-400 bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
-  Header(title={title} description='Browse, sort, filter, and select your data.')
+  const isQuerying = queryState.phase === 'filtering' || queryState.phase === 'sorting'
+  const queryPercent = queryState.total === 0
+    ? 0
+    : Math.min(100, (queryState.completed / queryState.total) * 100)
+  const queryLabel = queryState.phase === 'sorting' ? 'Ranking' : 'Searching'
+
+section(className='relative overflow-hidden rounded-xs border border-sidebar-border bg-background shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+  Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
 
   div(className='flex min-h-12 items-center justify-between px-1 pb-2 max-[680px]:flex-col max-[680px]:items-start')
-    div(className='flex items-center gap-1')
+    div(className='flex items-center gap-0.75')
       ColumnView(
         ~ cols={table.getAllLeafColumns()}
         ~ columnVisibility={table.state.columnVisibility}
@@ -148,11 +257,13 @@ section(className='relative overflow-hidden rounded-sm border border-slate-400 b
           ~ columnFilters={columnFilters}
           ~ onReset={handleResetFilters}
           ~ )
-    div(className='flex items-center gap-2.5 font-mono text-sm text-muted-foreground/70')
-      span(className='uppercase text-sm') #{selectedCount} selected
+    div(className='flex items-center gap-2.5 font-mono text-sm text-active')
+      Popper(condition={isQuerying} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
+      Popper(condition={queryState.phase === 'error'} lead='error' trail='index interrupted')
+      span(className='uppercase text-sm') #{visibleRows.length.toLocaleString()} ROWS
       Search(value={globalFilter} onChange={handleSearchChange})
 
-  div(className='h-[612px] w-full overflow-auto scrollbar-track-slate-200 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
+  div(className='h-[calc(100vh-145px)] w-full overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
     HyperTable(
       ~ table={table}
       ~ title={title}
@@ -192,7 +303,7 @@ section(className='relative overflow-hidden rounded-sm border border-slate-400 b
     fragment #{children}
     div(className='flex items-center gap-4 md:gap-8')
       p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
-      div(className='flex overflow-hidden rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
+      div(className='flex overflow-hidden h-9 rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='First page' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}) ⏮
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Previous page' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}) ⯇
         Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Next page' disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}) ⯈

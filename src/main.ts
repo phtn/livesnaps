@@ -1,5 +1,6 @@
 import { createElement, createRoot } from 'octane'
 import { RouterProvider } from '@octanejs/tanstack-router'
+import { NuqsAdapter } from '@octanejs/nuqs/adapters/react'
 import ThemeProvider from './components/theme-provider.btsx'
 import { applyTheme, getPreferredTheme } from './lib/theme'
 import { router } from './router'
@@ -35,5 +36,10 @@ registerServiceWorker()
 
 const root = createRoot(container)
 root.render(ThemeProvider, {
-  children: createElement(RouterProvider, { router })
+  // NuqsAdapter drives table/search state straight off the query string. It
+  // sits inside the theme provider but outside the router so every route can
+  // read and write search params.
+  children: createElement(NuqsAdapter, {
+    children: createElement(RouterProvider, { router })
+  })
 })

@@ -1,8 +1,10 @@
-import { createElement } from 'octane'
+import RowActions from '@/components/ui/table/row-actions.btsx'
 import { getSnapImageUrl, isSnapObjectKey } from '@/lib/r2/snap-images'
 import type { AdminSnapListItem, AdminSnapPhoto } from '@/lib/snaps/admin-photo-types'
 import { getSnapPhotoFileName } from '@/lib/snaps/photo-download'
+import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
+import { createElement } from 'octane'
 import StatusBadge from './badges.btsx'
 import { snapSessionStatus } from './data'
 import { snapsFeatures } from './table-config'
@@ -28,6 +30,8 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   phone: false,
   uploadId: false
 }
+
+export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
 
 /**
  * Tokens the `countryCodeMatchesIpinfo` accessor emits. The filter list faces
@@ -152,7 +156,20 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor('firebaseUid', { header: 'Firebase UID', size: 260, sortFn: 'text' }),
   columnHelper.accessor('phone', { header: 'Phone', size: 180, sortFn: 'text' }),
-  columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' })
+  columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' }),
+  columnHelper.display({
+    id: 'actions',
+    header: '⁞',
+    size: 40,
+    enableHiding: false,
+    enableSorting: false,
+    enableGlobalFilter: false,
+    enableColumnFilter: false,
+    enablePinning: true,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(RowActions, { snap: info.row.original })
+  })
 ])
 
 const integrityDescription = (photo: AdminSnapPhoto) => {

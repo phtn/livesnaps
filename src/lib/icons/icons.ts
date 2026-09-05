@@ -13,9 +13,9 @@ export const icons = {
   },
   theme: {
     symbol:
-      '<g fill="none"><path fill="currentColor" d="M2.75 12A9.25 9.25 0 0 0 12 21.25V2.75A9.25 9.25 0 0 0 2.75 12"/><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 21.25a9.25 9.25 0 0 0 0-18.5m0 18.5a9.25 9.25 0 0 1 0-18.5m0 18.5V2.75"/></g>',
-    viewBox: '0 0 24 24',
-    set: 'proicons,'
+      '<g transform="scale(0.667)"><path fill="none" d="M0 0h24v24H0z" transform-origin="0 0"/><path fill="none" stroke="oklch(14.5% 0 0)" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12a9 9 0 1 0 18 0 9 9 0 1 0-18 0M12 3v18M12 9l4.65-4.65M12 14.3l7.37-7.37M12 19.6l8.85-8.85" transform-origin="0 0"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   },
   eraser: {
     symbol:
@@ -679,6 +679,12 @@ export const icons = {
   octagon: {
     symbol:
       '<g transform="scale(0.667)"><path d="M8.27 3 3 8.27v7.46L8.27 21h7.46C17.5 19.24 21 15.73 21 15.73V8.27L15.73 3M9.1 5h5.8L19 9.1v5.8L14.9 19H9.1L5 14.9V9.1m6 5.9h2v2h-2zm0-8h2v6h-2z" fill="currentColor"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  'more-v': {
+    symbol:
+      '<g transform="scale(0.667)"><path d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Z"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   }
