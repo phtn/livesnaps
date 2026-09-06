@@ -88,59 +88,11 @@ async function upsertCurrentUser(ctx: MutationCtx) {
   return await ctx.db.insert('users', userData)
 }
 
-export const syncCurrentUser = mutation({
-  args: {},
-  returns: v.id('users'),
-  handler: async (ctx) => {
-    return await upsertCurrentUser(ctx)
-  }
-})
-
+/** Creates or refreshes the signed-in user's row from their verified identity. */
 export const ensureCurrent = mutation({
   args: {},
   returns: v.id('users'),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthenticated')
-
-    const existing = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier)
-    const now = Date.now()
-
-    if (!existing) {
-      return await ctx.db.insert('users', {
-        tokenIdentifier: identity.tokenIdentifier,
-        firebaseUid: identity.subject,
-        ...(identity.name ? { name: identity.name } : {}),
-        ...(identity.email ? { email: identity.email } : {}),
-        ...(identity.pictureUrl ? { imageUrl: identity.pictureUrl } : {}),
-        subject: identity.subject,
-        issuer: identity.issuer,
-        nickname: identity.nickname ?? null,
-        preferredUsername: identity.preferredUsername ?? null,
-        profileUrl: identity.profileUrl,
-        phone: String(identity.phone) ?? null,
-        emailVerified: identity.emailVerified ?? null,
-        createdAt: now,
-        updatedAt: now
-      })
-    }
-
-    const profileChanged =
-      existing.firebaseUid !== identity.subject ||
-      (identity.name !== undefined && existing.name !== identity.name) ||
-      (identity.email !== undefined && existing.email !== identity.email) ||
-      (identity.pictureUrl !== undefined && existing.imageUrl !== identity.pictureUrl)
-
-    if (profileChanged) {
-      await ctx.db.patch('users', existing._id, {
-        firebaseUid: identity.subject,
-        ...(identity.name ? { name: identity.name } : {}),
-        ...(identity.email ? { email: identity.email } : {}),
-        ...(identity.pictureUrl ? { imageUrl: identity.pictureUrl } : {}),
-        updatedAt: now
-      })
-    }
-
-    return existing._id
+    return await upsertCurrentUser(ctx)
   }
 })

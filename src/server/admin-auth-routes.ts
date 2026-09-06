@@ -105,3 +105,32 @@ export async function handleAdminSession(request: Request): Promise<Response> {
     return json({ error: 'Your sign-in session is invalid or expired.' }, 401)
   }
 }
+
+/**
+ * `POST /api/admin/session/token` - a Firebase custom token for the admin whose
+ * session cookie this request already carries.
+ *
+ * Firebase auth state is per-origin, so the handoff's session cookie leaves the
+ * client SDK signed out on the admin host: no display name, no photo, and no
+ * custom claims for the UI to read. The caller exchanges this for a real client
+ * session with `signInWithCustomToken`. It escalates nothing - the token is
+ * minted for the uid the verified cookie names, and the resulting ID token
+ * carries that user's own claims.
+ */
+export async function handleAdminSessionToken(request: Request): Promise<Response> {
+  if (!isAdminRequest(request)) return json({ error: 'Not found.' }, 404)
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
+  if (!isSameOriginRequest(request)) return json({ error: 'Invalid request origin.' }, 403)
+
+  const session = await getVerifiedAdminSession(request)
+  if (!session) return json({ error: 'Administrator access is required.' }, 401)
+
+  const auth = getFirebaseAdminAuth()
+  if (!auth) return json({ error: 'Firebase Admin credentials are not configured.' }, 503)
+
+  try {
+    return json({ customToken: await auth.createCustomToken(session.decodedToken.uid) })
+  } catch {
+    return json({ error: 'Could not issue a sign-in token.' }, 500)
+  }
+}

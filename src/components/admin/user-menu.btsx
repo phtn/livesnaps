@@ -1,11 +1,10 @@
 import { Menu as MenuPrimitive } from '@octanejs/base-ui/menu'
-import { useCallback, useMemo, useState } from 'octane'
-import { Icon } from '@/lib/icons'
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'octane'
+import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
 import { signOutUser } from '@/lib/firebase/auth'
-import ThemeToggle from '../theme-toggle.btsx'
-import SignOut from '@/components/signout.btsx'
+import { buildAppUrl } from '@/lib/routing/app-url'
 
 module
   export interface UserMenuAction {
@@ -15,6 +14,54 @@ module
     onSelect: () => void
   }
 
+  interface AppLink {
+    id: string
+    label: string
+    icon: IconName
+    path: string
+  }
+
+  /** Which console the menu is mounted in - it owns that console's session. */
+  export type UserMenuScope = 'admin' | 'citadel'
+
+  const scopes = {
+    admin: { sessionPath: '/api/admin/session', exitLabel: 'exit admin', leavingLabel: 'leaving admin…' },
+    citadel: { sessionPath: '/api/gods/session', exitLabel: 'exit citadel', leavingLabel: 'leaving citadel…' }
+  } as const
+
+  /**
+   * The admin app can live on its own subdomain, so the account pages are not in
+   * this router. Every link resolves against the main app origin instead.
+   */
+  const appLinks: AppLink[] = [
+    { id: 'account', label: 'account', icon: 'person', path: '/account' },
+    { id: 'snaps', label: 'my snaps', icon: 'snap', path: '/snaps' }
+  ]
+
+  const godAppLinks: AppLink[] = [{ id: 'citadel', label: 'citadel', icon: 're-up.ph', path: '/citadel' }]
+
+  function toAppHref(path: string) {
+    if (typeof window === 'undefined') return path
+    return buildAppUrl(new URL(window.location.href), path).toString()
+  }
+
+  /**
+   * Drops this console's session cookie so the browser leaves it signed out.
+   * The timeout matters: leaving must not strand the operator on a console they
+   * asked to exit just because the API is slow or down, so a hung request gives
+   * up and the caller navigates away regardless.
+   */
+  async function endConsoleSession(scope: UserMenuScope) {
+    try {
+      await fetch(scopes[scope].sessionPath, {
+        method: 'DELETE',
+        credentials: 'same-origin',
+        signal: AbortSignal.timeout(4000)
+      })
+    } catch (error) {
+      console.error(`Failed to end the ${scope} session.`, error)
+    }
+  }
 
   export interface UserMenuProps {
     name?: string | null
@@ -27,6 +74,10 @@ module
     isOnline?: boolean
     /** Rail mode: only the avatar shows, the panel still pulls up beside it. */
     compact?: boolean
+    /** Reveals the citadel link, mirroring the main app's user menu. */
+    hasGodAccess?: boolean
+    /** The console this menu signs out of. Defaults to the admin app. */
+    scope?: UserMenuScope
     actions?: UserMenuAction[]
     onSignOut?: () => void
     className?: string
@@ -46,41 +97,76 @@ component CreditsMeter
     div(className='mt-2.5 h-2 w-full overflow-hidden rounded-full bg-muted')
       div(className='h-full rounded-full bg-lime-500 transition-[width] duration-300 ease-out dark:bg-lime-400' style={{ width: `${percent}%` }})
 
-props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compact = false, actions, onSignOut, className }: UserMenuProps
+props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compact = false, hasGodAccess = false, scope = 'admin', actions, onSignOut, className }: UserMenuProps
 
 setup
+  const triggerRef = useRef<HTMLElement | null>(null)
+  // The mobile nav is a Vaul drawer, and Vaul puts `pointer-events: none` on the
+  // body while it is open, re-enabling it only inside the drawer content. A popup
+  // portalled to the body therefore lands on the dead side: every item measures
+  // `pointer-events: none`, the click falls through to the drawer beneath, and the
+  // menu closes instead of acting. Portalling into the drawer keeps it live.
+  // `undefined` (not `null`, which disables portalling) falls back to the body.
+  const [portalContainer, setPortalContainer] = useState<Element | undefined>(undefined)
+  const [isLeaving, setIsLeaving] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
   const displayName = useMemo(() => name?.trim() || email?.split('@')[0] || 'Account', [name, email])
   const showCredits = typeof creditsUsed === 'number' && typeof creditsTotal === 'number'
+  // No self-link: citadel already shows the citadel pages around this menu.
+  const links = useMemo(
+    () => (hasGodAccess && scope !== 'citadel' ? [...appLinks, ...godAppLinks] : appLinks),
+    [hasGodAccess, scope]
+  )
+
+  // Leaving a console keeps the Firebase session alive - only its cookie goes.
+  const handleLeaveConsole = useCallback(async () => {
+    if (isLeaving) return
+    setIsLeaving(true)
+    try {
+      await endConsoleSession(scope)
+      window.location.assign(toAppHref('/'))
+    } catch {
+      setIsLeaving(false)
+    }
+  }, [isLeaving, scope])
+
+  useEffect(() => {
+    setPortalContainer(triggerRef.current?.closest('[data-vaul-drawer]') ?? undefined)
+  }, [])
 
   const handleSignOut = useCallback(async () => {
+    if (isSigningOut) return
     setIsSigningOut(true)
     try {
+      await endConsoleSession(scope)
       await signOutUser()
       onSignOut?.()
-    } finally {
+      window.location.assign(toAppHref('/'))
+    } catch (error) {
+      console.error('Unable to sign out right now.', error)
       setIsSigningOut(false)
     }
-  }, [onSignOut])
+  }, [isSigningOut, onSignOut, scope])
 
 MenuPrimitive.Root
   MenuPrimitive.Trigger(
-    ~ className={cn('group flex w-full cursor-pointer items-center rounded-2xl text-left transition-colors select-none hover:bg-muted/60 data-popup-open:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20', compact ? 'justify-center p-1' : 'gap-3 px-2 py-2', className)}
+    ~ ref={triggerRef}
+    ~ className={cn('group flex w-full cursor-pointer items-center rounded-xl text-left transition-colors select-none hover:bg-muted/60 data-popup-open:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20', compact ? 'justify-center p-1' : 'gap-3 px-2 py-2', className)}
     ~ aria-label='Open account menu'
     ~ )
     div(className='relative shrink-0')
-      Avatar(imageUrl={photoUrl} alt={displayName} size={compact ? 'default' : 'lg'})
+      Avatar(imageUrl={photoUrl} alt={displayName} size={'default'})
       if isOnline
-        span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-lime-500')
+        span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500')
     if !compact
       fragment
         div(className='min-w-0 flex-1')
-          p(className='truncate text-sm font-medium text-foreground') #{displayName}
+          p(className='truncate text-xs font-medium text-foreground') #{displayName}
           if email
-            p(className='truncate text-xs text-muted-foreground') #{email}
-        Icon(name='chevron-down' className='size-4 shrink-0 text-muted-foreground transition-transform group-data-popup-open:rotate-180')
+            p(className='truncate text-2xs text-foreground/60') #{email}
+        Icon(name='down' className='size-4 shrink-0 text-muted-foreground transition-transform group-data-popup-open:rotate-180')
 
-  MenuPrimitive.Portal
+  MenuPrimitive.Portal(container={portalContainer})
     MenuPrimitive.Positioner(
       ~ positionMethod='fixed'
       ~ side='top'
@@ -89,20 +175,19 @@ MenuPrimitive.Root
       ~ className='z-60 outline-hidden'
       ~ )
       MenuPrimitive.Popup(
-        ~ className='z-00 w-64 origin-(--transform-origin) rounded-3xl border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+        ~ className='z-50 w-48 origin-(--transform-origin) rounded-md border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
         ~ )
         if showCredits
           CreditsMeter(used={creditsUsed as number} total={creditsTotal as number})
-        div(className='mt-2 flex items-center gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2.5')
-          div(className='relative shrink-0')
-            Avatar(imageUrl={photoUrl} alt={displayName} size='lg')
-            if isOnline
-              span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-lime-500')
-          div(className='min-w-0 flex-1')
-            p(className='truncate text-sm font-medium text-foreground') #{displayName}
-            if email
-              p(className='truncate text-xs text-muted-foreground') #{email}
-          ThemeToggle
+
+        div(className='mt-1 flex flex-col')
+          each link in links key link.id
+            MenuPrimitive.Item(
+              ~ render={createElement('a', { href: toAppHref(link.path) })}
+              ~ className='flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
+              ~ )
+              Icon(name={link.icon} className='size-4')
+              span #{link.label}
 
         if actions && actions.length > 0
           div(className='mt-1 flex flex-col')
@@ -114,11 +199,20 @@ MenuPrimitive.Root
                 Icon(name={action.icon} className='size-4')
                 span #{action.label}
 
-        div(className='mt-1 border-t border-border/70 pt-1')
+        div(className='mt-1 flex flex-col border-t border-border/40 pt-1')
+          MenuPrimitive.Item(
+            ~ closeOnClick={false}
+            ~ disabled={isLeaving}
+            ~ onClick={() => void handleLeaveConsole()}
+            ~ className='flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-disabled:cursor-wait data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
+            ~ )
+            Icon(name='logoff' className='size-4')
+            span #{isLeaving ? scopes[scope].leavingLabel : scopes[scope].exitLabel}
           MenuPrimitive.Item(
             ~ closeOnClick={false}
             ~ disabled={isSigningOut}
             ~ onClick={() => void handleSignOut()}
-            ~ className='flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 outline-hidden select-none data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
+            ~ className='flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-disabled:cursor-wait data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
             ~ )
-            SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center hover:text-active! rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')
+            Icon(name='logout' className='size-4')
+            span #{isSigningOut ? 'signing out…' : 'sign out'}

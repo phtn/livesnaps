@@ -24,7 +24,7 @@ setup
     void navigate({ to: href })
   }
 
-main(className='')
+main(className='min-h-screen')
   div(className='flex items-end h-12 md:h-16 border-b border-border/70')
     Tabs(
       ~ activeId={activeId}

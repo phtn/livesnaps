@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from 'octane'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import ThemeToggle from '../components/theme-toggle.btsx'
-import { Link, Outlet, useNavigate } from '@octanejs/tanstack-router'
+import { Link, Outlet } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator } from '@octanejs/resizable-panels'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import { useMobile } from '@/hooks/use-mobile'
 import { useFirebaseUser } from '@/lib/firebase/auth'
+import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
 import UserMenu from '../components/admin/user-menu.btsx'
+import ThemeToggle from '@/components/theme-toggle.btsx'
 
 module
   type NavItem = {
@@ -52,27 +54,16 @@ component AdminNavigation
               span #{item.label}
 
 setup
-  const { hasAdminClaim, hasGodAccess, user } = useFirebaseUser()
+  const { hasGodAccess, user } = useFirebaseUser()
   const [email, setEmail] = useState<string | null>(null)
   const [isNavigationCompact, setIsNavigationCompact] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
   const isMobile = useMobile()
   const inSession = useMemo(() => user !== null, [user])
-  const navigate = useNavigate()
-  const accountActions = useMemo(
-    () => [
-      { id: 'my snaps', label: 'my snaps', icon: 'camera-enhance', onSelect: () => void navigate({ to: '/admin-settings' }) },
-      { id: 'logoff', label: 'log off', icon: 'logoff', onSelect: () => void navigate({ to: '/admin-workspace' }) },
-    ],
-    [navigate]
-  )
-  const godsActions = useMemo(
-    () => hasGodAccess ? [
-      { id: 'citadel', label: 'citadel', icon: 'citadel', onSelect: () => void navigate({ to: '/citadel' }) },
-    ] : [],
-    [hasGodAccess, navigate]
-  )
+  // Adopts the cookie'd session into the Firebase client on this origin, so the
+  // menu can show a real name, photo, and god-only links.
+  useConsoleFirebaseSession('admin', status === 'ready')
 
   useEffect(() => {
     let cancelled = false
@@ -128,12 +119,15 @@ if isMobile
                 span(className='uppercase dark:text-lime-200') Snaps
                 span(className='text-sand dark:text-foreground') Now
           AdminNavigation(onNavigate={() => setIsMobileNavOpen(false)})
+
+          div(className='flex items-center justify-start h-16 px-5')
+            ThemeToggle
           div(className='border-t border-border px-3 py-3')
             UserMenu(
               ~ name={user?.displayName}
               ~ email={email ?? user?.email}
               ~ photoUrl={user?.photoURL}
-              ~ actions={accountActions}
+              ~ hasGodAccess={hasGodAccess}
               ~ onSignOut={() => setIsMobileNavOpen(false)}
               ~ )
     main(className='min-h-screen bg-background pt-11')
@@ -166,18 +160,22 @@ else
                 span(className='text-sand dark:text-foreground') Now
 
         AdminNavigation(compact={isNavigationCompact})
-        div(className={cn('border-t border-border/70 py-3', isNavigationCompact ? 'px-2' : 'px-3')})
-          if inSession
-            UserMenu(
-              ~ compact={isNavigationCompact}
-              ~ name={user?.displayName}
-              ~ email={email ?? user?.email}
-              ~ photoUrl={user?.photoURL}
-              ~ actions={[...godsActions, ...accountActions]}
-              ~ )
-          else
-            div(className={cn('flex h-10 items-center', isNavigationCompact ? 'justify-center' : '')})
-              ThemeToggle
+        // No `user !== null` gate here. Firebase auth state is per-origin and the
+        // handoff only hands this origin a session cookie, so the client SDK never
+        // has a user on the admin subdomain - the gate hid the menu on desktop for
+        // every admin, while the mobile drawer below rendered it unconditionally.
+        // The session email carries the identity; the theme toggle lives in the popup.
+
+        div(className='flex items-center justify-start h-16 px-5')
+          ThemeToggle
+        div(className={cn('py-3', isNavigationCompact ? 'px-2' : 'px-3')})
+          UserMenu(
+            ~ compact={isNavigationCompact}
+            ~ name={user?.displayName}
+            ~ email={email ?? user?.email}
+            ~ photoUrl={user?.photoURL}
+            ~ hasGodAccess={hasGodAccess}
+            ~ )
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
       span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
     Panel(id='content' minSize='40%')

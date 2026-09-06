@@ -765,6 +765,12 @@ export const icons = {
       '<path d="M8.004 1.334a6.67 6.67 0 1 1 0 13.34 6.67 6.67 0 0 1 0-13.34M5.336 7.337a.667.667 0 1 0 0 1.334h5.336a.667.667 0 1 0 0-1.334z" fill="currentColor"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  'add-user': {
+    symbol:
+      '<g transform="scale(0.667)"><g fill="none"><circle cx="10" cy="8" r="5" fill="currentColor"/><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M19 10v6m3-3h-6" fill="currentColor"/><path fill="currentColor" d="M17.142 20.383c.462-.105.739-.585.534-1.012-.552-1.15-1.459-2.162-2.634-2.924C13.595 15.509 11.823 15 10 15s-3.595.508-5.042 1.447c-1.175.762-2.082 1.773-2.634 2.924-.205.427.072.907.534 1.012a32.3 32.3 0 0 0 14.284 0"/></g></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

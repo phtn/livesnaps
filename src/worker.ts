@@ -1,4 +1,4 @@
-import { handleAdminSession } from './server/admin-auth-routes'
+import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
 import {
   handleAdminVerificationEntryAttachmentRemove,
@@ -8,7 +8,7 @@ import {
   handleAdminVerificationEntrySend
 } from './server/admin-verification-routes'
 import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
-import { handleGodsSession } from './server/gods-auth-routes'
+import { handleGodsSession, handleGodsSessionToken } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
 import { handleResendWebhook } from './server/resend-webhook-routes'
 import {
@@ -36,7 +36,9 @@ interface WorkerEnvironment {
 
 const SESSION_PATH = '/api/snaps/session'
 const ADMIN_SESSION_PATH = '/api/admin/session'
+const ADMIN_SESSION_TOKEN_PATH = '/api/admin/session/token'
 const GODS_SESSION_PATH = '/api/gods/session'
+const GODS_SESSION_TOKEN_PATH = '/api/gods/session/token'
 const GODS_ACCOUNTS_PATH = '/api/gods/accounts'
 const GODS_ACCOUNT_DETAIL_PATH = /^\/api\/gods\/accounts\/([^/]+)$/
 const GODS_USERS_PATH = '/api/gods/users'
@@ -77,8 +79,16 @@ export default {
       return handleSnapSessionRequest(request, environment)
     }
 
+    if (pathname === ADMIN_SESSION_TOKEN_PATH) {
+      return handleAdminSessionToken(request)
+    }
+
     if (pathname === ADMIN_SESSION_PATH) {
       return handleAdminSession(request)
+    }
+
+    if (pathname === GODS_SESSION_TOKEN_PATH) {
+      return handleGodsSessionToken(request)
     }
 
     if (pathname === GODS_SESSION_PATH) {

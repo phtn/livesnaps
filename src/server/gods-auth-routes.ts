@@ -91,3 +91,28 @@ export async function handleGodsSession(request: Request): Promise<Response> {
     return json({ error: 'Your sign-in session is invalid or expired.' }, 401)
   }
 }
+
+/**
+ * `POST /api/gods/session/token` - the Citadel counterpart of the admin route.
+ * See `handleAdminSessionToken`: the god's session cookie names the uid, and the
+ * custom token re-establishes their own client session on the Citadel origin.
+ */
+export async function handleGodsSessionToken(request: Request): Promise<Response> {
+  if (!isGodsRequest(request)) return json({ error: 'Not found.' }, 404)
+  if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
+  if (request.headers.get('origin') !== null && request.headers.get('origin') !== new URL(request.url).origin) {
+    return json({ error: 'Invalid request origin.' }, 403)
+  }
+
+  const session = await getVerifiedGodSession(request)
+  if (!session) return json({ error: 'God access is required.' }, 401)
+
+  const auth = getFirebaseAdminAuth()
+  if (!auth) return json({ error: 'Firebase Admin credentials are not configured.' }, 503)
+
+  try {
+    return json({ customToken: await auth.createCustomToken(session.decodedToken.uid) })
+  } catch {
+    return json({ error: 'Could not issue a sign-in token.' }, 500)
+  }
+}

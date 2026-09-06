@@ -2,13 +2,15 @@ import { useEffect, useState } from 'octane'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useFirebaseUser } from '@/lib/firebase/auth'
+import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
 import { buildGodsHandoffUrl, isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
 import { useMobile } from '@/hooks/use-mobile'
-import ThemeToggle from '../components/theme-toggle.btsx'
+import UserMenu from '../components/admin/user-menu.btsx'
 import { Link, Outlet } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator } from '@octanejs/resizable-panels'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
+import ThemeToggle from '@/components/theme-toggle.btsx'
 
 module
   type NavItem = {
@@ -59,6 +61,10 @@ setup
   const [isNavigationCompact, setIsNavigationCompact] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
+
+  // Adopts the cookie'd session into the Firebase client on this origin, so the
+  // menu can show a real name and photo instead of a bare fallback.
+  useConsoleFirebaseSession('citadel', status === 'ready')
 
   useEffect(() => {
     let cancelled = false
@@ -132,7 +138,7 @@ setup
 if isMobile
   div(className='min-h-screen bg-background')
     Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
-      div(className='fixed top-0 z-35 flex items-center justify-between h-12 border-b border-border/70 px-2.5 text-white bg-black')
+      div(className='w-full fixed top-0 z-35 flex items-center justify-between h-12 border-b border-border/70 px-2.5 text-white bg-black')
         Drawer.Trigger(type='button' aria-label='Open citadel navigation' className='gap-2.5 inline-flex items-center justify-center')
           Icon(name='sidebar' className='size-4 text-white/70')
           h1(className='inline-flex items-center gap-0 font-poly font-medium text-white/90 tracking-tight')
@@ -147,8 +153,18 @@ if isMobile
               h1(className='leading-6')
                 span(className='dark:text-lime-200') Citadel
           Navigation(onNavigate={() => setIsMobileNavOpen(false)})
-          div(className='flex h-16 items-center border-t border-border px-6')
+
+          div(className='flex items-center justify-start h-16 px-5')
             ThemeToggle
+          div(className='px-3 py-3')
+            UserMenu(
+              ~ scope='citadel'
+              ~ name={user?.displayName}
+              ~ email={email ?? user?.email}
+              ~ photoUrl={user?.photoURL}
+              ~ hasGodAccess={hasGodAccess}
+              ~ onSignOut={() => setIsMobileNavOpen(false)}
+              ~ )
     main(className='min-h-screen bg-background pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
@@ -179,8 +195,17 @@ else
                   span(className='dark:text-lime-200') Citadel
 
         Navigation(compact={isNavigationCompact})
-        div(className={cn('flex h-16 items-center border-t border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+        div(className='flex items-center justify-start h-16 px-6')
           ThemeToggle
+        div(className={cn('py-3', isNavigationCompact ? 'px-2' : 'px-3')})
+          UserMenu(
+            ~ scope='citadel'
+            ~ compact={isNavigationCompact}
+            ~ name={user?.displayName}
+            ~ email={email ?? user?.email}
+            ~ photoUrl={user?.photoURL}
+            ~ hasGodAccess={hasGodAccess}
+            ~ )
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
       span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
     Panel(id='content' minSize='40%')
