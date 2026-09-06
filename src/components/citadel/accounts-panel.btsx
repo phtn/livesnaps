@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'octane'
 import { Icon } from '@/lib/icons'
-import Input from '@/components/ui/input.btsx'
-import { Badge } from '@/components/ui'
+import { Badge, Input } from '@/components/ui'
 import { Link } from '@octanejs/tanstack-router'
 import { cn } from '@/lib/utils'
 import { debounce, parseAsBoolean, parseAsString, parseAsStringLiteral, throttle, useQueryStates } from '@octanejs/nuqs'
