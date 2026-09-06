@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_FIREBASE_APP_ID?: string
   readonly PUBLIC_FIREBASE_MEASUREMENT_ID?: string
   readonly PUBLIC_CONVEX_URL?: string
+  readonly PUBLIC_GOOGLE_CLIENT_ID?: string
 }
 
 interface ImportMeta {

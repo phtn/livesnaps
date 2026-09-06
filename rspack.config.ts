@@ -17,7 +17,8 @@ const publicEnvNames = [
   'PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
   'PUBLIC_FIREBASE_APP_ID',
   'PUBLIC_FIREBASE_MEASUREMENT_ID',
-  'PUBLIC_CONVEX_URL'
+  'PUBLIC_CONVEX_URL',
+  'PUBLIC_GOOGLE_CLIENT_ID'
 ] as const
 
 const readEnvFile = (filename: string) => {

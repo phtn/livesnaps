@@ -2,16 +2,21 @@ import ThemeToggle from './theme-toggle.btsx'
 import { Icon } from '@/lib/icons'
 import { signInWithGoogle } from '@/lib/firebase'
 import { useFirebaseUser } from '@/lib/firebase/auth'
+import { useGoogleOneTap } from '@/lib/google/one-tap'
 import UserMenu from './user-menu.btsx'
 import { useState } from 'octane'
 import { Link } from '@octanejs/tanstack-router'
 // import StoreMark from './store-mark.btsx'
 
 setup
-  const { hasAdminClaim, hasGodAccess, user } = useFirebaseUser()
+  const { hasAdminClaim, hasGodAccess, isLoading, user } = useFirebaseUser()
   const [isSigningIn, setIsSigningIn] = useState(false)
   const [signInError, setSignInError] = useState<string | null>(null)
   const inSession = user !== null
+
+  // One Tap offers the account; the button below is the fallback and stays the
+  // only guaranteed path, since a browser can decline to show the prompt.
+  useGoogleOneTap({ isSignedOut: !inSession, isLoading, onError: setSignInError })
 
   const handleSignIn = async () => {
     if (isSigningIn) return
