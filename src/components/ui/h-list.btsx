@@ -1,0 +1,48 @@
+import { cn } from "@/lib/utils"
+import ListItem from "./list-item.btsx"
+module
+  interface H {
+    id: string
+    title: string
+    subtitle: string
+    description?: string
+    imageSrc?: string
+    date?: string
+    verified?: boolean
+  }
+  const H_AVATAR_COLORS: Record<string, string> = {
+    r1: "#8651F8",
+    r2: "#1BA4F3",
+    r3: "#FE5938",
+    r4: "#55B93E",
+  }
+  const H_LIST_CLASS = "mt-4 rounded-xl border border-[#ECECEC] dark:border-border"
+  const H_BADGE_CLASS = "text-[10px] font-semibold"
+  function hAvatarPlaceholder(h: H): string {
+    const initials = h.title.split(/\s+/).map((part) => part.charAt(0)).join("").slice(0, 2).toUpperCase()
+    const background = H_AVATAR_COLORS[h.id] ?? "#7B7B7B"
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="24" fill="${background}"/><text x="24" y="25" fill="white" font-family="Inter,Arial,sans-serif" font-size="14" font-weight="700" text-anchor="middle" dominant-baseline="middle">${initials}</text></svg>`
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+  }
+  // function formatHRating(h: H): string {
+  //   const stars = "★".repeat(h.rating) + "☆".repeat(5 - h.rating)
+  //   return `${stars} · ${h.rating}/5${h.verified ? " · Verified purchase" : ""}`
+  // }
+  export interface ListProps {
+    id?: string
+    className?: string
+    style?: Octane.JSX.IntrinsicElements["ul"]["style"]
+    "aria-label"?: string
+    "aria-labelledby"?: string
+    children?: unknown
+  }
+component List
+  props { id, className, style, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledBy, children }: ListProps
+  ul(id={id} role="list" className={cn(H_LIST_CLASS, className)} style={style} aria-label={ariaLabel} aria-labelledby={ariaLabelledBy})
+    | #{children}
+
+
+props { data, onSelect, selected }: { data: Promise<H[]>, onSelect?: (id: string) => void, selected?: boolean }
+List(className={H_LIST_CLASS} aria-label="Customer Hs")
+  each r in data key r.id
+    ListItem(title={r.title} timestamp={r.createdAt} subtitle={r.subtitle} description={r.description} imageSrc={r.imageSrc} imageAlt={`${r.author} avatar placeholder`} badge={r.plateNumber ? "✓" : undefined} badgeTone="green" badgeClassName={H_BADGE_CLASS} actions={onSelect(r.id)} selected={r.id === selected})

@@ -1,5 +1,4 @@
 import { lazy, Suspense, useRef } from 'octane'
-import type Game from './components/list.btsx'
 import { Icon } from '@/lib/icons'
 import { ScrollArea } from '@/components/ui/'
 import { getSnapRuntimeMode } from '@/lib/snaps/debug'

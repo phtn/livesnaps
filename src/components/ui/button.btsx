@@ -23,7 +23,6 @@ module
     className?: string
     id?: string
     title?: string
-    tabIndex?: number
     onClick?: (event: MouseEvent) => void
     "aria-label"?: string
     "aria-describedby"?: string
@@ -81,9 +80,9 @@ module
   } as const satisfies Record<ButtonSize, string>
 
   const BUTTON_ICON_SIZES = {
-    sm: 14,
-    md: 15,
-    lg: 16,
+    sm: 16,
+    md: 18,
+    lg: 20,
   } as const satisfies Record<ButtonSize, number>
 
   const BUTTON_SPINNER_SIZES = {
@@ -138,7 +137,7 @@ props { size = "sm", variant = "default", type = "button", href, target, rel, do
 setup
   const isInteractionDisabled = disabled || pending
   const resolvedLabel = pending && pendingLabel !== undefined ? pendingLabel : label
-  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", {'':icon, 'ps-2 pe-4 gap-1': label}, className)
+  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", {'ps-2 pe-4 gap-1': label && icon && iconPosition === "left", 'pe-2 ps-4 gap-1': label && icon && iconPosition === "right", 'px-2.5': label && !icon}, className)
   const anchorRel = getSafeAnchorRel(target, rel)
   const handleClick = (event: MouseEvent) => {
     if (isInteractionDisabled) {

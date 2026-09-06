@@ -142,6 +142,11 @@ setup
   // to push an arbitrary key into the sorting state.
   const sortIds = columns.map((column) => String(column.id)).filter((id) => id.length > 0)
 
+  // Whether the mobile search field has taken over the toolbar row. Owned here
+  // rather than inside `HyperSearch` because the controls it hides are the
+  // field's siblings, not its children.
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+
   // Column pinning stays local: it is a layout preference, not part of the
   // shareable query the URL describes.
   const [columnPinning, setColumnPinning] = useState(initialColumnPinning)
@@ -279,6 +284,9 @@ setup
   const hasActiveQuery = data.length > 0 && (globalFilter.trim().length > 0 || columnFilters.length > 0)
   const isEmpty = visibleRows.length === 0
   const handleSearchChange = (event: Event) => table.setGlobalFilter((event.currentTarget as HTMLInputElement).value)
+  // The field's own clear button only resets its local state; the query lives
+  // here, so clearing it has to come back through this.
+  const handleClearSearch = () => table.setGlobalFilter('')
 
   const isQuerying = queryState.phase === 'filtering' || queryState.phase === 'sorting'
   const queryPercent = queryState.total === 0
@@ -291,8 +299,12 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
     Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
     fragment #{children}
 
+  // On a phone the search field takes over this row when it opens, so every
+  // other control in it stands down for the duration. Hidden rather than
+  // unmounted: they keep their own state and the row is whole again the moment
+  // the field closes. `HyperSearch` never reports expanded on desktop.
   div(className='flex min-h-12 items-center justify-between px-1 md:pb-2')
-    div(className='flex items-center md:gap-0.75 gap-1')
+    div(className={cn('flex items-center md:gap-0.75 gap-1', isSearchExpanded && 'hidden md:flex')})
       ColumnView(
         ~ cols={table.getAllLeafColumns()}
         ~ columnVisibility={table.state.columnVisibility}
@@ -306,14 +318,14 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
           ~ columnFilters={columnFilters}
           ~ onReset={handleResetFilters}
           ~ )
-    div(className='flex items-center gap-2.5 font-mono text-sm text-active')
-      Popper(condition={isQuerying} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
-      Popper(condition={queryState.phase === 'error'} lead='error' trail='index interrupted')
-      if toolbarActions
+    div(className={cn('flex items-center gap-2.5 font-mono text-sm text-active', isSearchExpanded && 'w-full md:w-auto')})
+      Popper(condition={isQuerying && !isSearchExpanded} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
+      Popper(condition={queryState.phase === 'error' && !isSearchExpanded} lead='error' trail='index interrupted')
+      if toolbarActions && !isSearchExpanded
         fragment #{toolbarActions}
-      else
+      elseif !isSearchExpanded
         span(className='hidden sm:flex uppercase text-sm whitespace-nowrap') #{visibleRows.length.toLocaleString()} ROWS
-      Search(value={globalFilter} onChange={handleSearchChange})
+      Search(value={globalFilter} onChange={handleSearchChange} onClear={handleClearSearch} onExpandedChange={setIsSearchExpanded})
 
   if isEmpty
     div(className={VIEWPORT_CLASS_NAME})

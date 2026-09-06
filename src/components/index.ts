@@ -1,7 +1,7 @@
 import Footer from './footer.btsx'
 import Hero from './hero.btsx'
 import Heron from './heron.btsx'
-import type Game from './list.btsx'
+import type { CardListItem, CardListProps, Game } from './card-list'
 import List from './list.btsx'
 import SignOut from './signout.btsx'
 import SubmitList from './submit-list.btsx'
@@ -10,5 +10,5 @@ import Toasts from './toasts.btsx'
 import Topbar from './topbar.btsx'
 import UserMenu from './user-menu.btsx'
 
-export type { Game }
+export type { CardListItem, CardListProps, Game }
 export { Footer, Hero, Heron, List, SignOut, SubmitList, ThemeToggle, Toasts, Topbar, UserMenu }

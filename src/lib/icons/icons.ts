@@ -735,6 +735,12 @@ export const icons = {
       '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.334" d="M9.438 2.173a6 6 0 0 1 1.675.694m2.028 2.027a6 6 0 0 1 .693 1.676m0 2.867a6 6 0 0 1-.693 1.675m-2.028 2.028a6 6 0 0 1-1.676.694m-2.866 0a6 6 0 0 1-1.676-.694m-2.027-2.028a6 6 0 0 1-.694-1.675m0-2.868a6 6 0 0 1 .694-1.675m2.028-2.027a6 6 0 0 1 1.675-.694m-1.235 5.83h5.336"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  'chevrons-right': {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m7 17 5-5-5-5m6 10 5-5-5-5"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 
