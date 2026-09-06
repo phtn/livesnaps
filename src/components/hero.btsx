@@ -33,7 +33,7 @@ setup
   const [isInAppBrowser] = useState(() => typeof navigator !== 'undefined' && /FBAN|FBAV|FBAN\/Messenger|FB_IAB|FB4A|Instagram|Messenger/i.test(navigator.userAgent))
   const isMobile = useMobile()
   const { theme } = useTheme()
-  const actionLabel = isAuthLoading ? 'Authenticating…' : isSigningIn ? 'Signing in…' : !isAuthenticated ? 'Sign in with Google' : isInAppBrowser ? 'Open in browser' : isStarting ? (isDebugMode ? 'Starting debug session…' : 'Acquiring GPS…') : isDebugMode ? 'Debug Mode' : 'Get Started'
+  const actionLabel = isAuthLoading ? 'Authenticating…' : isSigningIn ? 'Signing in…' : !isAuthenticated ? 'Sign in with' : isInAppBrowser ? 'Open in browser' : isStarting ? (isDebugMode ? 'Starting debug session…' : 'Acquiring GPS…') : isDebugMode ? 'Debug Mode' : 'Get Started'
   const isBusy = isStarting || isAuthLoading || isSigningIn
   const handleAction = async () => {
     if (!isAuthenticated) {

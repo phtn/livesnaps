@@ -87,8 +87,8 @@ module
 
   const BUTTON_SPINNER_SIZES = {
     sm: 16,
-    md: 20,
-    lg: 24,
+    md: 17,
+    lg: 18,
   } as const satisfies Record<ButtonSize, number>
 
   const BUTTON_BASE_CLASS = "group relative isolate inline-flex min-w-0 shrink-0 touch-manipulation select-none appearance-none items-center justify-center overflow-hidden border-0 align-middle text-sm font-medium leading-5 tracking-tight transition-all duration-250 ease-out focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 motion-reduce:transition-none active:scale-[0.97] aria-disabled:scale-100"

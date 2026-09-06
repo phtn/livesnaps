@@ -1,6 +1,7 @@
+import { auth, isFirebaseConfigured } from '@/lib/firebase'
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
 import { useEffect, useRef } from 'octane'
-import { auth, isFirebaseConfigured } from '@/lib/firebase'
+import { canPromptGoogleOneTap } from './one-tap-rules'
 
 /**
  * Google One Tap, with `signInWithPopup` as the fallback.
@@ -103,6 +104,25 @@ function suppressForSession() {
   }
 }
 
+/**
+ * A One Tap credential Firebase rejects is a configuration problem, not
+ * something the visitor can fix, so the message sends them to the button rather
+ * than surfacing a Firebase error code.
+ */
+function describeOneTapFailure(error: unknown) {
+  const code = typeof error === 'object' && error !== null ? String((error as { code?: unknown }).code ?? '') : ''
+
+  if (code === 'auth/invalid-credential' || code === 'auth/invalid-credential-or-provider-id') {
+    return 'Google sign-in is unavailable right now. Use the Google button to sign in.'
+  }
+
+  if (code === 'auth/account-exists-with-different-credential') {
+    return 'This email already signs in another way. Use the Google button to continue.'
+  }
+
+  return error instanceof Error ? error.message : 'Google sign-in could not be completed.'
+}
+
 /** Exchanges a One Tap ID token for a Firebase session. */
 async function signInWithOneTapCredential(credential: string) {
   await signInWithCredential(auth, GoogleAuthProvider.credential(credential))
@@ -136,7 +156,17 @@ export function useGoogleOneTap({ isSignedOut, isLoading, onError }: GoogleOneTa
       return
     }
 
-    if (hasPrompted || !isFirebaseConfigured || !googleClientId || isSuppressed()) return
+    const allowed = canPromptGoogleOneTap({
+      hostname: window.location.hostname,
+      isSignedOut,
+      isAuthLoading: isLoading,
+      hasClientId: Boolean(googleClientId),
+      isConfigured: isFirebaseConfigured,
+      isSuppressed: isSuppressed(),
+      hasPrompted
+    })
+
+    if (!allowed) return
 
     hasPrompted = true
     let cancelled = false
@@ -161,8 +191,7 @@ export function useGoogleOneTap({ isSignedOut, isLoading, onError }: GoogleOneTa
           void signInWithOneTapCredential(response.credential).catch((error: unknown) => {
             // The popup button is still on screen and still works, so this
             // reports rather than retries.
-            const message = error instanceof Error ? error.message : 'Google sign-in could not be completed.'
-            onError?.(message)
+            onError?.(describeOneTapFailure(error))
           })
         }
       })
