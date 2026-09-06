@@ -1,5 +1,5 @@
 import type { JSX } from 'octane/jsx-runtime'
-import { Input as InputBase } from '@octanejs/base-ui/Input'
+import { Input as InputBase } from '@octanejs/base-ui/input'
 
 
 module
