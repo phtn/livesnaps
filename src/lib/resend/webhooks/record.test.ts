@@ -41,14 +41,15 @@ test('ingest signatures cover every stored field', async () => {
   assert.equal(await verifyResendWebhookRecord(record, secret, 'not-a-signature'), false)
 })
 
-test('tracks the five configured email webhook events', () => {
+test('tracks the configured email webhook events', () => {
   assert.deepEqual(trackedResendWebhookEventTypes, [
     'email.sent',
     'email.delivered',
     'email.opened',
-    'email.failed',
-    'email.bounced'
+    'email.clicked',
+    'email.bounced',
+    'email.failed'
   ])
   assert.equal(isTrackedResendWebhookEventType('email.delivered'), true)
-  assert.equal(isTrackedResendWebhookEventType('email.clicked'), false)
+  assert.equal(isTrackedResendWebhookEventType('email.suppressed'), false)
 })

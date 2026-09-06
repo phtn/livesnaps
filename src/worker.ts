@@ -10,6 +10,7 @@ import {
 import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
 import { handleGodsSession } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
+import { handleResendWebhook } from './server/resend-webhook-routes'
 import {
   handleAdminSnapPhotoRequest,
   handleSnapPhotoRequest,
@@ -30,6 +31,7 @@ interface WorkerEnvironment {
   R2_ACCESS_KEY_ID?: string
   R2_SECRET_ACCESS_KEY?: string
   R2_BUCKET_NAME?: string
+  RESEND_WEBHOOK_SECRET?: string
 }
 
 const SESSION_PATH = '/api/snaps/session'
@@ -48,6 +50,7 @@ const ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entri
 const ADMIN_VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification-entries/attachments/remove'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 const ADMIN_SNAP_PHOTO_PATH = /^\/api\/r2\/(.+)$/
+const RESEND_WEBHOOK_PATH = '/api/webhooks'
 
 const isSpaNavigation = (request: Request) =>
   request.method === 'GET' && request.headers.get('accept')?.includes('text/html')
@@ -91,6 +94,13 @@ export default {
     }
 
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
+
+    if (pathname === RESEND_WEBHOOK_PATH) {
+      return handleResendWebhook(request, {
+        convexUrl,
+        resendWebhookSecret: env.RESEND_WEBHOOK_SECRET
+      })
+    }
 
     if (pathname === GODS_ACCOUNTS_PATH) {
       return handleGodsAccounts(request, { convexUrl })
