@@ -56,9 +56,9 @@ export const pdfTheme = {
     wash: '#f6f5f1'
   },
   font: {
-    body: 'Okxs, sans-serif',
-    display: 'Polys, Okxs, sans-serif',
-    mono: 'Ios, monospace'
+    body: 'OKX, sans-serif',
+    display: 'POLY, Okxs, sans-serif',
+    mono: 'IOS, monospace'
   }
 } as const
 
@@ -97,15 +97,15 @@ export const loadPdfFonts = (): Promise<FontLoader[] | undefined> => {
   }
 
   pdfFonts ??= Promise.all([
-    fetchFont('/fonts/okxs-medium.woff2'),
-    fetchFont('/fonts/PolySansTrial-MedianWide.otf'),
-    fetchFont('/fonts/IoskeleyMono-Regular.woff2')
+    fetchFont('public/fonts/okxs-medium.woff2'),
+    fetchFont('public/fonts/PolySansTrial-MedianWide.otf'),
+    fetchFont('public/fonts/IoskeleyMono-Regular.woff2')
   ])
     .then(([body, display, mono]): FontLoader[] | undefined => {
       const loaders: FontLoader[] = [
-        ...faces(body, 'Okxs', [400, 500]),
-        ...faces(display, 'Polys', [500, 600]),
-        ...faces(mono, 'Ios', [300])
+        ...faces(body, 'OKX', [400, 500]),
+        ...faces(display, 'POLY', [500, 600]),
+        ...faces(mono, 'IOS', [300])
       ]
 
       return loaders.length > 0 ? loaders : undefined

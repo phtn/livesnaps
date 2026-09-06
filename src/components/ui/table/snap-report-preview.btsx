@@ -1,0 +1,309 @@
+import { createElement, useEffect, useMemo, useRef, useState } from 'octane'
+import type { Doc } from '../../../../convex/_generated/dataModel'
+import { Document, Page, pdfjs } from '@octanejs/pdf'
+import { ScrollArea } from '@/components/ui/'
+import { Icon } from '@/lib/icons'
+import { createSnapFullReportDocument } from '@/lib/snaps/full-report'
+import { renderSnapFullReportPdf } from '@/components/admin/snap-report-pdf'
+import { createTableExportFileName, downloadTableExport } from '@/components/admin/export-utils'
+import { onPromise } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+
+module
+  const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
+
+  // pdf.js needs its worker before any document is parsed. Resolved through the
+  // bundler so the worker ships as an app asset rather than a bare CDN URL.
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
+
+  interface PreviewState {
+    blob: Blob | null
+    error: string | null
+    fileName: string
+  }
+
+  /** Horizontal breathing room around a page, in px — `px-6` on both sides. */
+  const READER_PADDING = 48
+
+  const ZOOM_MIN = 0.5
+  const ZOOM_MAX = 2
+  const ZOOM_STEP = 0.25
+
+  const clampZoom = (value: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100))
+
+  /** `01`, `02` — a fixed-width counter does not reflow as pages advance. */
+  const padPage = (value: number) => String(Math.max(value, 0)).padStart(2, '0')
+
+  const TOOLBAR_BUTTON_CLASS =
+    'inline-flex size-7 cursor-pointer items-center justify-center rounded-xs text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-30'
+
+  const TOOLBAR_GROUP_CLASS = 'flex items-center gap-0.5 rounded-xs border border-border/50 bg-background/60 p-0.5'
+
+  const READER_CLASS =
+    'min-h-0 flex-1 bg-[#f4f4f2] bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.05)_1px,transparent_0)] [background-size:16px_16px] dark:bg-[#0b0b0c] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.04)_1px,transparent_0)]'
+
+  // A hairline plus a lifted shadow: the page reads as paper on a surface
+  // rather than as a white rectangle sitting in a white dialog.
+  const PAGE_CLASS =
+    'overflow-hidden bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08),0_12px_32px_-12px_rgba(0,0,0,0.45)] ring-1 ring-black/10 dark:ring-white/10'
+
+  const MESSAGE_CLASS = 'grid place-items-center gap-2 py-20 text-center font-mono text-muted-foreground text-xs'
+
+  /**
+   * `Document` renders these through `renderMessage`, which calls a function
+   * value with no arguments — so a compiled component cannot be handed over
+   * directly. These are zero-argument renderers that produce the node instead,
+   * which is the other half of the prop's `NodeOrRenderer` type.
+   */
+  const renderLoadingPdf = () => createElement(LoadingPdf, {})
+  const renderFailedPdf = () => createElement(FailedPdf, {})
+
+  export interface SnapReportPreviewProps {
+    reportSnap: Doc<'snaps'> | null
+    isLoading: boolean
+    loadError: string | null
+    onRetry: () => void
+  }
+
+component LoadingPdf
+  div(className={MESSAGE_CLASS})
+    Icon(name='spinner-ring' className='size-5 animate-spin')
+    span(className='uppercase tracking-[0.14em]') Rendering
+component FailedPdf
+  div(className={MESSAGE_CLASS})
+    span(className='uppercase tracking-[0.14em]') Unable to display the report
+
+// The report preview, split out so pdf.js, the Takumi renderer and its wasm
+// binary stay out of every bundle that merely renders a table row. The dialog
+// pulls this in only once it opens.
+props { reportSnap, isLoading, loadError, onRetry }: SnapReportPreviewProps
+setup
+  const [preview, setPreview] = useState<PreviewState | null>(null)
+  const [pageCount, setPageCount] = useState(0)
+  const [viewportWidth, setViewportWidth] = useState(0)
+  const [zoom, setZoom] = useState(1)
+  const [currentPage, setCurrentPage] = useState(1)
+  const viewportRef = useRef<HTMLDivElement | null>(null)
+
+  // The dialog previews the exact bytes the download produces, so the PDF is
+  // built once here and reused for both. The blob is dropped when the source
+  // snap changes or the component unmounts.
+  useEffect(() => {
+    if (!reportSnap) {
+      setPreview(null)
+      setPageCount(0)
+      return
+    }
+
+    let cancelled = false
+    setPreview(null)
+    setPageCount(0)
+    setCurrentPage(1)
+    setZoom(1)
+
+    void (async () => {
+      try {
+        const report = createSnapFullReportDocument(reportSnap)
+        const bytes = await renderSnapFullReportPdf(report)
+        if (cancelled) return
+        setPreview({
+          blob: new Blob([Uint8Array.from(bytes)], { type: 'application/pdf' }),
+          error: null,
+          fileName: createTableExportFileName(`snap-report-${report.recordId.slice(-12)}`, 'pdf', report.generatedAt)
+        })
+      } catch (error) {
+        if (cancelled) return
+        setPreview({ blob: null, error: errorMessage(error, String(error)), fileName: '' })
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [reportSnap])
+
+  // pdf.js renders to a fixed pixel width, so the page has to be told how wide
+  // its container actually is. The scroll port is measured rather than the
+  // content: content grows with zoom, and measuring it would feed back.
+  useEffect(() => {
+    const element = viewportRef.current
+    if (!element) return
+
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? 0
+      setViewportWidth((current) => (Math.abs(current - width) < 1 ? current : width))
+    })
+    observer.observe(element)
+
+    return () => observer.disconnect()
+  }, [preview?.blob])
+
+  // The counter follows the page the reader is actually looking at, so it is
+  // read off intersection rather than off a click.
+  useEffect(() => {
+    const element = viewportRef.current
+    if (!element || pageCount === 0) return
+
+    const pages = [...element.querySelectorAll<HTMLElement>('[data-page]')]
+    if (pages.length === 0) return
+
+    const ratios = new Map<number, number>()
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const page = Number((entry.target as HTMLElement).dataset.page)
+          ratios.set(page, entry.isIntersecting ? entry.intersectionRatio : 0)
+        }
+
+        let best = 0
+        let bestRatio = 0
+        for (const [page, ratio] of ratios) {
+          if (ratio > bestRatio) {
+            best = page
+            bestRatio = ratio
+          }
+        }
+
+        if (best > 0) setCurrentPage(best)
+      },
+      { root: element, threshold: [0, 0.25, 0.5, 0.75, 1] }
+    )
+
+    for (const page of pages) observer.observe(page)
+
+    return () => observer.disconnect()
+  }, [pageCount, preview?.blob, viewportWidth])
+
+  const goToPage = (page: number) => {
+    const element = viewportRef.current
+    if (!element) return
+
+    const target = element.querySelector<HTMLElement>(`[data-page="${page}"]`)
+    if (!target) return
+
+    setCurrentPage(page)
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const handleDownload = () => {
+    if (!preview?.blob) return
+    // Reuses the previewed bytes; nothing is re-rendered on download.
+    void onPromise(
+      preview.blob.arrayBuffer().then((buffer) => {
+        downloadTableExport(buffer, 'application/pdf', preview.fileName)
+      }),
+      {
+        loading: 'Preparing the proof report…',
+        success: 'Full row report downloaded.',
+        error: (error) => errorMessage(error, 'Unable to export the full row report.')
+      }
+    ).catch(() => undefined)
+  }
+
+  const pageNumbers = useMemo(() => Array.from({ length: pageCount }, (_, index) => index + 1), [pageCount])
+  const pageWidth = viewportWidth > 0 ? Math.round(Math.max(240, viewportWidth - READER_PADDING) * zoom) : undefined
+  const zoomLabel = `${Math.round(zoom * 100)}%`
+
+if isLoading
+  div(className={MESSAGE_CLASS})
+    Icon(name='spinner-ring' className='size-5 animate-spin')
+    span(className='uppercase tracking-[0.14em]') Loading report
+elseif loadError
+  div(className={MESSAGE_CLASS})
+    span(className='text-destructive text-sm normal-case tracking-normal') #{loadError}
+    button(
+      ~ type='button'
+      ~ onClick={onRetry}
+      ~ className='mt-1 inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-xs border border-border/60 px-3 uppercase tracking-[0.14em] transition-colors hover:bg-accent'
+      ~ )
+      Icon(name='refresh' className='size-3')
+      span Retry
+elseif preview?.error
+  div(className={MESSAGE_CLASS})
+    span(className='uppercase tracking-[0.14em]') Unable to build the report preview
+    span(className='max-w-md text-muted-foreground/70 normal-case tracking-normal') #{preview.error}
+elseif !preview
+  div(className={MESSAGE_CLASS})
+    Icon(name='spinner-ring' className='size-5 animate-spin')
+    span(className='uppercase tracking-[0.14em]') Building report
+else
+  div(className='flex h-full min-h-0 flex-col overflow-hidden border border-border/60')
+
+    div(className='flex shrink-0 items-center justify-between gap-2 border-border/60 border-b bg-popover px-2.5 py-2')
+
+      div(className={TOOLBAR_GROUP_CLASS})
+        button(
+          ~ type='button'
+          ~ aria-label='Previous page'
+          ~ disabled={currentPage <= 1}
+          ~ onClick={() => goToPage(currentPage - 1)}
+          ~ className={TOOLBAR_BUTTON_CLASS}
+          ~ )
+          Icon(name='arrow-left' className='size-3.5')
+        span(className='min-w-14 text-center font-mono text-2xs text-muted-foreground tabular-nums')
+          span(className='text-foreground') #{padPage(currentPage)}
+          span(className='px-1 opacity-40') /
+          span #{padPage(pageCount)}
+        button(
+          ~ type='button'
+          ~ aria-label='Next page'
+          ~ disabled={pageCount === 0 || currentPage >= pageCount}
+          ~ onClick={() => goToPage(currentPage + 1)}
+          ~ className={TOOLBAR_BUTTON_CLASS}
+          ~ )
+          Icon(name='arrow-right' className='size-3.5')
+
+      div(className={TOOLBAR_GROUP_CLASS})
+        button(
+          ~ type='button'
+          ~ aria-label='Zoom out'
+          ~ disabled={zoom <= ZOOM_MIN}
+          ~ onClick={() => setZoom((current) => clampZoom(current - ZOOM_STEP))}
+          ~ className={TOOLBAR_BUTTON_CLASS}
+          ~ )
+          Icon(name='circle-minus-line' className='size-3.5')
+        button(
+          ~ type='button'
+          ~ title='Reset zoom'
+          ~ onClick={() => setZoom(1)}
+          ~ className={cn(TOOLBAR_BUTTON_CLASS, 'w-12 font-mono text-2xs tabular-nums', zoom !== 1 && 'text-foreground')}
+          ~ )
+          | #{zoomLabel}
+        button(
+          ~ type='button'
+          ~ aria-label='Zoom in'
+          ~ disabled={zoom >= ZOOM_MAX}
+          ~ onClick={() => setZoom((current) => clampZoom(current + ZOOM_STEP))}
+          ~ className={TOOLBAR_BUTTON_CLASS}
+          ~ )
+          Icon(name='circle-plus' className='size-3.5')
+
+      button(
+        ~ type='button'
+        ~ onClick={handleDownload}
+        ~ title='Download the full report as a PDF'
+        ~ className='inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-xs border border-border/50 bg-background/60 px-2.5 font-mono text-2xs text-muted-foreground uppercase tracking-[0.14em] outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring'
+        ~ )
+        Icon(name='download-line' className='size-3.5')
+        span(className='hidden sm:inline') PDF
+
+    ScrollArea(ref={viewportRef} orientation='both' className={READER_CLASS})
+      div(className='flex min-w-full flex-col items-center gap-8 px-6 py-8')
+        Document(
+          ~ file={preview.blob}
+          ~ onLoadSuccess={(document) => setPageCount(document.numPages)}
+          ~ onLoadError={(error) => setPreview({ blob: null, error: errorMessage(error, 'Unable to open the report.'), fileName: '' })}
+          ~ loading={renderLoadingPdf}
+          ~ error={renderFailedPdf}
+          ~ )
+          each pageNumber in pageNumbers key pageNumber
+            div(data-page={pageNumber} className='relative scroll-mt-8')
+              span(className='-top-5 pointer-events-none absolute left-0 font-mono text-2xs text-muted-foreground/60 tabular-nums')
+                | #{padPage(pageNumber)}
+              Page(
+                ~ pageNumber={pageNumber}
+                ~ width={pageWidth}
+                ~ renderTextLayer={false}
+                ~ renderAnnotationLayer={false}
+                ~ className={PAGE_CLASS}
+                ~ )

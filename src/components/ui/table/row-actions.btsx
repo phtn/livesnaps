@@ -1,15 +1,10 @@
-import { createContext, use, useCallback, useEffect, useMemo, useRef, useState } from 'octane'
+import { createContext, lazy, Suspense, use, useCallback, useEffect, useState } from 'octane'
 import type { OctaneNode } from 'octane'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { Dialog } from '@octanejs/base-ui/dialog'
-import { Document, Page, pdfjs } from '@octanejs/pdf'
-import { ScrollArea } from '@/components/ui/'
 import { Dropdown } from '@/components/ui/dropdown-menu.btsx'
 import { Icon } from '@/lib/icons'
 import { fetchAdminSnap } from '@/lib/snaps/admin-reads'
-import { createSnapFullReportDocument } from '@/lib/snaps/full-report'
-import { renderSnapFullReportPdf } from '@/components/admin/snap-report-pdf'
-import { createTableExportFileName, downloadTableExport } from '@/components/admin/export-utils'
 import { downloadSnapPhotoArchive } from '@/lib/snaps/photo-download'
 import { onPromise } from '@/lib/toast'
 import { cn } from '@/lib/utils'
@@ -33,22 +28,16 @@ module
 
   const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
 
-  // pdf.js needs its worker before any document is parsed. Resolved through the
-  // bundler so the worker ships as an app asset rather than a bare CDN URL.
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
-
-  interface PreviewState {
-    blob: Blob | null
-    error: string | null
-    fileName: string
-  }
+  // pdf.js, the Takumi renderer and a 4MB wasm binary sit behind this import.
+  // Rendering a table row must not pay for them, so the preview arrives only
+  // once the dialog is on screen.
+  const LazySnapReportPreview = lazy(() => import('./snap-report-preview.btsx'))
 
   // The sibling components are hoisted function declarations, so the namespace
   // can reference them here. Mirrors how `dropdown-menu.btsx` publishes parts.
   export const SnapRowActions = {
     PhotosCell: SnapPhotosCell,
     Provider: SnapRowActionsProvider,
-    ReportViewerContent: SnapReportViewerContent,
     ReportViewerDialog: SnapReportViewerDialog
   }
 
@@ -121,138 +110,10 @@ component SnapPhotosCell
       ~ )
       Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className='size-4')
 
-component SnapReportViewerContent
-  props { reportSnap, isLoading, loadError, onRetry }: { reportSnap: Doc<'snaps'> | null; isLoading: boolean; loadError: string | null; onRetry: () => void }
-  setup
-    const [preview, setPreview] = useState<PreviewState | null>(null)
-    const [pageCount, setPageCount] = useState(0)
-    const [containerWidth, setContainerWidth] = useState(0)
-    const containerRef = useRef<HTMLDivElement | null>(null)
-
-    // The dialog previews the exact bytes the download produces, so the PDF is
-    // built once here and reused for both. The blob is dropped when the source
-    // snap changes or the component unmounts.
-    useEffect(() => {
-      if (!reportSnap) {
-        setPreview(null)
-        setPageCount(0)
-        return
-      }
-
-      let cancelled = false
-      setPreview(null)
-      setPageCount(0)
-
-      void (async () => {
-        try {
-          const report = createSnapFullReportDocument(reportSnap)
-          const bytes = await renderSnapFullReportPdf(report)
-          if (cancelled) return
-          setPreview({
-            blob: new Blob([Uint8Array.from(bytes)], { type: 'application/pdf' }),
-            error: null,
-            fileName: createTableExportFileName(`snap-report-${report.recordId.slice(-12)}`, 'pdf', report.generatedAt)
-          })
-        } catch (error) {
-          if (cancelled) return
-          setPreview({ blob: null, error: errorMessage(error, String(error)), fileName: '' })
-        }
-      })()
-
-      return () => {
-        cancelled = true
-      }
-    }, [reportSnap])
-
-    // pdf.js renders to a fixed pixel width, so the page has to be told how wide
-    // its container actually is.
-    useEffect(() => {
-      const element = containerRef.current
-      if (!element) return
-
-      const observer = new ResizeObserver((entries) => {
-        const width = entries[0]?.contentRect.width ?? 0
-        setContainerWidth((current) => (Math.abs(current - width) < 1 ? current : width))
-      })
-      observer.observe(element)
-
-      return () => observer.disconnect()
-    }, [preview?.blob])
-
-    const handleDownload = () => {
-      if (!preview?.blob) return
-      // Reuses the previewed bytes; nothing is re-rendered on download.
-      void onPromise(
-        preview.blob.arrayBuffer().then((buffer) => {
-          downloadTableExport(buffer, 'application/pdf', preview.fileName)
-        }),
-        {
-          loading: 'Preparing the proof report…',
-          success: 'Full row report downloaded.',
-          error: (error) => errorMessage(error, 'Unable to export the full row report.')
-        }
-      ).catch(() => undefined)
-    }
-
-    const pageNumbers = useMemo(() => Array.from({ length: pageCount }, (_, index) => index + 1), [pageCount])
-
-  if isLoading
-    div(className='grid place-items-center py-16 text-sm text-muted-foreground')
-      Icon(name='spinner-ring' className='size-5 animate-spin')
-      span(className='mt-2') Loading report…
-  elseif loadError
-    div(className='grid place-items-center py-16 text-center')
-      p(className='text-sm text-destructive') #{loadError}
-      button(type='button' className={cn(GHOST_BUTTON_CLASS, 'mt-4 h-8 border border-input px-3 text-sm')} onClick={onRetry}) Retry
-  elseif preview?.error
-    div(className='grid place-items-center py-16 text-center text-sm text-muted-foreground')
-      p Unable to build the report preview.
-      p(className='mt-1 text-xs') #{preview.error}
-  elseif !preview
-    div(className='grid place-items-center py-16 text-sm text-muted-foreground')
-      Icon(name='spinner-ring' className='size-5 animate-spin')
-      span(className='mt-2') Building report…
-  else
-    div(className='flex h-full flex-col gap-3')
-      ScrollArea(className='h-[55vh] rounded-lg border border-border bg-muted/30')
-        div(ref={containerRef} className='flex flex-col items-center gap-4 p-4')
-          Document(
-            ~ file={preview.blob}
-            ~ onLoadSuccess={(document) => setPageCount(document.numPages)}
-            ~ onLoadError={(error) => setPreview({ blob: null, error: errorMessage(error, 'Unable to open the report.'), fileName: '' })}
-            ~ loading={LoadingPdf}
-            ~ error={FailedPdf}
-            ~ )
-            each pageNumber in pageNumbers key pageNumber
-              Page(
-                ~ pageNumber={pageNumber}
-                ~ width={containerWidth > 0 ? containerWidth - 32 : undefined}
-                ~ renderTextLayer={false}
-                ~ renderAnnotationLayer={false}
-                ~ className='shadow-sm'
-                ~ )
-
-      div(className='flex items-center justify-between gap-2 border-t border-border pt-3')
-        p(className='font-mono text-xs text-muted-foreground')
-          if pageCount > 0
-            fragment #{pageCount} #{plural(pageCount, 'page')}
-        button(
-          ~ type='button'
-          ~ className={cn(GHOST_BUTTON_CLASS, 'h-9 gap-2 border border-input px-4 text-sm')}
-          ~ onClick={handleDownload}
-          ~ title='Download the full report as a PDF'
-          ~ )
-          Icon(name='download-line' className='size-4')
-          span Download PDF
-
-component LoadingPdf
+component LoadingReport
   div(className='grid place-items-center py-16 text-sm text-muted-foreground')
     Icon(name='spinner-ring' className='size-5 animate-spin')
-    span(className='mt-2') Rendering report…
-
-component FailedPdf
-  div(className='grid place-items-center py-16 text-sm text-muted-foreground')
-    p Unable to display the report.
+    span(className='mt-2') Loading report…
 
 component SnapReportViewerDialog
   props { snapId, open, onOpenChange }: { snapId: SnapRow['_id'] | null; open: boolean; onOpenChange: (open: boolean) => void }
@@ -289,18 +150,23 @@ component SnapReportViewerDialog
 
   Dialog.Root(open={open} onOpenChange={onOpenChange})
     Dialog.Portal
-      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/60')
-      Dialog.Popup(className='fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100vw-2rem)] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-xl border border-border bg-popover p-0 text-popover-foreground shadow-2xl outline-none')
-        div(className='shrink-0 px-6 pb-4 pt-6')
-          Dialog.Title(className='font-poly text-lg') Proof Report
-          Dialog.Description(className='font-mono text-xs') #{snapId ? `Report for ${String(snapId).slice(0, 8)}…` : 'Loading report'}
-        div(className='min-h-0 flex-1 px-6 pb-6')
-          SnapReportViewerContent(
-            ~ reportSnap={reportSnap}
-            ~ isLoading={isLoading}
-            ~ loadError={loadError}
-            ~ onRetry={loadSnap}
-            ~ )
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]')
+      Dialog.Popup(className='fixed top-1/2 left-1/2 z-50 flex h-[88vh] w-[calc(100vw-2rem)] max-w-4xl -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-lg border border-border/60 bg-popover p-0 text-popover-foreground shadow-[0_24px_80px_-16px_rgba(0,0,0,0.55)] outline-none')
+        div(className='flex shrink-0 items-center justify-between gap-3 border-border/60 border-b px-5 py-3.5')
+          div(className='min-w-0')
+            Dialog.Title(className='font-poly text-base leading-none tracking-tight') Proof Report
+            Dialog.Description(className='mt-1.5 truncate font-mono text-2xs text-muted-foreground uppercase tracking-[0.14em]')
+              | #{snapId ? String(snapId) : 'Loading report'}
+          Dialog.Close(className={cn(GHOST_BUTTON_CLASS, 'size-7 shrink-0 text-muted-foreground hover:text-foreground')} aria-label='Close')
+            Icon(name='close' className='size-3.5')
+        div(className='min-h-0 flex-1 p-3')
+          Suspense(fallback={LoadingReport})
+            LazySnapReportPreview(
+              ~ reportSnap={reportSnap}
+              ~ isLoading={isLoading}
+              ~ loadError={loadError}
+              ~ onRetry={loadSnap}
+              ~ )
 
 props { snap }: { snap: SnapRow }
 setup

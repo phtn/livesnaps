@@ -1,4 +1,11 @@
-@import 'tailwindcss';
+/*
+ * `source(none)` turns off Tailwind's automatic detection, which walks up to
+ * the repository root and scans everything that ships nothing: `convex/`,
+ * `scripts/`, markdown, the Worker. Every class-shaped string it finds there
+ * becomes a rule in the stylesheet the browser downloads on first paint.
+ */
+@import 'tailwindcss' source(none);
+@source '../src';
 @import 'tw-animate-css';
 /*@import 'shadcn/tailwind.css';*/
 
