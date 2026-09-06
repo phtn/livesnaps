@@ -91,6 +91,106 @@ export function handleAdminVerificationEntryCreate(
   )
 }
 
+/**
+ * The per-file ceiling the Worker enforces before it spends a Convex upload
+ * URL. `attachUpload` checks it again against the recorded size — this one is
+ * only here to reject a hopeless file before its bytes cross the wire.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+
+/**
+ * Takes one browsed file and hands it to Convex storage.
+ *
+ * The browser on the admin origin has no Convex identity, so it cannot post to
+ * a Convex upload URL itself: it posts the file here, and the Worker — which
+ * already mints an ID token per request — takes the upload URL, streams the
+ * bytes to it, and records the result against the entry.
+ */
+export function handleAdminVerificationEntryAttachmentUpload(
+  request: Request,
+  environment: AdminVerificationRouteEnvironment = {}
+) {
+  return withAdminConvexWrite(
+    request,
+    environment,
+    async (client) => {
+      let form: FormData
+
+      try {
+        form = await request.formData()
+      } catch {
+        throw new AdminRequestError('A multipart request body with a file is required.')
+      }
+
+      const id = readString(form.get('id'))
+      if (!id) throw new AdminRequestError('A verification entry ID is required.')
+
+      const file = form.get('file')
+      if (!(file instanceof File)) throw new AdminRequestError('A file is required.')
+
+      if (file.size <= 0) throw new AdminRequestError('The selected file is empty.')
+
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new AdminRequestError(`Each file must be under ${MAX_UPLOAD_BYTES / 1024 / 1024}MB.`)
+      }
+
+      const contentType = file.type.trim() || 'application/octet-stream'
+      const uploadUrl: string = await client.mutation(api.verificationEntries.m.generateAttachmentUploadUrl, {})
+
+      const stored = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'content-type': contentType },
+        body: file
+      })
+
+      if (!stored.ok) throw new AdminRequestError('The file could not be stored.')
+
+      const payload: unknown = await stored.json().catch(() => null)
+      const storageId =
+        typeof payload === 'object' && payload !== null && typeof (payload as { storageId?: unknown }).storageId === 'string'
+          ? (payload as { storageId: string }).storageId
+          : undefined
+
+      if (!storageId) throw new AdminRequestError('The file was stored without an ID.')
+
+      return client.mutation(api.verificationEntries.m.attachUpload, {
+        id: id as Id<'verificationEntries'>,
+        contentType,
+        name: file.name,
+        size: file.size,
+        storageId: storageId as Id<'_storage'>
+      })
+    },
+    'Unable to attach the file.'
+  )
+}
+
+/** Drops one uploaded file from an entry, and from storage with it. */
+export function handleAdminVerificationEntryAttachmentRemove(
+  request: Request,
+  environment: AdminVerificationRouteEnvironment = {}
+) {
+  return withAdminConvexWrite(
+    request,
+    environment,
+    async (client) => {
+      const body = await readJsonBody(request)
+      if (!body) throw new AdminRequestError('A valid JSON request body is required.')
+
+      const id = readString(body.id)
+      const storageId = readString(body.storageId)
+
+      if (!id || !storageId) throw new AdminRequestError('id and storageId are both required.')
+
+      return client.mutation(api.verificationEntries.m.removeUpload, {
+        id: id as Id<'verificationEntries'>,
+        storageId: storageId as Id<'_storage'>
+      })
+    },
+    'Unable to remove the attachment.'
+  )
+}
+
 /** Sends an entry's verification email through Convex, which owns the Resend call. */
 export function handleAdminVerificationEntrySend(
   request: Request,

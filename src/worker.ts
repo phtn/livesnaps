@@ -1,6 +1,8 @@
 import { handleAdminSession } from './server/admin-auth-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
 import {
+  handleAdminVerificationEntryAttachmentRemove,
+  handleAdminVerificationEntryAttachmentUpload,
   handleAdminVerificationEntryCreate,
   handleAdminVerificationEntryList,
   handleAdminVerificationEntrySend
@@ -42,6 +44,8 @@ const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const ADMIN_VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
+const ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entries/attachments'
+const ADMIN_VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification-entries/attachments/remove'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 const ADMIN_SNAP_PHOTO_PATH = /^\/api\/r2\/(.+)$/
 
@@ -119,6 +123,14 @@ export default {
 
     if (pathname === ADMIN_VERIFICATION_ENTRY_SEND_PATH) {
       return handleAdminVerificationEntrySend(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH) {
+      return handleAdminVerificationEntryAttachmentUpload(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH) {
+      return handleAdminVerificationEntryAttachmentRemove(request, { convexUrl })
     }
 
     const adminSnapDetailMatch = ADMIN_SNAP_DETAIL_PATH.exec(pathname)

@@ -1,0 +1,36 @@
+import { rankTextTone, rankTone } from '@/lib/verifications/step-flow'
+import { cn } from '@/lib/utils'
+
+module
+  export interface AttachmentRowProps {
+    index: number
+    label: string
+    included: boolean
+    /** Already formatted — the weight arithmetic belongs to the caller. */
+    size: string
+    /** Draws the `~`, for a size projected rather than measured. */
+    isEstimate?: boolean
+    onToggle: () => void
+  }
+
+// One attachment as a toggle: a ranked pip, the name, a fill bar, and the size.
+props { index, label, included, size, isEstimate = false, onToggle }: AttachmentRowProps
+
+button(
+  ~ type='button'
+  ~ onClick={onToggle}
+  ~ aria-pressed={included}
+  ~ className='flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-accent/60'
+  ~ )
+  span(className={cn('grid size-5 shrink-0 place-items-center rounded-full font-sans text-2xs leading-none text-white transition-opacity duration-200', rankTone(index), included ? 'opacity-100' : 'opacity-30')})
+    | #{index + 1}
+  span(className={cn('min-w-0 flex-1 truncate font-mono text-xs transition-colors duration-200', included ? 'text-foreground' : 'text-muted-foreground/60 line-through')}) #{label}
+  span(className='hidden h-1.5 w-44 shrink-0 overflow-hidden rounded-full bg-muted sm:block')
+    span(className={cn('block h-full rounded-full transition-all duration-300 ease-out', rankTone(index), included ? 'w-full' : 'w-1/4 opacity-40')})
+  span(
+    ~ title={isEstimate ? 'Projected from the snap — the report is generated at send time.' : undefined}
+    ~ className={cn('w-20 shrink-0 text-right font-mono text-2xs tabular-nums transition-colors duration-200', included ? rankTextTone(index) : 'text-muted-foreground/50')}
+    ~ )
+    if isEstimate
+      span(className='pr-px opacity-60') #{'~'}
+    | #{size}

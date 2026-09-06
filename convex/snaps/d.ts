@@ -182,6 +182,8 @@ export const snapApplicantDetailsSchema = snapDetailsSchema.omit('full_name', 'e
 
 export const snapHandlerSchema = v.object({
   email: v.string(),
+  /** The handler's avatar as it stood when they took the snap on. */
+  image_url: v.optional(v.string()),
   name: v.string()
 })
 

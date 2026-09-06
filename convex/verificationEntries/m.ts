@@ -11,7 +11,7 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, mutation } from '../_generated/server'
 import { getR2ObjectBytes, isR2Configured, toBase64 as bytesToBase64 } from '../lib/r2'
-import { createVerificationEntrySchema, verificationEntryDocumentSchema } from './d'
+import { createVerificationEntrySchema, verificationEntryDocumentSchema, type VerificationUpload } from './d'
 
 const FIREBASE_UID_MAX_LENGTH = 128
 
@@ -50,6 +50,31 @@ const DEFAULT_FROM_ADDRESS = 'hq@livesnapsnow.com'
  * failure after every photo has been fetched.
  */
 const MAX_ATTACHMENT_BYTES = 24 * 1024 * 1024
+
+/**
+ * One browsed file, and how many of them an entry may carry. The per-file cap
+ * is well inside the message budget so a single mistaken pick cannot exhaust
+ * it, and the count keeps the send loop bounded.
+ */
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+const MAX_UPLOAD_COUNT = 10
+const MAX_UPLOAD_NAME_LENGTH = 160
+
+/** Falls back to a stable name: a filename is what the recipient sees. */
+const normalizeUploadName = (value: string): string => {
+  const name = value.trim().replace(/[\r\n\t]+/g, ' ').replace(/[/\\]+/g, '-').slice(0, MAX_UPLOAD_NAME_LENGTH)
+  return name || 'attachment'
+}
+
+const requireAdmin = async (ctx: MutationCtx) => {
+  const identity = await ctx.auth.getUserIdentity()
+
+  if (identity?.admin !== true) {
+    throw new ConvexError('Unauthorized.')
+  }
+
+  return identity
+}
 
 const normalizeApplicant = (value: string): string => {
   const applicant = value.trim().replace(/\s+/g, ' ')
@@ -170,15 +195,33 @@ export const create = mutation({
       throw new ConvexError('Snap already used for verification.')
     }
 
+    // The applicant's avatar is read from their user record through the snap's
+    // firebase uid, and the sender's comes straight off the calling identity.
+    // Both are copied onto the entry so the queue can render faces without a
+    // join, and so a later profile change does not rewrite history.
+    const applicantUid: string = snapForCreate.firebase_uid?.trim() ?? ''
+    const applicantUser = applicantUid
+      ? await ctx.db
+          .query('users')
+          .withIndex('by_firebaseUid', (q) => q.eq('firebaseUid', applicantUid))
+          .unique()
+          .catch((): null => null)
+      : null
+
+    const applicantImageUrl: string | undefined = applicantUser?.imageUrl?.trim() || undefined
+    const senderImageUrl: string | undefined = identity.pictureUrl?.trim() || undefined
+
     const createdAt: number = Date.now()
     const entryId: Id<'verificationEntries'> = await ctx.db.insert('verificationEntries', {
       applicant,
+      ...(applicantImageUrl ? { applicantImageUrl } : {}),
       attachments,
       ...(ccEmailAddress ? { ccEmailAddress } : {}),
       createdAt,
       emailFromAddress,
       emailToAddress,
       plateNumber,
+      ...(senderImageUrl ? { senderImageUrl } : {}),
       senderName,
       senderTokenIdentifier,
       senderUid,
@@ -188,7 +231,7 @@ export const create = mutation({
     })
 
     await ctx.db.patch(snapForCreate._id, {
-      handler: { email: emailFromAddress, name: senderName },
+      handler: { email: emailFromAddress, name: senderName, ...(senderImageUrl ? { image_url: senderImageUrl } : {}) },
       verification_status: 'draft' as const,
       updated_at: Date.now()
     })
@@ -231,6 +274,121 @@ export const updateAttachments = mutation({
   }
 })
 
+/**
+ * A short-lived URL the Worker posts the operator's file to. The browser on the
+ * admin origin holds only a session cookie, so it never sees this: the Worker
+ * mints the identity, takes the upload URL, and streams the bytes through.
+ */
+export const generateAttachmentUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx: MutationCtx): Promise<string> => {
+    await requireAdmin(ctx)
+
+    return await ctx.storage.generateUploadUrl()
+  }
+})
+
+/** Records a stored file against an entry once its bytes are in place. */
+export const attachUpload = mutation({
+  args: {
+    id: v.id('verificationEntries'),
+    contentType: v.optional(v.string()),
+    name: v.string(),
+    size: v.number(),
+    storageId: v.id('_storage')
+  },
+  returns: verificationEntryDocumentSchema,
+  handler: async (
+    ctx: MutationCtx,
+    args: {
+      id: Id<'verificationEntries'>
+      contentType?: string
+      name: string
+      size: number
+      storageId: Id<'_storage'>
+    }
+  ): Promise<VerificationEntryDoc> => {
+    await requireAdmin(ctx)
+
+    const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
+    if (!entry) throw new ConvexError('Entry not found.')
+
+    if (entry.status === 'submitted') {
+      throw new ConvexError('This entry has already been sent.')
+    }
+
+    const uploads: VerificationUpload[] = entry.uploads ?? []
+
+    if (uploads.length >= MAX_UPLOAD_COUNT) {
+      throw new ConvexError(`An entry can carry at most ${MAX_UPLOAD_COUNT} uploaded files.`)
+    }
+
+    if (!Number.isFinite(args.size) || args.size <= 0) {
+      throw new ConvexError('The uploaded file is empty.')
+    }
+
+    if (args.size > MAX_UPLOAD_BYTES) {
+      throw new ConvexError(`Each file must be under ${MAX_UPLOAD_BYTES / 1024 / 1024}MB.`)
+    }
+
+    const totalBytes: number = uploads.reduce((total, upload) => total + upload.size, 0) + args.size
+    if (totalBytes > MAX_ATTACHMENT_BYTES) {
+      throw new ConvexError(
+        `Uploads total ${Math.round(totalBytes / 1024 / 1024)}MB, over the ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB message limit.`
+      )
+    }
+
+    const upload: VerificationUpload = {
+      contentType: args.contentType?.trim() || 'application/octet-stream',
+      name: normalizeUploadName(args.name),
+      size: args.size,
+      storageId: args.storageId,
+      uploadedAt: Date.now()
+    }
+
+    await ctx.db.patch(args.id, { uploads: [...uploads, upload], updatedAt: Date.now() })
+
+    const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
+    if (!updated) throw new ConvexError('Unable to read the updated entry.')
+
+    return updated
+  }
+})
+
+/** Drops a file from the entry and from storage — an unsent draft owns it. */
+export const removeUpload = mutation({
+  args: {
+    id: v.id('verificationEntries'),
+    storageId: v.id('_storage')
+  },
+  returns: verificationEntryDocumentSchema,
+  handler: async (
+    ctx: MutationCtx,
+    args: { id: Id<'verificationEntries'>; storageId: Id<'_storage'> }
+  ): Promise<VerificationEntryDoc> => {
+    await requireAdmin(ctx)
+
+    const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
+    if (!entry) throw new ConvexError('Entry not found.')
+
+    const uploads: VerificationUpload[] = entry.uploads ?? []
+    const remaining: VerificationUpload[] = uploads.filter((upload) => upload.storageId !== args.storageId)
+
+    if (remaining.length !== uploads.length) {
+      await ctx.db.patch(args.id, { uploads: remaining, updatedAt: Date.now() })
+      // Storage is dropped after the reference is, so a failure here leaves an
+      // orphaned blob rather than a row pointing at nothing.
+      await ctx.storage.delete(args.storageId)
+    }
+
+    const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
+    if (!updated) throw new ConvexError('Unable to read the updated entry.')
+
+    return updated
+  }
+})
+
 export const sendEmail = action({
   args: {
     id: v.id('verificationEntries'),
@@ -256,8 +414,12 @@ export const sendEmail = action({
           .filter((a: string): boolean => Boolean(a))
           .filter((value: string, index: number, arr: string[]): boolean => arr.indexOf(value) === index)
       : (entry.attachments ?? [...DEFAULT_VERIFICATION_ATTACHMENTS])
+    // The defaults only stand in when the message would otherwise be bare. An
+    // entry carrying uploaded files is not bare, so an empty name list there
+    // means "just the files" rather than "you forgot to choose".
+    const hasUploads: boolean = (entry.uploads?.length ?? 0) > 0
     const finalAttachments: string[] =
-      normalizedAttachments.length > 0 ? normalizedAttachments : [...DEFAULT_VERIFICATION_ATTACHMENTS]
+      normalizedAttachments.length > 0 || hasUploads ? normalizedAttachments : [...DEFAULT_VERIFICATION_ATTACHMENTS]
 
     const snaps: SnapDoc | null = await ctx.runQuery(internal.verificationEntries.helpers.getSnapByUploadIdInternal, {
       uploadId: entry.uploadId
@@ -365,6 +527,33 @@ export const sendEmail = action({
       } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error)
         attachmentErrors.push(`${name}: ${message}`)
+      }
+    }
+
+    // Files the operator browsed are attached as their real bytes, read back
+    // out of Convex storage. A file that has gone missing is named rather than
+    // skipped silently, the same way a missing photo slot is.
+    for (const upload of entry.uploads ?? []) {
+      try {
+        const blob: Blob | null = await ctx.storage.get(upload.storageId)
+
+        if (!blob) {
+          attachmentErrors.push(`${upload.name}: the uploaded file is no longer in storage`)
+          continue
+        }
+
+        const content: string = bytesToBase64(await blob.arrayBuffer())
+
+        if (!content) {
+          attachmentErrors.push(`${upload.name}: empty content`)
+          continue
+        }
+
+        emailAttachments.push({ filename: upload.name, content, contentType: upload.contentType })
+        attachedBytes += content.length
+      } catch (error: unknown) {
+        const message: string = error instanceof Error ? error.message : String(error)
+        attachmentErrors.push(`${upload.name}: ${message}`)
       }
     }
 

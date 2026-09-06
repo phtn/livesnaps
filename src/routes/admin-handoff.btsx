@@ -58,4 +58,4 @@ main(className='grid min-h-screen place-items-center bg-background px-6 text-cen
     else
       div(className='mt-4 flex items-center justify-center gap-1.5')
         Icon(name='spinner-ferris')
-        p(className='text-sm text-muted-foreground') Hnnn Verifying your administrator access…
+        p(className='text-sm text-muted-foreground') Verifying Access Level

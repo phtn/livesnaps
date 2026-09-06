@@ -122,7 +122,7 @@ export const snapVerificationStatus: Record<
   { className: string; icon: IconName; label: string }
 > = {
   draft: {
-    className: 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-300',
+    className: 'border-taupe-500/30 bg-taupe-500/8 text-taupe-700 dark:text-taupe-300',
     icon: 'draft',
     label: 'Draft'
   },
@@ -154,7 +154,7 @@ export const verificationEntryStatus: Record<
   { className: string; icon: IconName; label: string }
 > = {
   draft: {
-    className: 'border-amber-500/30 bg-amber-500/8 text-amber-700 dark:text-amber-300',
+    className: 'border-taupe-500/30 bg-taupe-500/8 text-taupe-700 dark:text-taupe-300',
     icon: 'draft',
     label: 'Draft'
   },

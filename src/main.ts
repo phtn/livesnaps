@@ -6,10 +6,27 @@ import { applyTheme, getPreferredTheme } from './lib/theme'
 import { router } from './router'
 import './style.css'
 
+/**
+ * True for every local host, subdomains included.
+ *
+ * The admin app runs on `admin.localhost`, which an exact-match list misses —
+ * a service worker then installs in development and keeps serving hashed
+ * chunks from a previous build after a rebuild has renamed them.
+ *
+ * `public/service-worker.js` carries the same check; it is a plain file served
+ * as-is rather than a bundled module, so it cannot import this one.
+ */
+const isLocalHostname = (hostname: string) =>
+  hostname === 'localhost' ||
+  hostname.endsWith('.localhost') ||
+  hostname === '127.0.0.1' ||
+  hostname === '[::1]' ||
+  hostname === '::1'
+
 const registerServiceWorker = () => {
   if (!('serviceWorker' in navigator)) return
 
-  if (['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)) {
+  if (isLocalHostname(window.location.hostname)) {
     void navigator.serviceWorker
       .getRegistrations()
       .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))

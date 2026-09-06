@@ -62,21 +62,34 @@ export const pdfTheme = {
   }
 } as const
 
-const fetchFont = async (path: string) => {
-  const response = await fetch(path)
+const fetchFont = async (path: string): Promise<ArrayBuffer | null> => {
+  try {
+    const response = await fetch(path)
 
-  if (!response.ok) {
-    throw new Error(`Unable to load PDF font (${response.status}).`)
+    // One missing face should cost that face and nothing else: the PDF still
+    // renders with the rest, and with Takumi's fallbacks under those.
+    if (!response.ok) return null
+
+    return await response.arrayBuffer()
+  } catch {
+    return null
   }
-
-  return await response.arrayBuffer()
 }
+
+/**
+ * The shipped families carry a single weight each, so every weight the PDF
+ * styles ask for is served from the same file. Each registration gets its own
+ * copy of the bytes — a loader may take ownership of the buffer it is handed.
+ */
+const faces = (data: ArrayBuffer | null, name: string, weights: readonly number[]): FontLoader[] =>
+  data === null ? [] : weights.map((weight) => ({ data: data.slice(0), name, weight }))
 
 let pdfFonts: Promise<FontLoader[] | undefined> | undefined
 
 /**
  * Loads the app's local brand faces only when rendering in the browser. PDF
- * generation remains functional with Takumi's fallbacks if a font request fails.
+ * generation remains functional with Takumi's fallbacks for any face that
+ * fails to load, and for all of them if none do.
  */
 export const loadPdfFonts = (): Promise<FontLoader[] | undefined> => {
   if (typeof window === 'undefined') {
@@ -84,19 +97,19 @@ export const loadPdfFonts = (): Promise<FontLoader[] | undefined> => {
   }
 
   pdfFonts ??= Promise.all([
-    fetchFont('/fonts/okxs-regular.woff2'),
     fetchFont('/fonts/okxs-medium.woff2'),
     fetchFont('/fonts/PolySansTrial-MedianWide.otf'),
-    fetchFont('/fonts/PolySansTrial-BulkyWide.otf'),
     fetchFont('/fonts/IoskeleyMono-Regular.woff2')
   ])
-    .then(([bodyRegular, bodyMedium, displayMedium, displayBold, mono]): FontLoader[] => [
-      { data: bodyRegular, name: 'Okxs', weight: 400 },
-      { data: bodyMedium, name: 'Okxs', weight: 500 },
-      { data: displayMedium, name: 'Polys', weight: 500 },
-      { data: displayBold, name: 'Polys', weight: 600 },
-      { data: mono, name: 'Ios', weight: 300 }
-    ])
+    .then(([body, display, mono]): FontLoader[] | undefined => {
+      const loaders: FontLoader[] = [
+        ...faces(body, 'Okxs', [400, 500]),
+        ...faces(display, 'Polys', [500, 600]),
+        ...faces(mono, 'Ios', [300])
+      ]
+
+      return loaders.length > 0 ? loaders : undefined
+    })
     .catch(() => undefined)
 
   return pdfFonts

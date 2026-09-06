@@ -1,5 +1,16 @@
 const CACHE_NAME = 'livesnaps-shell-v3'
-const IS_LOCAL_DEVELOPMENT = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname)
+// Subdomains included: the admin app runs on `admin.localhost`, and an exact
+// match there would leave this worker caching a development build's chunks.
+// `src/main.ts` carries the same check — this file is served as-is rather than
+// bundled, so the two cannot share one helper.
+const isLocalHostname = (hostname) =>
+  hostname === 'localhost' ||
+  hostname.endsWith('.localhost') ||
+  hostname === '127.0.0.1' ||
+  hostname === '[::1]' ||
+  hostname === '::1'
+
+const IS_LOCAL_DEVELOPMENT = isLocalHostname(self.location.hostname)
 const APP_SHELL = [
   '/',
   '/site.webmanifest',

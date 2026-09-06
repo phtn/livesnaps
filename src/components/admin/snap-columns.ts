@@ -75,7 +75,7 @@ export const snapColumns = columnHelper.columns([
   columnHelper.accessor((row) => row.photos.length, {
     id: 'photos',
     header: createHeader('Photos'),
-    size: 160,
+    size: 140,
     sortFn: 'basic',
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
@@ -133,7 +133,7 @@ export const snapColumns = columnHelper.columns([
     enableColumnFilter: true,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { name: info.getValue() })
+    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.handlerImageUrl, name: info.getValue() })
   }),
   columnHelper.accessor((row) => row.verification_status ?? 'unsubmitted', {
     id: 'verification_status',

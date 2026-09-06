@@ -1,13 +1,21 @@
-import { useLinkedState, useTransition } from 'octane'
-import { Dialog } from '@octanejs/base-ui/dialog'
+import { useLinkedState, useMemo, useRef, useState, useTransition } from 'octane'
+import { Drawer } from '@octanejs/vaul'
+import '@octanejs/vaul/style.css'
+import AttachmentRow from '@/components/admin/attachment-row.btsx'
+import SnapOptionItem from '@/components/admin/snap-option-item.btsx'
+import Step from '@/components/admin/verification-step.btsx'
+import Badge from '@/components/ui/badge.btsx'
 import Button from '@/components/ui/button.btsx'
-import Checkbox from '@/components/ui/checkbox.btsx'
 import Input from '@/components/ui/input.btsx'
+import { useMobile } from '@/hooks/use-mobile'
 import { Icon } from '@/lib/icons'
+import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { onError, onSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
-import { sendVerificationEmail } from '@/lib/verifications/admin-writes'
+import { removeVerificationAttachment, sendVerificationEmail, uploadVerificationAttachment } from '@/lib/verifications/admin-writes'
 import { DEFAULT_VERIFICATION_ATTACHMENTS } from '@/lib/verifications/entries'
+import { attachmentSize, attachmentTotalLabel, formatBytes, CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, fieldLabelClassName, ghostButtonClassName, readonlyFieldClassName, type StepState } from '@/lib/verifications/step-flow'
+import type { VerificationUpload } from '../../../convex/verificationEntries/d'
 import type { VerificationEntryRow } from './data'
 
 module
@@ -17,54 +25,223 @@ module
     /** Called after a successful send so the table can pick the status up early. */
     onSent?: () => void
     open: boolean
+    /**
+     * The snaps list the workspace already polls. The entry is keyed on an
+     * upload id, so its snap is what carries the applicant's face and the
+     * bytes behind each attachment.
+     */
+    snaps?: readonly AdminSnapListItem[]
   }
-
-  const GHOST_BUTTON_CLASS =
-    'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
-  const FIELD_LABEL_CLASS = 'text-sm font-medium leading-none'
 
   const defaultAttachments = (entry: VerificationEntryRow): string[] =>
     entry.attachments ?? [...DEFAULT_VERIFICATION_ATTACHMENTS]
 
-  const defaultSubject = (entry: VerificationEntryRow) =>
-    `Verification – ${entry.plateNumber} – ${entry.applicant}`
+  const defaultSubject = (entry: VerificationEntryRow) => `Verification – ${entry.plateNumber} – ${entry.applicant}`
 
   const defaultBody = (entry: VerificationEntryRow) =>
     `Hi ${entry.applicant},\n\nPlease find attached: ${defaultAttachments(entry).join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
 
   const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
 
-props { entry, onOpenChange, onSent, open }: SendVerificationEntryDialogProps
+
+// A name the operator typed rather than one the server knows how to assemble.
+// Only the label travels: the bytes come from R2 at send time.
+component CustomAttachmentRow
+  props { index, name, onRemove }: { index: number; name: string; onRemove: () => void }
+  div(className='flex w-full items-center gap-3 rounded-lg px-1 py-1.5')
+    span(className='grid size-5 shrink-0 place-items-center rounded-full border border-border/60 font-sans text-2xs leading-none text-muted-foreground')
+      | #{index + 1}
+    span(className='min-w-0 flex-1 truncate font-mono text-xs text-foreground') #{name}
+    button(
+      ~ type='button'
+      ~ aria-label={`Remove ${name}`}
+      ~ onClick={onRemove}
+      ~ className={cn(ghostButtonClassName, 'size-6 shrink-0 text-muted-foreground')}
+      ~ )
+      Icon(name='close' className='size-3.5')
+
+// One file that is actually in storage: its real name, its real weight, and a
+// control to drop it again while the entry is still a draft.
+component UploadedAttachmentRow
+  props { index, upload, isBusy, onRemove }: { index: number; upload: VerificationUpload; isBusy: boolean; onRemove: () => void }
+  div(className={cn('flex w-full items-center gap-3 rounded-lg px-1 py-1.5 transition-opacity duration-200', isBusy && 'opacity-50')})
+    span(className='grid size-5 shrink-0 place-items-center rounded-full bg-[#01bf7c]/96 font-sans text-2xs leading-none text-white')
+      | #{index + 1}
+    span(className='min-w-0 flex-1 truncate font-mono text-foreground text-xs') #{upload.name}
+    span(className='hidden h-1.5 w-44 shrink-0 overflow-hidden rounded-full bg-muted sm:block')
+      span(className='block h-full w-full rounded-full bg-[#01bf7c]/96')
+    span(className='w-20 shrink-0 text-right font-mono text-2xs text-[#01bf7c] tabular-nums') #{formatBytes(upload.size)}
+    button(
+      ~ type='button'
+      ~ aria-label={`Remove ${upload.name}`}
+      ~ disabled={isBusy}
+      ~ onClick={onRemove}
+      ~ className={cn(ghostButtonClassName, 'size-6 shrink-0 text-muted-foreground')}
+      ~ )
+      Icon(name='close' className='size-3.5')
+
+props { entry, onOpenChange, onSent, open, snaps }: SendVerificationEntryDialogProps
 
 setup
+  // Bottom on a phone, right on a desktop — the same panel the create drawer
+  // uses, so the two halves of the flow arrive from the same edge.
+  const isMobile = useMobile()
+  const direction = isMobile ? 'bottom' : 'right'
+
   // The dialog is mounted once per table and re-pointed at a row, so the draft
   // has to follow `entry` rather than being seeded on mount. `useLinkedState`
   // keeps an in-progress edit until the row underneath actually changes.
   const [subject, setSubject] = useLinkedState(entry?._id ?? '', () => (entry ? defaultSubject(entry) : ''))
   const [body, setBody] = useLinkedState(entry?._id ?? '', () => (entry ? defaultBody(entry) : ''))
   const [selectedAttachments, setSelectedAttachments] = useLinkedState(entry?._id ?? '', () =>
-    entry ? defaultAttachments(entry) : [],
+    entry ? defaultAttachments(entry) : []
   )
   const [isPending, startTransition] = useTransition()
 
+  // The entry keeps a copy of the applicant's face, but the snap is what holds
+  // the plate, the address and the evidence the attachments are weighed from.
+  const snap = useMemo(
+    () => snaps?.find((item) => item.uploadId === entry?.uploadId) ?? null,
+    [entry?.uploadId, snaps]
+  )
+
   const toggleAttachment = (value: string) => {
     setSelectedAttachments((current) =>
-      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
     )
+  }
+
+  const removeAttachment = (value: string) => {
+    setSelectedAttachments((current) => current.filter((item) => item !== value))
+  }
+
+  // Uploads live on the entry rather than in this draft, so they are held
+  // locally and re-seeded from whatever each write returns — the table row the
+  // dialog was opened with does not refresh underneath it.
+  const [uploads, setUploads] = useLinkedState<readonly VerificationUpload[]>(
+    entry?._id ?? '',
+    () => entry?.uploads ?? []
+  )
+  const [pendingUploadCount, setPendingUploadCount] = useState(0)
+  const [busyStorageId, setBusyStorageId] = useState('')
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const uploadedBytes = uploads.reduce((total, upload) => total + upload.size, 0)
+
+  const browseFiles = () => {
+    fileInputRef.current?.click()
+  }
+
+  // Files go up one at a time: each is its own Convex upload URL and its own
+  // patch, so a failure names the file that failed rather than voiding a batch.
+  const handleFilesPicked = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement
+    const picked = Array.from(input.files ?? [])
+    // Clearing lets the same file be picked again after a removal.
+    input.value = ''
+
+    if (!entry || picked.length === 0) return
+
+    setPendingUploadCount((current) => current + picked.length)
+
+    for (const file of picked) {
+      try {
+        const updated = await uploadVerificationAttachment<VerificationEntryRow>(entry._id, file)
+        setUploads(updated.uploads ?? [])
+      } catch (error) {
+        onError(errorMessage(error, `Unable to attach ${file.name}.`))
+      } finally {
+        setPendingUploadCount((current) => Math.max(0, current - 1))
+      }
+    }
+  }
+
+  const removeUpload = async (upload: VerificationUpload) => {
+    if (!entry) return
+
+    setBusyStorageId(upload.storageId)
+
+    try {
+      const updated = await removeVerificationAttachment<VerificationEntryRow>({
+        id: entry._id,
+        storageId: upload.storageId
+      })
+      setUploads(updated.uploads ?? [])
+    } catch (error) {
+      onError(errorMessage(error, `Unable to remove ${upload.name}.`))
+    } finally {
+      setBusyStorageId('')
+    }
   }
 
   // Only the names travel: the bytes are assembled server-side from R2 and the
   // snap record, so a browsed file here is a label for something Convex
   // already has, not an upload.
   const customAttachments = selectedAttachments.filter(
-    (value) => !([...DEFAULT_VERIFICATION_ATTACHMENTS] as readonly string[]).includes(value),
+    (value) => !([...DEFAULT_VERIFICATION_ATTACHMENTS] as readonly string[]).includes(value)
   )
 
-  const handleSend = () => {
+  const attachmentSizes = useMemo(
+    () => DEFAULT_VERIFICATION_ATTACHMENTS.map((option) => attachmentSize(option, snap)),
+    [snap]
+  )
+
+  // The built-ins are weighed from the snap; the uploads weigh themselves.
+  const attachmentTotal = useMemo(() => {
+    const known = attachmentTotalLabel(selectedAttachments, DEFAULT_VERIFICATION_ATTACHMENTS, snap)
+    if (uploadedBytes === 0) return known
+    if (!known) return formatBytes(uploadedBytes)
+
+    return `${known} + ${formatBytes(uploadedBytes)}`
+  }, [selectedAttachments, snap, uploadedBytes])
+
+  const hasMessage = subject.trim().length > 0 && body.trim().length > 0
+  const hasAttachments = selectedAttachments.length > 0 || uploads.length > 0
+  const canSend = hasAttachments && pendingUploadCount === 0 && !isPending
+
+  const applicantState: StepState = 'done'
+  const recipientState: StepState = 'done'
+  const messageState: StepState = hasMessage ? 'done' : 'active'
+  const attachmentState: StepState = hasAttachments ? 'done' : 'active'
+  const sendState: StepState = canSend ? 'active' : 'idle'
+
+  const completedSteps = [hasMessage, hasAttachments].filter(Boolean).length
+  const progressWidth = `${Math.round((completedSteps / 2) * 100)}%`
+
+  // Reduced to one value rather than an if/elseif chain in the template: a
+  // chain whose last branch is an `elseif` was observed emitting that branch
+  // outside the conditional.
+  const statusLabel = isPending
+    ? 'Sending email…'
+    : pendingUploadCount > 0
+      ? 'Uploading files…'
+      : !hasAttachments
+        ? 'Needs an attachment'
+        : !hasMessage
+          ? 'Subject or message is empty'
+          : 'Ready to send'
+
+  const statusToneClass = isPending || pendingUploadCount > 0
+    ? 'text-active'
+    : canSend && hasMessage
+      ? 'text-positive'
+      : hasAttachments
+        ? 'text-muted-foreground'
+        : 'text-destructive'
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    // Closing mid-flight would leave the send writing into a torn-down dialog,
+    // so the drawer stays put until the request settles either way.
+    if (isPending) return
+    onOpenChange(nextOpen)
+  }
+
+  const submit = (event: SubmitEvent) => {
+    event.preventDefault()
     if (!entry) return
 
-    if (selectedAttachments.length === 0) {
-      onError('Select at least one attachment to send.')
+    if (selectedAttachments.length === 0 && uploads.length === 0) {
+      onError('Select or attach at least one file to send.')
       return
     }
 
@@ -74,7 +251,7 @@ setup
           id: entry._id,
           attachments: selectedAttachments,
           subject: subject.trim() || undefined,
-          body: body.trim() || undefined,
+          body: body.trim() || undefined
         })
         onSuccess(`Email sent to ${entry.emailToAddress}.`)
         onSent?.()
@@ -88,91 +265,190 @@ setup
 // Nothing to compose against until a row is picked; the dialog owns no state
 // worth keeping mounted in that case.
 if entry
-  Dialog.Root(open={open} onOpenChange={onOpenChange})
-    Dialog.Portal
-      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/60')
-      Dialog.Popup(className='fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-1rem),48rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none')
-        div(className='shrink-0 px-6 pb-4 pt-6')
-          Dialog.Title(className='font-poly text-lg') Compose verification email
-          Dialog.Description(className='mt-1 font-mono text-xs text-muted-foreground')
-            | #{entry.applicant} · #{entry.plateNumber} → #{entry.emailToAddress}
+  Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
+    Drawer.Portal
+      Drawer.Overlay(className='fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px]')
+      Drawer.Content(className={cn(CONTENT_BASE_CLASS, isMobile ? CONTENT_BOTTOM_CLASS : CONTENT_RIGHT_CLASS)})
+        form(className='flex min-h-0 flex-1 flex-col' onSubmit={submit})
 
-        div(className='flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6')
-          div(className='grid gap-3 rounded-lg border border-border bg-muted/30 p-3')
-            div(className='flex flex-col gap-1')
-              div(className='flex items-center gap-1')
-                span(className='text-xs text-muted-foreground') Created by:
-                span(className='truncate text-xs') #{entry.senderName}
-                span(className='truncate text-xs font-medium') &lt;#{entry.emailFromAddress}&gt;
-              span(className='text-[10px] leading-none text-muted-foreground')
-                | Reference only — verification email is sent from the LiveSnaps verified domain.
-            div(className='grid grid-cols-2 gap-3')
-              div(className='flex items-center gap-1')
-                span(className='text-xs text-muted-foreground') To:
-                span(className='truncate text-xs') #{entry.emailToAddress}
-              div(className='flex items-center gap-1')
-                span(className='text-xs text-muted-foreground') CC:
-                span(className='truncate text-xs') #{entry.ccEmailAddress ?? '—'}
+          div(className='shrink-0 px-4 pt-3 pb-3 sm:px-5')
+            if isMobile
+              Drawer.Handle(className='mb-4')
+            div(className='flex items-center justify-between gap-3')
+              Drawer.Title(className='font-poly text-lg leading-none tracking-tight') Send verification
+              span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/30 bg-border/20 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+                span(className='capitalize') #{entry.status}
+            Drawer.Description(className='sr-only')
+              | Confirm the recipients, compose the message, choose the attachments, and send the verification email.
 
-          div(className='grid gap-2')
-            label(className={FIELD_LABEL_CLASS} htmlFor='email-subject') Subject
-            Input(
-              ~ id='email-subject'
-              ~ placeholder='Verification subject'
-              ~ value={subject}
-              ~ onInput={(event: Event) => setSubject((event.currentTarget as HTMLInputElement).value)}
-              ~ )
+          div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
+            div(className='rounded-2xl border border-border/40 bg-popover p-4 shadow-sm')
 
-          div(className='grid gap-2')
-            label(className={FIELD_LABEL_CLASS} htmlFor='email-body') Message
-            textarea(
-              ~ id='email-body'
-              ~ className='min-h-32 w-full rounded-xs border border-sidebar-border bg-sidebar/50 px-3 py-2 text-sm placeholder:text-border focus-visible:bg-background focus-visible:outline-active focus-visible:outline-[2px] focus-visible:outline-offset-0'
-              ~ placeholder='Compose your message…'
-              ~ value={body}
-              ~ onInput={(event: Event) => setBody((event.currentTarget as HTMLTextAreaElement).value)}
-              ~ )
-
-          div(className='grid gap-2')
-            span(className={FIELD_LABEL_CLASS}) Attachments
-            div(className='grid divide-y rounded-lg border border-border')
-              each option in DEFAULT_VERIFICATION_ATTACHMENTS key option
-                label(className='flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-muted/50')
-                  span(className='flex items-center gap-3')
-                    Checkbox(checked={selectedAttachments.includes(option)} onCheckedChange={() => toggleAttachment(option)})
-                    span(className='text-sm capitalize') #{option}
-                  Icon(name='attachment' className='size-4 text-muted-foreground')
-
-            if customAttachments.length > 0
-              div(className='grid gap-2')
-                span(className='text-xs text-muted-foreground') Additional
-                div(className='grid divide-y rounded-lg border border-border')
-                  each name in customAttachments key name
-                    label(className='flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-muted/50')
-                      span(className='flex min-w-0 items-center gap-3')
-                        Checkbox(checked={selectedAttachments.includes(name)} onCheckedChange={() => toggleAttachment(name)})
-                        span(className='truncate text-sm') #{name}
-                      button(
-                        ~ type='button'
-                        ~ aria-label={`Remove ${name}`}
-                        ~ className={cn(GHOST_BUTTON_CLASS, 'size-6 text-muted-foreground')}
-                        ~ onClick={(event: MouseEvent) => { event.preventDefault(); setSelectedAttachments((current) => current.filter((value) => value !== name)) }}
+              Step(
+                ~ icon='person'
+                ~ title='Applicant'
+                ~ state={applicantState}
+                ~ index={0}
+                ~ meta={entry.plateNumber || undefined}
+                ~ )
+                if snap
+                  div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
+                    SnapOptionItem(snap={snap} isSelected={true})
+                    Badge(variant='outline' className='shrink-0 font-mono text-2xs font-normal capitalize') #{snap.status}
+                else
+                  div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
+                    if entry.applicantImageUrl
+                      img(
+                        ~ src={entry.applicantImageUrl}
+                        ~ alt=''
+                        ~ width={40}
+                        ~ height={40}
+                        ~ loading='lazy'
+                        ~ decoding='async'
+                        ~ referrerPolicy='no-referrer'
+                        ~ className='block size-10 shrink-0 rounded-full object-cover'
                         ~ )
-                        Icon(name='close' className='size-3.5')
+                    div(className='min-w-0 flex-1')
+                      p(className='truncate font-poly font-medium text-foreground text-sm uppercase tracking-wide') #{entry.plateNumber || 'No plate'}
+                      p(className='mt-0.5 truncate text-muted-foreground text-xs') #{entry.applicant}
+                      p(className='mt-1 truncate font-mono text-2xs text-muted-foreground/70') #{entry.uploadId}
 
-            p(className='px-1 text-xs text-muted-foreground')
-              | #{selectedAttachments.length} selected · photos are read from storage at send time
+              Step(
+                ~ icon='at'
+                ~ title='Recipients'
+                ~ state={recipientState}
+                ~ index={1}
+                ~ meta={entry.ccEmailAddress ? '+1 cc' : undefined}
+                ~ )
+                div(className='grid gap-3')
+                  label(className='hidden flex-col gap-1.5' htmlFor='send-email-from')
+                    span(className={fieldLabelClassName}) From
+                    div(id='send-email-from' className={readonlyFieldClassName}) #{entry.emailFromAddress}
+                  div(className='grid gap-3 sm:grid-cols-2')
+                    label(className='flex flex-col gap-1.5' htmlFor='send-email-to')
+                      span(className={fieldLabelClassName}) To
+                      div(id='send-email-to' className={readonlyFieldClassName}) #{entry.emailToAddress}
+                    label(className='flex flex-col gap-1.5' htmlFor='send-email-cc')
+                      span(className={fieldLabelClassName}) CC
+                      div(id='send-email-cc' className={readonlyFieldClassName}) #{entry.ccEmailAddress ?? '—'}
+                  p(className='font-mono text-2xs text-muted-foreground/70')
+                    | Sent from the LiveSnaps verified domain — the address above is the record of who composed it.
 
-        div(className='flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4')
-          Button(type='button' size='sm' variant='secondary' label='Cancel' disabled={isPending} onClick={() => onOpenChange(false)})
-          Button(
-            ~ type='button'
-            ~ size='sm'
-            ~ variant='primary'
-            ~ icon='send'
-            ~ label='Send email'
-            ~ pending={isPending}
-            ~ pendingLabel='Sending…'
-            ~ disabled={isPending}
-            ~ onClick={handleSend}
-            ~ )
+              Step(
+                ~ icon='email-body'
+                ~ title='Message'
+                ~ state={messageState}
+                ~ index={2}
+                ~ meta={`${body.trim().length} chars`}
+                ~ )
+                div(className='grid gap-3')
+                  label(className='flex flex-col gap-1.5' htmlFor='send-email-subject')
+                    span(className={fieldLabelClassName}) Subject
+                    Input(
+                      ~ id='send-email-subject'
+                      ~ className='rounded-xs'
+                      ~ placeholder='Verification subject'
+                      ~ value={subject}
+                      ~ onInput={(event: Event) => setSubject((event.currentTarget as HTMLInputElement).value)}
+                      ~ )
+                  label(className='flex flex-col gap-1.5' htmlFor='send-email-body')
+                    span(className={fieldLabelClassName}) Body
+                    textarea(
+                      ~ id='send-email-body'
+                      ~ className='min-h-32 w-full rounded-xs border border-border/40 bg-muted/40 px-3 py-2 text-sm placeholder:text-muted-foreground/50 focus-visible:bg-background focus-visible:outline-active focus-visible:outline-[2px] focus-visible:outline-offset-0'
+                      ~ placeholder='Compose your message…'
+                      ~ value={body}
+                      ~ onInput={(event: Event) => setBody((event.currentTarget as HTMLTextAreaElement).value)}
+                      ~ )
+
+              Step(
+                ~ icon='attachment'
+                ~ title='Attachments'
+                ~ state={attachmentState}
+                ~ index={3}
+                ~ meta={attachmentTotal ? `${selectedAttachments.length + uploads.length} selected · ${attachmentTotal}` : `${selectedAttachments.length + uploads.length} selected`}
+                ~ )
+                div(className='grid')
+                  each option, index in DEFAULT_VERIFICATION_ATTACHMENTS key option
+                    AttachmentRow(
+                      ~ index={index}
+                      ~ label={option}
+                      ~ included={selectedAttachments.includes(option)}
+                      ~ size={attachmentSizes[index].label}
+                      ~ isEstimate={attachmentSizes[index].isEstimate}
+                      ~ onToggle={() => toggleAttachment(option)}
+                      ~ )
+                  each name, index in customAttachments key name
+                    CustomAttachmentRow(
+                      ~ index={DEFAULT_VERIFICATION_ATTACHMENTS.length + index}
+                      ~ name={name}
+                      ~ onRemove={() => removeAttachment(name)}
+                      ~ )
+                  each upload, index in uploads key upload.storageId
+                    UploadedAttachmentRow(
+                      ~ index={DEFAULT_VERIFICATION_ATTACHMENTS.length + customAttachments.length + index}
+                      ~ upload={upload}
+                      ~ isBusy={busyStorageId === upload.storageId}
+                      ~ onRemove={() => void removeUpload(upload)}
+                      ~ )
+                  if pendingUploadCount > 0
+                    div(className={cn('flex w-full items-center gap-3 rounded-lg px-1 py-1.5', ENTER_CLASS)})
+                      Icon(name='spinner-ring' className='size-5 shrink-0 animate-spin text-muted-foreground')
+                      span(className='min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs')
+                        | Uploading #{pendingUploadCount} #{pendingUploadCount === 1 ? 'file' : 'files'}…
+                div(className='mt-3 flex items-center gap-2')
+                  Button(
+                    ~ type='button'
+                    ~ size='sm'
+                    ~ variant='secondary'
+                    ~ icon='new-folder'
+                    ~ iconPosition='left'
+                    ~ label='Browse files'
+                    ~ className='shrink-0 rounded-xs'
+                    ~ disabled={isPending}
+                    ~ onClick={browseFiles}
+                    ~ )
+                  input(
+                    ~ ref={fileInputRef}
+                    ~ type='file'
+                    ~ multiple={true}
+                    ~ className='hidden'
+                    ~ tabIndex={-1}
+                    ~ aria-hidden={true}
+                    ~ onChange={(event: Event) => void handleFilesPicked(event)}
+                    ~ )
+                p(className='mt-2 font-mono text-2xs text-muted-foreground/70')
+                  | Photos are read from storage at send time. A browsed file is uploaded now and sent as itself.
+
+              Step(icon='send' title='Send' state={sendState} index={4} isLast={true})
+                if canSend
+                  p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)})
+                    | Deliver the entry to #{entry.emailToAddress}.
+                else
+                  div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
+                    div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
+
+          div(className='flex shrink-0 items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-5')
+            div(className='flex min-w-0 items-center gap-2')
+              span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, (isPending || pendingUploadCount > 0) && 'animate-pulse')})
+              span(className={cn('truncate font-mono text-xs', statusToneClass)}) #{statusLabel}
+            div(className='flex shrink-0 items-center gap-2')
+              Button(
+                ~ type='button'
+                ~ size='sm'
+                ~ variant='ghost'
+                ~ label='Cancel'
+                ~ disabled={isPending}
+                ~ onClick={() => handleOpenChange(false)}
+                ~ )
+              Button(
+                ~ type='submit'
+                ~ size='sm'
+                ~ variant='dark'
+                ~ icon='send'
+                ~ iconPosition='right'
+                ~ label='Send email'
+                ~ pending={isPending}
+                ~ pendingLabel='Sending…'
+                ~ disabled={!canSend}
+                ~ )

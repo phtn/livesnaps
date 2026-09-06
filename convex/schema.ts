@@ -27,7 +27,8 @@ export default defineSchema({
   admin: defineTable(adminSchema).index('by_identifier', ['identifier']),
   users: defineTable(userValidator)
     .index('by_tokenIdentifier', ['tokenIdentifier'])
-    .index('by_firebaseUid', ['firebaseUid']),
+    .index('by_firebaseUid', ['firebaseUid'])
+    .index('by_email', ['email']),
   snaps: defineTable(snapValidator)
     .index('by_applicant_token_identifier_and_session_started_at', [
       'metadata.applicant_token_identifier',

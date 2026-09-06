@@ -2,17 +2,20 @@ import { useMemo, useState } from 'octane'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import { useField, useSelector } from '@octanejs/tanstack-form'
-import HList from '@/components/ui/h-list.btsx'
-import { cardToneForIndex, type CardListItem } from '@/components/card-list'
+import AttachmentRow from '@/components/admin/attachment-row.btsx'
+import SnapOptionItem from '@/components/admin/snap-option-item.btsx'
+import SnapOptionList from '@/components/admin/snap-option-list.btsx'
 import Badge from '@/components/ui/badge.btsx'
 import Button from '@/components/ui/button.btsx'
 import Input from '@/components/ui/input.btsx'
 import ScrollArea from '@/components/ui/scroll-area.btsx'
+import Step from '@/components/admin/verification-step.btsx'
 import { useMobile } from '@/hooks/use-mobile'
-import { Icon, type IconName } from '@/lib/icons'
+import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { onError, onSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
+import { attachmentSize, attachmentTotalLabel, CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, errorTextClassName, fieldLabelClassName, ghostButtonClassName, readonlyFieldClassName, type StepState } from '@/lib/verifications/step-flow'
 import { createVerificationEntry } from '@/lib/verifications/admin-writes'
 import { DEFAULT_VERIFICATION_ATTACHMENTS, isVerificationEmailAddress, VERIFICATION_EMAIL_MAX_LENGTH } from '@/lib/verifications/entries'
 import { readValidationMessage, toCreateVerificationEntryInput, useVerificationEntryForm, validateVerificationEntryForm, verificationEntryFormDefaults, type VerificationEntryEmailField, type VerificationEntryForm } from '@/lib/verifications/entry-form'
@@ -32,94 +35,10 @@ module
   // is the way to reach a specific plate, so the list only ever previews.
   const VISIBLE_SNAP_LIMIT = 20
 
-  // The upload id is rendered one character per cell. Anything past this is
-  // decoration rather than information, and a long id would wrap the strip.
-  const UPLOAD_STRIP_MAX = 34
-
-  /**
-   * A step is `done` once the operator has settled it, `active` while it is the
-   * one thing left to do, and `idle` while an earlier step still blocks it.
-   */
-  type StepState = 'idle' | 'active' | 'done'
-
-  const STEP_TILE_CLASS = {
-    idle: 'border border-border/40 bg-muted/40 text-muted-foreground/50',
-    active: 'bg-active text-white shadow-[0_3px_10px_-3px_var(--color-active)]',
-    done: 'border border-[#01bf7c]/96 bg-[#01bf7c]/96 text-white'
-  } as const satisfies Record<StepState, string>
-
-  const STEP_TITLE_CLASS = {
-    idle: 'text-muted-foreground/50',
-    active: 'text-foreground',
-    done: 'text-foreground'
-  } as const satisfies Record<StepState, string>
-
-  interface StepProps {
-    icon: IconName
-    title: string
-    meta?: string
-    state: StepState
-    isLast?: boolean
-    children?: unknown
-  }
-
-  // Ranked rows borrow the reference card's three-tone ladder, so the first
-  // attachment reads as the primary one at a glance.
-  const RANK_TONES = ['bg-active', 'bg-violet-500', 'bg-pink-500'] as const
-  const RANK_TEXT_TONES = ['text-active', 'text-violet-500', 'text-pink-500'] as const
-
-  const rankTone = (index: number) => RANK_TONES[index % RANK_TONES.length]
-  const rankTextTone = (index: number) => RANK_TEXT_TONES[index % RANK_TEXT_TONES.length]
-
-  const fieldLabelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
-  const readonlyFieldClassName =
-    'flex h-9 items-center truncate rounded-xs border border-border/40 bg-muted/40 px-3 font-mono text-xs text-muted-foreground'
-  const ghostButtonClassName =
-    'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
-  const errorTextClassName = 'font-mono text-2xs text-destructive'
-
-  const CONTENT_BASE_CLASS =
-    'fixed z-50 flex flex-col overflow-hidden border border-border/50 bg-sidebar text-foreground shadow-2xl outline-none'
-  const CONTENT_BOTTOM_CLASS = 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl'
-  const CONTENT_RIGHT_CLASS = 'inset-y-0 right-0 w-full max-w-[38rem] rounded-l-2xl'
-
   const snapHaystack = (snap: AdminSnapListItem) =>
     [snap.plateNumber, snap.fullName, snap.email, snap.make, snap.model].filter(Boolean).join(' ').toLowerCase()
 
   const snapVehicle = (snap: AdminSnapListItem) => [snap.make, snap.model].filter(Boolean).join(' ')
-
-// One step of the pipeline: an icon tile on a connecting rail, a title row, and
-// whatever the step itself renders underneath.
-component Step
-  props { icon, title, meta, state, isLast = false, children }: StepProps
-  div(className='flex gap-3')
-    div(className='flex w-8 shrink-0 flex-col items-center')
-      span(className={cn('grid size-7 shrink-0 place-items-center rounded-md transition-colors duration-300 ease-out', STEP_TILE_CLASS[state])})
-        Icon(name={icon} className='size-4')
-      if !isLast
-        span(className='mt-1 w-px flex-1 bg-border/50')
-    div(className={cn('min-w-0 flex-1', isLast ? 'pb-1' : 'pb-6 md:pb-10')})
-      div(className='flex items-baseline justify-between gap-3')
-        h3(className={cn('mb-2 font-medium text-base leading-7 tracking-tight transition-colors duration-300 ease-out', STEP_TITLE_CLASS[state])}) #{title}
-        if meta
-          span(className='shrink-0 font-mono text-2xs text-muted-foreground') #{meta}
-      | #{children}
-
-// The upload id, one character per cell. It echoes the reference card's vector
-// strip while showing the value the entry is actually keyed on.
-component UploadStrip
-  props { uploadId }: { uploadId: string }
-  setup
-    const cells = Array.from(uploadId)
-      .slice(0, UPLOAD_STRIP_MAX)
-      .map((char, index) => ({ char, id: `${index}:${char}`, isDigit: char >= '0' && char <= '9' }))
-
-  div(className='mt-2 flex flex-wrap gap-[3px]')
-    each cell in cells key cell.id
-      span(
-        ~ className={cn('grid h-5 w-[13px] place-items-center rounded-[3px] font-mono text-[9px] uppercase leading-none', cell.isDigit ? 'bg-foreground/15 text-foreground/70' : 'bg-muted/70 text-muted-foreground/70')}
-        ~ )
-        | #{cell.char}
 
 // One email control bound to one form field. Value, blur, and the error message
 // all come from the field's own state rather than from a second copy kept here.
@@ -149,22 +68,6 @@ component EmailField
       ~ )
     if message
       p(id={errorId} className={errorTextClassName}) #{message}
-
-component AttachmentRow
-  props { index, label, included, onToggle }: { index: number; label: string; included: boolean; onToggle: () => void }
-  button(
-    ~ type='button'
-    ~ onClick={onToggle}
-    ~ aria-pressed={included}
-    ~ className='flex w-full items-center gap-3 rounded-lg px-1 py-1.5 text-left transition-colors hover:bg-accent/60'
-    ~ )
-    span(className={cn('grid size-5 shrink-0 place-items-center rounded-full font-sans text-2xs leading-none text-white transition-opacity duration-200', rankTone(index), included ? 'opacity-100' : 'opacity-30')})
-      | #{index + 1}
-    span(className={cn('min-w-0 flex-1 truncate font-mono text-xs transition-colors duration-200', included ? 'text-foreground' : 'text-muted-foreground/60 line-through')}) #{label}
-    span(className='hidden h-1.5 w-44 shrink-0 overflow-hidden rounded-full bg-muted sm:block')
-      span(className={cn('block h-full rounded-full transition-all duration-300 ease-out', rankTone(index), included ? 'w-full' : 'w-1/4 opacity-40')})
-    span(className={cn('w-16 shrink-0 text-right font-sans text-2xs transition-colors duration-200', included ? rankTextTone(index) : 'text-muted-foreground/50')})
-      | #{included ? '42kb' : 'off'}
 
 props { emailFromAddress, isLoadingSnaps = false, onCreated, snaps }: CreateVerificationEntryDialogProps
 
@@ -227,24 +130,16 @@ setup
     return eligibleSnaps.filter((snap) => snapHaystack(snap).includes(query)).slice(0, VISIBLE_SNAP_LIMIT)
   }, [eligibleSnaps, searchQuery])
 
-  // The picker renders through the shared card list, so a snap is reduced to
-  // the shape that list understands: the plate rides the cover as the badge
-  // because it is what an operator scans for, and the status is the trailing pill.
-  const snapCardItems = useMemo<CardListItem[]>(
-    () =>
-      filteredSnaps.map((snap, index) => {
-        const plateNumber = snap.plateNumber.trim()
+  // Each row's size is read from the selected snap, so the two are computed
+  // together and the template just indexes into them.
+  const attachmentSizes = useMemo(
+    () => DEFAULT_VERIFICATION_ATTACHMENTS.map((option) => attachmentSize(option, selectedSnap)),
+    [selectedSnap]
+  )
 
-        return {
-          id: snap._id,
-          title: snap.plateNumber || 'Unknown applicant',
-          subtitle: snap.fullName + ' · ' + [snap.email, snapVehicle(snap)].filter(Boolean).join(' · ') || 'No email',
-          imageSrc: 'https://res.cloudinary.com/dx0heqhhe/image/upload/v1785992150/512_bhscfd.webp',
-          description: snap.createdAt
-          // trailing: { kind: 'badge', value: snap.status }
-        }
-      }),
-    [filteredSnaps]
+  const attachmentTotal = useMemo(
+    () => attachmentTotalLabel(attachments, DEFAULT_VERIFICATION_ATTACHMENTS, selectedSnap),
+    [attachments, selectedSnap]
   )
 
   const hasSender = emailFromAddress.trim().length > 0
@@ -256,6 +151,11 @@ setup
   const recipientState: StepState = !selectedSnap ? 'idle' : isRecipientValid ? 'done' : 'active'
   const attachmentState: StepState = !selectedSnap ? 'idle' : attachments.length > 0 ? 'done' : 'active'
   const createState: StepState = canSubmit ? 'active' : 'idle'
+
+  // The idle Create step shows how far the pipeline has come rather than an
+  // inert bar, so the last step still moves while the earlier ones are settled.
+  const completedSteps = [Boolean(selectedSnap), isRecipientValid, attachments.length > 0].filter(Boolean).length
+  const progressWidth = `${Math.round((completedSteps / 3) * 100)}%`
 
   // Reduced to one value rather than an if/elseif chain in the template: a
   // chain whose last branch is an `elseif` was observed emitting that branch
@@ -361,25 +261,23 @@ fragment
                 ~ icon='camera-enhance'
                 ~ title='Snap'
                 ~ state={snapState}
+                ~ index={0}
                 ~ meta={selectedSnap ? undefined : `${filteredSnaps.length} of ${eligibleSnaps.length}`}
                 ~ )
                 if selectedSnap
-                  div(className='flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-muted/30 p-3')
-                    div(className='min-w-0')
-                      div(className='flex flex-wrap items-center gap-2')
-                        span(className='font-mono text-sm font-medium uppercase tracking-wide') #{selectedSnap.plateNumber || 'Plate pending'}
-                        Badge(variant='outline' className='font-mono text-2xs font-normal capitalize') #{selectedSnap.status}
-                      p(className='mt-1 truncate text-sm font-medium') #{selectedSnap.fullName || selectedSnap.email || '—'}
-                      p(className='truncate font-mono text-2xs text-muted-foreground') #{selectedSnap.email || 'No email on the snap'}
-                    button(
-                      ~ type='button'
-                      ~ onClick={clearSnap}
-                      ~ className={cn(ghostButtonClassName, 'h-7 shrink-0 gap-1 px-2 font-mono text-2xs uppercase tracking-wider')}
-                      ~ )
-                      Icon(name='cancel' className='size-3')
-                      span Clear
+                  div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
+                    SnapOptionItem(snap={selectedSnap} isSelected={true})
+                    div(className='flex shrink-0 flex-col items-end gap-1.5')
+                      Badge(variant='outline' className='font-mono text-2xs font-normal capitalize') #{selectedSnap.status}
+                      button(
+                        ~ type='button'
+                        ~ onClick={clearSnap}
+                        ~ className={cn(ghostButtonClassName, 'h-7 gap-1 px-2 font-mono text-2xs uppercase tracking-wider')}
+                        ~ )
+                        Icon(name='cancel' className='size-3')
+                        span Clear
                 else
-                  div(className='grid gap-2')
+                  div(className={cn('grid gap-2', ENTER_CLASS)})
                     div(className='relative')
                       Input(
                         ~ id='verification-snap-search'
@@ -391,7 +289,7 @@ fragment
                         ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
                         ~ )
                     div(className='')
-                      ScrollArea(className='h-64')
+                      ScrollArea(className='h-40')
                         div(className='')
                           if isLoadingSnaps
                             div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')
@@ -402,28 +300,29 @@ fragment
                               p(className='text-sm font-medium text-muted-foreground') No eligible snaps match
                               p(className='mt-1 font-mono text-2xs text-muted-foreground') Try a different plate, name, email, make or model.
                           else
-                            HList(data={snapCardItems} onSelect={selectSnapById} selected={selectedSnap?._id})
+                            SnapOptionList(snaps={filteredSnaps} onSelect={selectSnapById} selectedId={selectedSnap?._id ?? null})
 
               Step(
                 ~ icon='person'
                 ~ title='Applicant'
                 ~ state={applicantState}
+                ~ index={1}
                 ~ meta={selectedSnap ? snapVehicle(selectedSnap) || undefined : undefined}
                 ~ )
                 if selectedSnap
-                  div
+                  div(className={ENTER_CLASS})
                     p(className='font-mono text-xs text-muted-foreground')
                       span(className='text-foreground') #{selectedSnap.fullName || selectedSnap.email || 'Unknown applicant'}
                       span(className='px-1.5 text-muted-foreground/70') ⟶
                       span(className='uppercase tracking-wide text-foreground') #{selectedSnap.plateNumber || '—'}
-                    UploadStrip(uploadId={selectedSnap.uploadId})
                 else
-                  p(className='font-mono text-xs text-muted-foreground/50') Derived from the selected snap
+                  p(className={cn('font-mono text-xs text-muted-foreground/50', ENTER_CLASS)}) Derived from the selected snap
 
               Step(
                 ~ icon='send'
                 ~ title='Recipients'
                 ~ state={recipientState}
+                ~ index={2}
                 ~ meta={hasSender ? undefined : 'no sender'}
                 ~ )
                 div(className='grid gap-3')
@@ -438,7 +337,8 @@ fragment
                 ~ icon='attachment'
                 ~ title='Attachments'
                 ~ state={attachmentState}
-                ~ meta={`${attachments.length} of ${DEFAULT_VERIFICATION_ATTACHMENTS.length}`}
+                ~ index={3}
+                ~ meta={attachmentTotal ? `${attachments.length} of ${DEFAULT_VERIFICATION_ATTACHMENTS.length} · ${attachmentTotal}` : `${attachments.length} of ${DEFAULT_VERIFICATION_ATTACHMENTS.length}`}
                 ~ )
                 div(className='grid')
                   each option, index in DEFAULT_VERIFICATION_ATTACHMENTS key option
@@ -446,22 +346,25 @@ fragment
                       ~ index={index}
                       ~ label={option}
                       ~ included={attachments.includes(option)}
+                      ~ size={attachmentSizes[index].label}
+                      ~ isEstimate={attachmentSizes[index].isEstimate}
                       ~ onToggle={() => toggleAttachment(option)}
                       ~ )
 
-              Step(icon='sparkle' title='Create' state={createState} isLast={true})
+              Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
                 if canSubmit
-                  p(className='font-mono text-xs text-muted-foreground') Queue the entry and hand it to the send dialog.
+                  p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Queue the entry and hand it to the send dialog.
                 else
-                  div(className='h-2 w-full rounded-full bg-muted/70')
+                  div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
+                    div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
 
               if submitError
-                p(className='mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive' role='alert') #{submitError}
+                p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
 
           div(className='flex shrink-0 items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-5')
             div(className='flex min-w-0 items-center gap-2')
               span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
-              span(className={cn('truncate font-mono text-xs', statusToneClass)}) #{statusLabel}
+              span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
             div(className='flex shrink-0 items-center gap-2')
               Button(
                 ~ type='button'

@@ -1,0 +1,50 @@
+import { Icon } from '@/lib/icons'
+import type { IconName } from '@/lib/icons'
+import { STEP_FLOW_MS, STEP_TILE_CLASS, STEP_TITLE_CLASS, type StepState } from '@/lib/verifications/step-flow'
+import { cn } from '@/lib/utils'
+
+module
+  export interface VerificationStepProps {
+    icon: IconName
+    title: string
+    meta?: string
+    state: StepState
+    /** Position in the pipeline, which is what staggers the flow downward. */
+    index?: number
+    isLast?: boolean
+    children?: unknown
+  }
+
+// One step of the pipeline: an icon tile on a connecting rail, a title row, and
+// whatever the step itself renders underneath.
+props { icon, title, meta, state, index = 0, isLast = false, children }: VerificationStepProps
+
+setup
+  // The tile lights up first, then its rail drains into the next step, so a
+  // step's own delay is one beat behind the step above it.
+  const tileDelay = `${index * STEP_FLOW_MS}ms`
+  const railDelay = `${index * STEP_FLOW_MS + STEP_FLOW_MS / 2}ms`
+
+div(className='flex gap-3')
+  div(className='flex w-8 shrink-0 flex-col items-center')
+    span(
+      ~ style={{ transitionDelay: tileDelay }}
+      ~ className={cn('grid size-7 shrink-0 place-items-center rounded-md transition-all duration-300 ease-out motion-reduce:transition-none', state === 'active' && 'scale-105', STEP_TILE_CLASS[state])}
+      ~ )
+      Icon(name={icon} className='size-4')
+    if !isLast
+      span(className='relative mt-1 w-px flex-1 overflow-hidden bg-border/50')
+        span(
+          ~ style={{ transitionDelay: railDelay }}
+          ~ className={cn('absolute inset-x-0 top-0 h-full origin-top bg-gradient-to-b from-[#01bf7c]/45 to-[#01bf7c] transition-transform duration-400 ease-out motion-reduce:transition-none', state === 'done' ? 'scale-y-100' : 'scale-y-0')}
+          ~ )
+  div(className={cn('min-w-0 flex-1', isLast ? 'pb-1' : 'pb-6 md:pb-8')})
+    div(className='flex items-baseline justify-between gap-3')
+      h3(
+        ~ style={{ transitionDelay: tileDelay }}
+        ~ className={cn('mb-2 font-medium text-base leading-7 tracking-tight transition-colors duration-300 ease-out motion-reduce:transition-none', STEP_TITLE_CLASS[state])}
+        ~ )
+        | #{title}
+      if meta
+        span(className='shrink-0 font-mono text-2xs text-muted-foreground') #{meta}
+    | #{children}

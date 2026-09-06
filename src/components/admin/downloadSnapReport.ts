@@ -1,7 +1,6 @@
 import { createTableExportFileName, downloadTableExport } from '@/components/admin/export-utils'
-import { convexClient } from '@/lib/convex-client'
+import { fetchAdminSnap } from '@/lib/snaps/admin-reads'
 import { createSnapFullReportDocument } from '@/lib/snaps/full-report'
-import { api } from '../../../convex/_generated/api'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
 
 export async function downloadSnapFullReport(snap: Doc<'snaps'>) {
@@ -17,8 +16,5 @@ export async function downloadSnapFullReport(snap: Doc<'snaps'>) {
 // before rendering — the table's row data is a compact projection that lacks
 // the fields the full report requires.
 export async function exportSnapReportById(snapId: Id<'snaps'>) {
-  if (!convexClient) throw new Error('The Convex client is unavailable.')
-  const snap = await convexClient.query(api.snaps.q.getForAdmin, { snapId })
-  if (!snap) throw new Error('Snap not found.')
-  await downloadSnapFullReport(snap)
+  await downloadSnapFullReport(await fetchAdminSnap(snapId))
 }

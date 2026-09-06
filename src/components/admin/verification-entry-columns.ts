@@ -57,7 +57,7 @@ export const verificationEntryColumns = columnHelper.columns([
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { name: info.getValue() })
+    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.applicantImageUrl, name: info.getValue() })
   }),
   columnHelper.accessor('status', {
     header: createHeader('Status'),
@@ -84,7 +84,7 @@ export const verificationEntryColumns = columnHelper.columns([
     enableColumnFilter: true,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { name: info.getValue() })
+    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.senderImageUrl, name: info.getValue() })
   }),
   columnHelper.accessor((row) => (row.attachments ?? []).join(', '), {
     id: 'attachments',

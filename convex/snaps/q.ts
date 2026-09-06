@@ -65,6 +65,7 @@ const snapListItemSchema = v.object({
   firebaseUid: v.string(),
   fullName: v.string(),
   handler: v.optional(snapHandlerSchema),
+  handlerImageUrl: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
   location: v.union(snapLocationSchema, v.null()),
   location_session: v.optional(snapLocationSessionSchema),
@@ -439,6 +440,29 @@ export const listForAdmin = query({
       )
     )
 
+    // A handler is stored as a name and an address rather than a reference, so
+    // the avatar is resolved through the address. Addresses are not unique in
+    // `users`, so the first match wins rather than throwing on a duplicate.
+    const handlerEmails = [
+      ...new Set(
+        snaps
+          .map((snap) => (snap.handler?.image_url ? undefined : snap.handler?.email))
+          .filter((email): email is string => !!email)
+      )
+    ]
+    const imageUrlByHandlerEmail = new Map<string, string | undefined>(
+      await Promise.all(
+        handlerEmails.map(async (email): Promise<[string, string | undefined]> => {
+          const user = await ctx.db
+            .query('users')
+            .withIndex('by_email', (q) => q.eq('email', email))
+            .first()
+
+          return [email, user?.imageUrl]
+        })
+      )
+    )
+
     return snaps.map((snap): SnapListItem => {
       const location = snap.location ?? (snap.location_session ? prepareSnapLocation(snap.location_session) : null)
 
@@ -454,6 +478,9 @@ export const listForAdmin = query({
         firebaseUid: snap.firebase_uid ?? '',
         fullName: snap.full_name ?? '',
         handler: snap.handler ?? undefined,
+        handlerImageUrl:
+          snap.handler?.image_url ??
+          (snap.handler?.email ? imageUrlByHandlerEmail.get(snap.handler.email) : undefined),
         imageUrl: snap.firebase_uid ? imageUrlByFirebaseUid.get(snap.firebase_uid) : undefined,
         location,
         location_session: snap.location_session,

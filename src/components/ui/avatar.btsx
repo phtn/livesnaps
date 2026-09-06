@@ -1,3 +1,4 @@
+import { useState } from 'octane'
 import { cn, getInitials } from '@/lib/utils'
 
 module
@@ -11,8 +12,23 @@ module
 
 props { imageUrl, alt = 'User', fallback, size = 'default', className }: AvatarProps
 
+setup
+  // Provider-hosted photos (Google, in practice) go missing often enough —
+  // rotated URLs, rate limits — that a failed load has to fall back to the
+  // initials rather than leave a broken image in the row.
+  const [hasFailed, setHasFailed] = useState(false)
+  const showImage = Boolean(imageUrl) && !hasFailed
+
 div(className={cn('group relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm text-muted-foreground', size === 'sm' ? 'size-6 text-xs' : size === 'lg' ? 'size-10' : 'size-8', className)} data-slot='avatar' data-size={size})
-  if imageUrl
-    img(className='aspect-square size-full rounded-full object-cover' src={imageUrl} alt={alt})
+  if showImage
+    img(
+      ~ className='aspect-square size-full rounded-full object-cover'
+      ~ src={imageUrl}
+      ~ alt={alt}
+      ~ loading='lazy'
+      ~ decoding='async'
+      ~ referrerPolicy='no-referrer'
+      ~ onError={() => setHasFailed(true)}
+      ~ )
   else
     span(className='flex size-full items-center justify-center rounded-full') #{fallback ?? getInitials(alt)}
