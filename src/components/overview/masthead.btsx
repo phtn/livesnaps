@@ -1,0 +1,26 @@
+import type { OctaneNode } from 'octane'
+import { cn } from '@/lib/utils'
+
+module
+  export interface MastheadProps {
+    /** The surface this page belongs to, in small caps above the title. */
+    eyebrow: string
+    title: string
+    description?: string
+    /** Right-hand slot: freshness, identity, controls. */
+    children?: OctaneNode
+    className?: string
+  }
+
+props { eyebrow, title, description, children, className }: MastheadProps
+
+header(className={cn('flex flex-wrap items-end justify-between gap-x-8 gap-y-5', className)})
+  div(className='min-w-0')
+    div(className='flex items-center gap-2.5')
+      span(aria-hidden={true} className='h-3 w-0.5 rounded-full bg-active')
+      p(className='font-mono text-2xs uppercase tracking-[0.24em] text-muted-foreground') #{eyebrow}
+    h1(className='mt-3 font-poly text-3xl font-medium leading-none tracking-tight text-foreground md:text-4xl') #{title}
+    if description
+      p(className='mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground') #{description}
+  div(className='flex shrink-0 items-center gap-3')
+    | #{children}

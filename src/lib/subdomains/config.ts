@@ -19,7 +19,7 @@ export const SUBDOMAIN_CONFIG = {
    * Domains where subdomain routing should be active
    * Add your production domains here
    */
-  allowedDomains: ['localhost', 'bigticket', 'bigticket.ph', 'bigticket-pro.vercel.app'],
+  allowedDomains: ['localhost', 'livesnapsnow.com', 'admin.livesnapsnow.com', 'gods.livesnapsnow.com'],
 
   /**
    * Reserved subdomains that should not be routed

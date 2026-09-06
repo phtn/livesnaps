@@ -1,0 +1,26 @@
+import type { OctaneNode } from 'octane'
+import { cn } from '@/lib/utils'
+
+module
+  export interface PanelProps {
+    title: string
+    description?: string
+    /** Right-aligned qualifier: the window, the source, the cap. */
+    meta?: string
+    children?: OctaneNode
+    className?: string
+    /** Drops the frame where the panel sits inside another one. */
+    bare?: boolean
+  }
+
+props { title, description, meta, children, className, bare = false }: PanelProps
+
+section(className={cn(!bare && 'rounded-lg border border-border/45 bg-card/35 p-5 md:p-6', className)})
+  div(className='flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1')
+    h2(className='font-poly text-base font-medium tracking-tight text-foreground') #{title}
+    if meta
+      span(className='font-mono text-2xs uppercase tracking-[0.16em] text-muted-foreground') #{meta}
+  if description
+    p(className='mt-1 max-w-prose text-xs leading-relaxed text-muted-foreground') #{description}
+  div(className='mt-5')
+    | #{children}

@@ -1,3 +1,166 @@
-main(className='p-8')
-  p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Citadel
-  h1(className='mt-3 font-poly text-3xl font-medium') Overview
+import { AreaChart, Distribution, Masthead, Meter, Panel, StatTile } from '@/components/overview'
+import { useCitadelSummary } from '@/hooks/use-citadel-summary'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { Link } from '@octanejs/tanstack-router'
+import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, formatAccountDate, getAccountInitials } from '@/lib/citadel/accounts'
+import { getGodUserLabel } from '@/lib/citadel/gods-users'
+import { COMPARISON_DAYS, GROWTH_DAYS, readGovernance, readPortfolio } from '@/lib/overview/citadel-overview'
+import { formatCount, formatPercent, formatRelativeTime, formatTime, percentDelta, toTimestamp } from '@/lib/overview/metrics'
+
+module
+  const EMPTY_ACCOUNTS = [] as const
+  const EMPTY_ROSTER = [] as const
+
+  const LEDGER_LIMIT = 6
+  const ROSTER_PREVIEW_LIMIT = 5
+
+  const readingLabelClass = 'font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground'
+  const claimChipClass = 'rounded-xs px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider'
+
+setup
+  const { accounts, roster, error, isLoading, lastUpdatedAt, refresh } = useCitadelSummary()
+
+  const accountRows = accounts ?? EMPTY_ACCOUNTS
+  const rosterUsers = roster?.users ?? EMPTY_ROSTER
+
+  const now = Date.now()
+  const portfolio = readPortfolio(accountRows, now)
+  const governance = readGovernance(rosterUsers, roster?.scanned ?? 0, roster?.truncated ?? false)
+
+  const growthDelta = percentDelta(portfolio.totals)
+  const newest = accountRows.slice(0, LEDGER_LIMIT)
+  const rosterPreview = governance.recent.slice(0, ROSTER_PREVIEW_LIMIT)
+
+  const hasRows = accounts !== undefined || roster !== undefined
+  const isPreparing = isLoading && !hasRows
+  const freshnessLabel = lastUpdatedAt === null ? 'syncing' : formatTime(lastUpdatedAt)
+
+main(className='h-screen overflow-scroll mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14')
+  Masthead(
+    ~ eyebrow='Citadel · Control'
+    ~ title='Overview'
+    ~ description='Every organization on the platform, and everyone holding the keys to it.'
+    ~ )
+    div(className='flex items-center gap-2 rounded-full border border-border/50 px-3 py-1.5')
+      span(aria-hidden={true} className={cn('size-1.5 rounded-full', error ? 'bg-chart-warn' : 'bg-chart-good')})
+      span(className='font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground') #{error ? 'stale' : freshnessLabel}
+    button(
+      ~ type='button'
+      ~ onClick={refresh}
+      ~ aria-label='Refresh'
+      ~ className='group inline-flex size-8 items-center justify-center rounded-full border border-border/50 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
+      ~ )
+      Icon(name='refresh' size={14} className='transition-transform duration-300 ease-out group-active:rotate-180')
+
+  if isPreparing
+    div(className='mt-16 flex items-center gap-3')
+      Icon(name='spinner-ferris' className='size-4')
+      p(className='text-sm text-muted-foreground') Reading the account portfolio…
+  else
+    div(className='mt-12 space-y-6')
+      if error
+        div(className='flex items-start gap-2.5 rounded-lg border border-chart-warn/30 bg-chart-warn/5 px-4 py-3')
+          Icon(name='alert-triangle' size={14} className='mt-0.5 shrink-0 text-amber-700 dark:text-amber-400')
+          p(className='text-xs text-muted-foreground') #{error}
+
+      Panel(title='Book of accounts' description='Organizations on the platform, counted cumulatively.' meta={`Last ${GROWTH_DAYS} days`})
+        div(className='grid gap-10 lg:grid-cols-5 lg:gap-8')
+          div(className='lg:col-span-2')
+            p(className={readingLabelClass}) Accounts on record
+            div(className='mt-3 flex items-end gap-3')
+              span(className='font-sans text-5xl font-medium leading-none tracking-tight text-foreground') #{formatCount(portfolio.total)}
+              if growthDelta !== null
+                span(className={cn('mb-1 inline-flex items-center gap-1 font-mono text-xs', growthDelta >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')})
+                  span(aria-hidden={true}) #{growthDelta >= 0 ? '↑' : '↓'}
+                  span #{`${growthDelta >= 0 ? '+' : ''}${Math.round(growthDelta * 100)}%`}
+            p(className='mt-2 text-xs text-muted-foreground') #{`${formatCount(portfolio.totals.current)} opened in the last ${COMPARISON_DAYS} days · vs prior ${COMPARISON_DAYS} days`}
+            dl(className='mt-8 space-y-3 border-t border-dotted border-border/60 pt-5')
+              div(className='flex items-baseline justify-between gap-4')
+                dt(className='text-xs text-muted-foreground') Contacts signed in
+                dd(className='font-mono text-sm tabular-nums text-foreground') #{`${formatCount(portfolio.linkedContacts)} / ${formatCount(portfolio.total)}`}
+              div(className='flex items-baseline justify-between gap-4')
+                dt(className='text-xs text-muted-foreground') Industries represented
+                dd(className='font-mono text-sm tabular-nums text-foreground') #{formatCount(portfolio.industries)}
+              div(className='flex items-baseline justify-between gap-4')
+                dt(className='text-xs text-muted-foreground') Directory records scanned
+                dd(className='font-mono text-sm tabular-nums text-foreground') #{governance.scanned === 0 ? '—' : formatCount(governance.scanned)}
+          div(className='lg:col-span-3')
+            AreaChart(buckets={portfolio.growth} unit='accounts' color='var(--chart-info)')
+
+      div(className='grid gap-6 md:grid-cols-3')
+        StatTile(
+          ~ label='Active accounts'
+          ~ value={portfolio.total === 0 ? '—' : formatPercent(portfolio.activeRate)}
+          ~ caption={portfolio.total === 0 ? 'No accounts have been provisioned yet.' : `${formatCount(portfolio.active)} of ${formatCount(portfolio.total)} accounts can use the platform today.`}
+          ~ )
+          Meter(value={portfolio.activeRate} color='var(--chart-good)' aria-label='Share of accounts that are active' className='mb-3')
+        StatTile(
+          ~ label='On a paid tier'
+          ~ value={portfolio.total === 0 ? '—' : formatPercent(portfolio.paidRate)}
+          ~ caption={portfolio.total === 0 ? 'Plan mix appears once accounts exist.' : `${formatCount(portfolio.paid)} accounts sit above trial.`}
+          ~ )
+          Meter(value={portfolio.paidRate} color='var(--tier-3)' aria-label='Share of accounts above trial' className='mb-3')
+        StatTile(
+          ~ label='Privileged operators'
+          ~ value={formatCount(governance.gods)}
+          ~ caption={`${formatCount(governance.topGods)} of them can grant the claim to someone else.`}
+          ~ )
+          if governance.unverified > 0
+            p(className='mb-3 inline-flex items-center gap-1.5 font-mono text-2xs uppercase tracking-[0.14em] text-amber-700 dark:text-amber-400')
+              Icon(name='alert-triangle' size={11})
+              span #{`${formatCount(governance.unverified)} unverified`}
+
+      div(className='grid gap-6 lg:grid-cols-2')
+        Panel(title='Standing' description='Where every account on record currently stands.' meta={`${formatCount(portfolio.total)} accounts`})
+          Distribution(segments={portfolio.statusSegments} caption='Accounts are never deleted — closed is the terminal state a holder chooses, suspended is ours to apply.')
+        Panel(title='Plan mix' description='The tiers those accounts sit on, trial through enterprise.' meta='Ordered by tier')
+          Distribution(segments={portfolio.planSegments} caption='One hue, stepped light to dark as the tier rises: the shade is the rank, not an identity.')
+
+      Panel(title='Newest accounts' description='The most recently provisioned organizations.' meta={`Newest ${newest.length}`})
+        if newest.length === 0
+          p(className='text-sm text-muted-foreground') No accounts have been provisioned yet.
+        else
+          ul(className='divide-y divide-dotted divide-border/60')
+            each account in newest key account._id
+              li
+                Link(
+                  ~ to='/citadel/accounts/$accountSlug'
+                  ~ params={{ accountSlug: account.slug }}
+                  ~ className='-mx-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-sm px-2 py-3 transition-colors hover:bg-accent'
+                  ~ )
+                  span(className='grid size-8 shrink-0 place-items-center rounded-full bg-foreground/10 font-mono text-2xs text-muted-foreground') #{getAccountInitials(account)}
+                  div(className='min-w-0 flex-1')
+                    p(className='truncate text-sm text-foreground') #{account.name}
+                    p(className='truncate font-mono text-xs text-muted-foreground') #{account.primaryContact.email}
+                  span(className='hidden w-20 shrink-0 text-right font-mono text-xs text-muted-foreground lg:inline') #{ACCOUNT_PLAN_LABEL[account.plan]}
+                  span(className='hidden w-24 shrink-0 text-right font-mono text-xs text-muted-foreground md:inline') #{formatAccountDate(account.createdAt)}
+                  span(className={cn('w-auto shrink-0 rounded-xs border text-center font-mono text-2xs uppercase tracking-wider px-1.5 py-0.5 sm:w-20', ACCOUNT_STATUS_TONE[account.status])}) #{ACCOUNT_STATUS_LABEL[account.status]}
+                  span(className='hidden shrink-0 text-muted-foreground sm:block')
+                    Icon(name='chevron-right' size={12})
+
+      Panel(title='Keys to the platform' description='Everyone holding the god claim, most recently seen first.' meta={governance.truncated ? 'Roster capped' : `${formatCount(governance.gods)} operators`})
+        if rosterPreview.length === 0
+          p(className='text-sm text-muted-foreground') #{error ? 'The roster could not be read on this load.' : 'No one holds the god claim.'}
+        else
+          ul(className='divide-y divide-dotted divide-border/60')
+            each user in rosterPreview key user.uid
+              li(className='flex flex-wrap items-center gap-x-3 gap-y-1 py-3 first:pt-0')
+                div(className='min-w-0 flex-1')
+                  p(className='truncate text-sm text-foreground') #{getGodUserLabel(user)}
+                  p(className='truncate font-mono text-xs text-muted-foreground') #{user.email ?? user.uid}
+                if user.topg
+                  span(className={cn(claimChipClass, 'bg-active/10 text-active')}) top god
+                if user.disabled
+                  span(className={cn(claimChipClass, 'bg-destructive/10 text-destructive')}) disabled
+                if !user.emailVerified
+                  span(className={cn(claimChipClass, 'bg-amber-500/15 text-amber-700 dark:text-amber-400')}) unverified
+                span(className='w-24 shrink-0 text-right font-mono text-2xs tabular-nums text-muted-foreground/70') #{toTimestamp(user.lastSignInAt) === null ? 'never' : formatRelativeTime(toTimestamp(user.lastSignInAt) ?? now, now)}
+
+        div(className='mt-6 flex flex-wrap gap-3 border-t border-dotted border-border/60 pt-5')
+          Link(to='/citadel/accounts' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
+            span All accounts
+            Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')
+          Link(to='/citadel/settings/gods' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
+            span Manage access
+            Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')

@@ -1,0 +1,124 @@
+import { Menu as MenuPrimitive } from '@octanejs/base-ui/menu'
+import { useCallback, useMemo, useState } from 'octane'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { Avatar } from '@/components/ui'
+import { signOutUser } from '@/lib/firebase/auth'
+import ThemeToggle from '../theme-toggle.btsx'
+import SignOut from '@/components/signout.btsx'
+
+module
+  export interface UserMenuAction {
+    id: string
+    label: string
+    icon: string
+    onSelect: () => void
+  }
+
+
+  export interface UserMenuProps {
+    name?: string | null
+    email?: string | null
+    photoUrl?: string | null
+    /** Credits consumed so far. Omitted hides the credits meter. */
+    creditsUsed?: number
+    creditsTotal?: number
+    /** Online dot on the avatar - matches the presence badge in the design. */
+    isOnline?: boolean
+    /** Rail mode: only the avatar shows, the panel still pulls up beside it. */
+    compact?: boolean
+    actions?: UserMenuAction[]
+    onSignOut?: () => void
+    className?: string
+  }
+
+component CreditsMeter
+  props { used, total }: { used: number; total: number }
+  setup
+    // A zero or negative allowance would divide by zero and paint a full bar,
+    // so the meter clamps before it ever reaches the width calculation.
+    const percent = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0
+
+  div(className='rounded-2xl border border-border/70 bg-background px-4 py-3')
+    div(className='flex items-baseline justify-between gap-3')
+      span(className='text-sm text-muted-foreground') Credits used
+      span(className='text-sm font-semibold tabular-nums text-foreground') #{`${used.toLocaleString()}/${total.toLocaleString()}`}
+    div(className='mt-2.5 h-2 w-full overflow-hidden rounded-full bg-muted')
+      div(className='h-full rounded-full bg-lime-500 transition-[width] duration-300 ease-out dark:bg-lime-400' style={{ width: `${percent}%` }})
+
+props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compact = false, actions, onSignOut, className }: UserMenuProps
+
+setup
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const displayName = useMemo(() => name?.trim() || email?.split('@')[0] || 'Account', [name, email])
+  const showCredits = typeof creditsUsed === 'number' && typeof creditsTotal === 'number'
+
+  const handleSignOut = useCallback(async () => {
+    setIsSigningOut(true)
+    try {
+      await signOutUser()
+      onSignOut?.()
+    } finally {
+      setIsSigningOut(false)
+    }
+  }, [onSignOut])
+
+MenuPrimitive.Root
+  MenuPrimitive.Trigger(
+    ~ className={cn('group flex w-full cursor-pointer items-center rounded-2xl text-left transition-colors select-none hover:bg-muted/60 data-popup-open:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20', compact ? 'justify-center p-1' : 'gap-3 px-2 py-2', className)}
+    ~ aria-label='Open account menu'
+    ~ )
+    div(className='relative shrink-0')
+      Avatar(imageUrl={photoUrl} alt={displayName} size={compact ? 'default' : 'lg'})
+      if isOnline
+        span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-lime-500')
+    if !compact
+      fragment
+        div(className='min-w-0 flex-1')
+          p(className='truncate text-sm font-medium text-foreground') #{displayName}
+          if email
+            p(className='truncate text-xs text-muted-foreground') #{email}
+        Icon(name='chevron-down' className='size-4 shrink-0 text-muted-foreground transition-transform group-data-popup-open:rotate-180')
+
+  MenuPrimitive.Portal
+    MenuPrimitive.Positioner(
+      ~ positionMethod='fixed'
+      ~ side='top'
+      ~ align={compact ? 'start' : 'center'}
+      ~ sideOffset={20}
+      ~ className='z-60 outline-hidden'
+      ~ )
+      MenuPrimitive.Popup(
+        ~ className='z-00 w-64 origin-(--transform-origin) rounded-3xl border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+        ~ )
+        if showCredits
+          CreditsMeter(used={creditsUsed as number} total={creditsTotal as number})
+        div(className='mt-2 flex items-center gap-3 rounded-2xl border border-border/70 bg-background px-3 py-2.5')
+          div(className='relative shrink-0')
+            Avatar(imageUrl={photoUrl} alt={displayName} size='lg')
+            if isOnline
+              span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-lime-500')
+          div(className='min-w-0 flex-1')
+            p(className='truncate text-sm font-medium text-foreground') #{displayName}
+            if email
+              p(className='truncate text-xs text-muted-foreground') #{email}
+          ThemeToggle
+
+        if actions && actions.length > 0
+          div(className='mt-1 flex flex-col')
+            each action in actions key action.id
+              MenuPrimitive.Item(
+                ~ onClick={action.onSelect}
+                ~ className='flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
+                ~ )
+                Icon(name={action.icon} className='size-4')
+                span #{action.label}
+
+        div(className='mt-1 border-t border-border/70 pt-1')
+          MenuPrimitive.Item(
+            ~ closeOnClick={false}
+            ~ disabled={isSigningOut}
+            ~ onClick={() => void handleSignOut()}
+            ~ className='flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm text-foreground/80 outline-hidden select-none data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
+            ~ )
+            SignOut(withLabel={true} className='flex h-12 w-full items-center justify-center hover:text-active! rounded-b-xl rounded-t-xs transition-colors hover:bg-white/6 disabled:cursor-wait disabled:opacity-60')

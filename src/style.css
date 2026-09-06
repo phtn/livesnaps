@@ -5,9 +5,9 @@
  * becomes a rule in the stylesheet the browser downloads on first paint.
  */
 @import 'tailwindcss' source(none);
-@source '../src';
 @import 'tw-animate-css';
-/*@import 'shadcn/tailwind.css';*/
+@import 'shadcn/tailwind.css';
+@source '../src';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -63,6 +63,24 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  /*
+   * Overview chart palette. Two encodings, kept apart on purpose:
+   * `--chart-*` is a fixed status set (state, never a series), and `--tier-*`
+   * is an ordinal ramp of one hue for ordered scales like plan tiers. Both
+   * were validated per mode against the real surfaces rather than eyeballed:
+   * every adjacent pair clears the CVD and normal-vision separation floors.
+   * The light-mode good/warn steps sit under 3:1, so every segment that wears
+   * them is direct-labelled — the relief that makes a sub-3:1 fill legal.
+   */
+  --color-chart-good: var(--chart-good);
+  --color-chart-info: var(--chart-info);
+  --color-chart-warn: var(--chart-warn);
+  --color-chart-idle: var(--chart-idle);
+  --color-chart-critical: var(--chart-critical);
+  --color-tier-1: var(--tier-1);
+  --color-tier-2: var(--tier-2);
+  --color-tier-3: var(--tier-3);
+  --color-tier-4: var(--tier-4);
   --color-input: var(--input);
   --color-destructive: oklch(0.7039 0.1883 30.36);
   --color-accent-foreground: var(--accent-foreground);
@@ -157,6 +175,15 @@
   --beach: oklch(0.793 0.108 189.22);
   --sand: oklch(0.711 0.18 38.83);
   --active: oklch(0.6278 0.204 254.62);
+  --chart-good: #1cc375;
+  --chart-info: #0086ff;
+  --chart-warn: #f0b100;
+  --chart-idle: #8a8a8a;
+  --chart-critical: #e7000b;
+  --tier-1: #74affa;
+  --tier-2: #4398fc;
+  --tier-3: #007df3;
+  --tier-4: #0060c3;
 }
 
 .dark {
@@ -207,6 +234,16 @@
   --beach: oklch(0.793 0.108 189.22);
   --sand: oklch(0.711 0.18 38.83);
   --active: oklch(0.6278 0.204 254.62);
+  /* The same encodings re-stepped for the dark surface, not flipped. */
+  --chart-good: #1cc375;
+  --chart-info: #3592fd;
+  --chart-warn: #f0b100;
+  --chart-idle: #9e9e9e;
+  --chart-critical: #ea3c3f;
+  --tier-1: #0056a9;
+  --tier-2: #0072e0;
+  --tier-3: #3592fd;
+  --tier-4: #7cbbff;
 }
 
 html {

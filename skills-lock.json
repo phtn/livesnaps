@@ -205,6 +205,12 @@
       "skillPath": "skills/convex-verify/SKILL.md",
       "computedHash": "dbe65a37ca2e9a5afa55669b8928ce1dc3ac765151452008f9105bde049228f7"
     },
+    "gleamability": {
+      "source": "phtn/gleamability",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "4685fe6b91886399a40fa9edff1ba6f5b2bd3768afbb01da2106501342f82147"
+    },
     "react-to-beast": {
       "source": "phtn/react-to-beast",
       "sourceType": "github",

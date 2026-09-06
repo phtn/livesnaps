@@ -1,7 +1,7 @@
 import type { ColumnPinningState, ColumnVisibilityState, OctaneTable, SortingState } from '@octanejs/tanstack-table'
 import { useMemo } from 'octane'
 import { cn } from '@/lib/utils'
-import Checkbox from '../../Checkbox.btsx'
+import {Checkbox} from '@/components/ui'
 import { TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import ColumnSort from './ColumnSort.btsx'
 import type { PinnedColumnLayout } from './column-pinning'

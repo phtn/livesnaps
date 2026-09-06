@@ -1,0 +1,68 @@
+import { useState } from 'octane'
+import { cn } from '@/lib/utils'
+import { formatCount, formatDay, formatWeekday, type DayBucket } from '@/lib/overview/metrics'
+
+module
+  export interface ColumnChartProps {
+    /** Oldest first — one bucket per day, gaps included. */
+    buckets: readonly DayBucket[]
+    /** Singular noun for the tooltip: "4 captures". */
+    unit: string
+    color?: string
+    className?: string
+  }
+
+  // The mark spec caps a column at 24px and asks for a 4px rounded data-end
+  // squared off at the baseline; the band keeps whatever is left over as air.
+  const COLUMN_CLASS = 'w-full max-w-6 rounded-t-[4px] transition-opacity duration-150 ease-out'
+
+props { buckets, unit, color = 'var(--active)', className }: ColumnChartProps
+
+setup
+  const [hovered, setHovered] = useState<number | null>(null)
+
+  const peak = buckets.reduce((highest, bucket) => Math.max(highest, bucket.value), 0)
+  const peakIndex = buckets.findIndex((bucket) => bucket.value === peak)
+  // Every bar would touch the ceiling on a flat series without the headroom,
+  // and the peak's own label needs somewhere to sit.
+  const ceiling = peak === 0 ? 1 : peak
+  const active = hovered === null ? null : buckets[hovered]
+
+  const tooltipAlignment = (index: number) => {
+    const position = (index + 0.5) / buckets.length
+    if (position < 0.15) return 'left-0 translate-x-0'
+    if (position > 0.85) return 'right-0 translate-x-0'
+    return 'left-[var(--column-center)] -translate-x-1/2'
+  }
+
+div(className={cn('relative', className)})
+  div(className='pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2')
+    span(className='font-mono text-2xs tabular-nums text-muted-foreground') #{formatCount(peak)}
+    span(className='h-px flex-1 bg-border/40')
+
+  div(className='relative flex h-32 items-end gap-[2px] pt-5' onMouseLeave={() => setHovered(null)})
+    each bucket, index in buckets key bucket.start
+      div(
+        ~ className='group relative flex h-full flex-1 cursor-default items-end justify-center'
+        ~ onMouseEnter={() => setHovered(index)}
+        ~ )
+        div(
+          ~ className={cn(COLUMN_CLASS, hovered !== null && hovered !== index && 'opacity-35')}
+          ~ style={{ backgroundColor: color, height: `${Math.max((bucket.value / ceiling) * 100, 0)}%` }}
+          ~ )
+
+  div(className='mt-1.5 h-px w-full bg-border/70')
+
+  div(className='mt-2 flex items-center justify-between font-mono text-2xs tabular-nums text-muted-foreground')
+    span #{formatDay(buckets[0]?.start ?? Date.now())}
+    if peak > 0
+      span(className='text-foreground/70') #{`peak ${formatCount(peak)} · ${formatDay(buckets[peakIndex]?.start ?? Date.now())}`}
+    span #{formatDay(buckets[buckets.length - 1]?.start ?? Date.now())}
+
+  if active
+    div(
+      ~ className={cn('pointer-events-none absolute top-0 z-10 rounded-sm border border-border/60 bg-popover px-2 py-1 shadow-sm', tooltipAlignment(hovered ?? 0))}
+      ~ style={{ '--column-center': `${((( hovered ?? 0) + 0.5) / buckets.length) * 100}%` }}
+      ~ )
+      p(className='font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground') #{`${formatWeekday(active.start)} ${formatDay(active.start)}`}
+      p(className='mt-0.5 text-sm tabular-nums text-foreground') #{`${formatCount(active.value)} ${active.value === 1 ? unit : `${unit}s`}`}
