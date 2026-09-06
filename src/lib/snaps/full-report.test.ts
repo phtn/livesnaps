@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { Doc, Id } from '../../../convex/_generated/dataModel'
 import { createSnapFullReportDocument, flattenSnapAttributeFields, type SnapFullReportDocument } from './full-report'
 
 const snapId = 'snap_fixture_01' as Id<'snaps'>
