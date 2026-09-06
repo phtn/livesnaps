@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { query } from '../_generated/server'
+import { internalQuery, query } from '../_generated/server'
 import { accountMemberDocumentSchema, accountMemberStatusSchema } from './d'
 import { requireAccountAccess } from './helpers'
 
@@ -60,10 +60,16 @@ export const getMine = query({
   }
 })
 
-/** Invitations awaiting the signed-in caller, matched on their verified email. */
+/**
+ * Invitations awaiting the signed-in caller, matched on their verified email.
+ *
+ * Each row carries its account's name and slug: an invitation the recipient
+ * cannot see the name of is one they cannot make a decision about, and the
+ * accounts themselves are not readable to someone who is not a member yet.
+ */
 export const listMyInvitations = query({
   args: { limit: v.optional(v.number()) },
-  returns: v.array(accountMemberDocumentSchema),
+  returns: v.array(accountMemberDocumentSchema.extend({ accountName: v.string(), accountSlug: v.string() })),
   handler: async (ctx, { limit }) => {
     const identity = await ctx.auth.getUserIdentity()
 
@@ -77,9 +83,58 @@ export const listMyInvitations = query({
     // `string | undefined` and stops compiling.
     const email = identity.email.trim().toLowerCase()
 
-    return await ctx.db
+    const invitations = await ctx.db
       .query('accountMembers')
       .withIndex('by_email_and_status', (q) => q.eq('email', email).eq('status', 'invited'))
       .take(normalizeListLimit(limit))
+
+    const named = []
+
+    for (const invitation of invitations) {
+      const account = await ctx.db.get(invitation.accountId)
+
+      // An invite whose account has been deleted is not actionable, so it is
+      // dropped rather than shown as an unnamed row.
+      if (!account) continue
+
+      named.push({ ...invitation, accountName: account.name, accountSlug: account.slug })
+    }
+
+    return named
+  }
+})
+
+/**
+ * Everything the invitation email needs, read in one place so the action that
+ * sends it never touches the database directly.
+ *
+ * Internal: it answers for any membership without an access check, because its
+ * only callers are the scheduled send paths, which run behind the mutation that
+ * already authorized the invite.
+ */
+export const getInviteEmailContextInternal = internalQuery({
+  args: { memberId: v.id('accountMembers') },
+  returns: v.union(
+    v.object({
+      accountName: v.string(),
+      email: v.string(),
+      name: v.union(v.string(), v.null()),
+      role: v.string()
+    }),
+    v.null()
+  ),
+  handler: async (ctx, { memberId }) => {
+    const member = await ctx.db.get(memberId)
+    if (!member) return null
+
+    const account = await ctx.db.get(member.accountId)
+    if (!account) return null
+
+    return {
+      accountName: account.name,
+      email: member.email,
+      name: member.name,
+      role: member.role
+    }
   }
 })

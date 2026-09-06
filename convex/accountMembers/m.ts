@@ -1,7 +1,10 @@
 import { ConvexError, v } from 'convex/values'
 import { DEFAULT_ACCOUNT_MEMBER_ROLE } from '../../src/lib/accounts/members'
+import { renderAccountInviteEmail } from '../../src/lib/email/account-invite'
+import { internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
-import { type MutationCtx, mutation } from '../_generated/server'
+import { internalAction, type MutationCtx, mutation } from '../_generated/server'
+import { getAppBaseUrl, sendTransactionalEmail } from '../lib/email'
 import { normalizeAccountEmail } from '../accounts/helpers'
 import { getUserByTokenIdentifier } from '../lib/auth'
 import { accountMemberDocumentSchema, accountMemberRoleSchema, inviteAccountMemberSchema } from './d'
@@ -51,7 +54,7 @@ export const invite = mutation({
 
     const now = Date.now()
 
-    return await ctx.db.insert('accountMembers', {
+    const memberId = await ctx.db.insert('accountMembers', {
       accountId: args.accountId,
       email,
       tokenIdentifier: null,
@@ -66,6 +69,51 @@ export const invite = mutation({
       updatedAt: now,
       updatedBy: actor.tokenIdentifier
     })
+
+    // Scheduled rather than awaited: a mutation cannot make a network call, and
+    // a bounced send must not roll back a membership that was created correctly.
+    await ctx.scheduler.runAfter(0, internal.accountMembers.m.sendInviteEmail, { memberId })
+
+    return memberId
+  }
+})
+
+/**
+ * Emails a pending member their invitation.
+ *
+ * Internal and scheduled from the mutations that create an invited membership,
+ * so the authorization for the invite has already happened by the time this
+ * runs. It reads its own copy of the row instead of trusting arguments, and a
+ * failure here leaves the membership in place to be re-sent.
+ */
+export const sendInviteEmail = internalAction({
+  args: { memberId: v.id('accountMembers'), inviterName: v.optional(v.union(v.string(), v.null())) },
+  returns: v.null(),
+  handler: async (ctx, { memberId, inviterName }) => {
+    const context = await ctx.runQuery(internal.accountMembers.q.getInviteEmailContextInternal, { memberId })
+
+    if (!context) {
+      console.warn('[accountMembers sendInviteEmail] membership or account is gone', { memberId })
+      return null
+    }
+
+    const email = renderAccountInviteEmail({
+      accountName: context.accountName,
+      inviteeName: context.name,
+      inviteeEmail: context.email,
+      role: context.role,
+      inviterName: inviterName ?? null,
+      acceptUrl: `${getAppBaseUrl()}/account`
+    })
+
+    await sendTransactionalEmail({
+      to: context.email,
+      subject: email.subject,
+      html: email.html,
+      text: email.text
+    })
+
+    return null
   }
 })
 

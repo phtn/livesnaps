@@ -2,6 +2,7 @@ import { useEffect, useState } from 'octane'
 import type { OctaneNode } from 'octane'
 import { updateProfile, type User } from 'firebase/auth'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
+import AccountInvitations from '@/components/account/invitations.btsx'
 import Avatar from '@/components/ui/avatar.btsx'
 import Topbar from '@/components/topbar.btsx'
 import { ScrollArea } from '@/components/ui/'
@@ -37,6 +38,7 @@ module
 
   const navigationItems = [
     { href: '#profile', label: 'Profile', icon: 'person' },
+    { href: '#invitations', label: 'Invitations', icon: 'email-body' },
     { href: '#appearance', label: 'Appearance', icon: 'theme' },
     { href: '#security', label: 'Security', icon: 'safe-shield' },
     { href: '#data', label: 'Data', icon: 'cloud' }
@@ -306,6 +308,9 @@ component AuthenticatedAccount
               Icon(name='chevron-right' className='size-3.5 opacity-0 transition-opacity group-hover:opacity-60')
 
       div(className='min-w-0 space-y-5')
+        SettingsSection(id='invitations' eyebrow='Membership' icon='email-body' title='Invitations' description='Accounts that have invited you. Accepting adds you to the account with the role you were invited under.')
+          AccountInvitations(isEmailVerified={user.emailVerified})
+
         SettingsSection(id='appearance' eyebrow='Preferences' icon='theme' title='Appearance & motion' description='Personalize LiveSnapsNow while keeping the interface comfortable to use.')
           div(className='grid gap-3 grid-cols-2')
             ThemeChoice(active={theme === 'light'} icon='theme' label='Light' previewClassName='bg-[#f6f5f2] text-[#202020]' onClick={() => setTheme('light')})

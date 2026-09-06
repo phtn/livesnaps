@@ -59,7 +59,7 @@ export const create = mutation({
 
     // The primary contact owns the account. They are active immediately if they
     // already have an identity, and hold a pending invite otherwise.
-    await ctx.db.insert('accountMembers', {
+    const ownerMemberId = await ctx.db.insert('accountMembers', {
       accountId,
       email: primaryContact.email,
       tokenIdentifier: primaryContact.tokenIdentifier,
@@ -74,6 +74,15 @@ export const create = mutation({
       updatedAt: now,
       updatedBy: identity.tokenIdentifier
     })
+
+    // Only a contact who still has to accept gets an email; one who already has
+    // an identity is active on the account and has nothing to accept.
+    if (!primaryContact.tokenIdentifier) {
+      await ctx.scheduler.runAfter(0, internal.accountMembers.m.sendInviteEmail, {
+        memberId: ownerMemberId,
+        inviterName: identity.name ?? null
+      })
+    }
 
     return accountId
   }
