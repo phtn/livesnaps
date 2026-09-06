@@ -7,7 +7,8 @@ import { SnapRowActions } from '@/components/ui/table/row-actions.btsx'
 import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
 import PhotoViewer from '@/components/photo-viewer.btsx'
 import ErrorPage from '@/components/error.btsx'
-// import SnapsFilterList from '@/components/admin/SnapsFilterList.btsx'
+import { Icon } from '@/lib/icons'
+import Icon from "../lib/icons/icon.btsx";
 
 props {}: {}
 setup
@@ -19,7 +20,7 @@ setup
   // A poll failure keeps the last good rows, so the table stays up and the
   // error reads as "stale" rather than replacing everything.
   const hasRows = snaps !== undefined
-  const freshnessLabel = lastUpdatedAt ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
+  const freshnessLabel = lastUpdatedAt ? `${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
 
   const [activePhotoSnapId, setActivePhotoSnapId] = useState<SnapRow['_id'] | null>(null)
   const gallery = buildSnapGallery(rows.find((snap) => snap._id === activePhotoSnapId))
@@ -57,15 +58,18 @@ main
           ~ initialPageSize={50}
           ~ pageSizes={PAGE_SIZES}
           ~ emptyTitle='No snaps'
-          ~ emptyDescription='Try a shorter query or clear the search.'
+          ~ emptyDescription='Snaps will appear here as they are captured.'
           ~ )
           fragment
-            div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
+            div(className='flex items-center gap-3 text-xs text-muted-foreground')
               if error
                 span(className='text-destructive') #{error} — showing the last successful load.
               else
-                span #{freshnessLabel}
-              button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
+                div(className='flex items-center gap-1')
+                  Icon(name='history' size='12')
+                  span(className='font-mono') #{freshnessLabel}
+              button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
+                Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')
   if gallery
     PhotoViewer(
       ~ open={true}

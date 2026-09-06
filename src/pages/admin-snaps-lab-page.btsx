@@ -72,7 +72,7 @@ main(className='')
         ~ initialPageSize={50}
         ~ pageSizes={PAGE_SIZES}
         ~ emptyTitle='No snaps'
-        ~ emptyDescription='Try a shorter query or clear the search.'
+        ~ emptyDescription='Seed the fixtures to populate this table.'
         ~ )
         Extra(rows={rows} fixtureCount={fixtureCount} setFixtureCount={setFixtureCount} openFirstGallery={openFirstGallery})
   if gallery

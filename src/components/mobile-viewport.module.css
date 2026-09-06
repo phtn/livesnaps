@@ -230,6 +230,7 @@
   .root[data-expanded="true"] .viewportBody,
   .root[data-expanded="true"] .expanderViewport {
     height: 100vh;
+    /* biome-ignore lint/suspicious/noDuplicateProperties: dvh fallback for browsers without support */
     height: 100dvh;
   }
 

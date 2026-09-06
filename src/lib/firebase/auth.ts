@@ -56,7 +56,7 @@ export const openInExternalBrowser = (): boolean => {
   return true
 }
 
-export async function signInWithGoogle(): Promise<UserCredential | void> {
+export async function signInWithGoogle(): Promise<UserCredential | undefined> {
   if (!isFirebaseConfigured || !auth) {
     throw new Error('Firebase auth is not configured.')
   }

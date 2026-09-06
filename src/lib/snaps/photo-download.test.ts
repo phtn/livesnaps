@@ -50,8 +50,12 @@ test('proof photos are fetched from their protected routes and archived together
     `/api/r2/snaps/${uploadId}/4-side-b-${secondCaptureId}.webp`
   ])
   assert.deepEqual(Object.keys(files), ['01-front-view.webp', '02-side-B.webp'])
-  assert.equal(strFromU8(files['01-front-view.webp']!), 'front')
-  assert.equal(strFromU8(files['02-side-B.webp']!), 'side')
+  const front = files['01-front-view.webp']
+  const side = files['02-side-B.webp']
+  assert.ok(front)
+  assert.ok(side)
+  assert.equal(strFromU8(front), 'front')
+  assert.equal(strFromU8(side), 'side')
 })
 
 test('empty proof photo collections cannot create a misleading archive', async () => {

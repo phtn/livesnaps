@@ -1,0 +1,305 @@
+import { useMemo, useState, useTransition } from 'octane'
+import { Dialog } from '@octanejs/base-ui/dialog'
+import Badge from '@/components/ui/badge.btsx'
+import Button from '@/components/ui/button.btsx'
+import Input from '@/components/ui/input.btsx'
+import ScrollArea from '@/components/ui/scroll-area.btsx'
+import { Icon } from '@/lib/icons'
+import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
+import { onError, onSuccess } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+import { createVerificationEntry } from '@/lib/verifications/admin-writes'
+import { DEFAULT_VERIFICATION_ATTACHMENTS, VERIFICATION_EMAIL_MAX_LENGTH } from '@/lib/verifications/entries'
+import { useMobile } from '@/hooks/use-mobile'
+
+
+module
+  export interface CreateVerificationEntryDialogProps {
+    /** The signed-in administrator's address, read from `/api/admin/session`. */
+    emailFromAddress: string
+    isLoadingSnaps?: boolean
+    /** Called after a successful create so the table can pick the row up early. */
+    onCreated?: () => void
+    snaps: readonly AdminSnapListItem[]
+  }
+
+  // Long lists make the picker useless rather than more useful — the search box
+  // is the way to reach a specific plate, so the list only ever previews.
+  const VISIBLE_SNAP_LIMIT = 20
+
+  // The source file this was ported from used shadcn's `<Button variant='ghost'>`
+  // and `<Label>`. This project's Button is a filled pill with its own variant
+  // set and there is no Label primitive, so both are expressed natively here.
+  const GHOST_BUTTON_CLASS =
+    'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+  const FIELD_LABEL_CLASS = 'text-sm font-medium leading-none'
+  const READONLY_FIELD_CLASS = 'rounded-md border border-border bg-muted/30 px-3 py-2 text-sm'
+
+  const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
+
+props { emailFromAddress, isLoadingSnaps = false, onCreated, snaps }: CreateVerificationEntryDialogProps
+
+setup
+  const [ccEmailAddress, setCcEmailAddress] = useState('')
+  const [emailToAddress, setEmailToAddress] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedSnapId, setSelectedSnapId] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [isOpen, setIsOpen] = useState(false)
+  const [isPending, startTransition] = useTransition()
+  const isMobile = useMobile()
+
+  const selectedSnap = useMemo(
+    () => snaps.find((snap) => snap._id === selectedSnapId) ?? null,
+    [snaps, selectedSnapId],
+  )
+
+  // A snap that already has a handler or a verification status is spoken for:
+  // `verificationEntries.m.create` refuses it, so it is not offered here either.
+  const eligibleSnaps = useMemo(
+    () => snaps.filter((snap) => snap.status === 'completed' && !snap.handler && !snap.verification_status),
+    [snaps],
+  )
+
+  const filteredSnaps = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return eligibleSnaps.slice(0, VISIBLE_SNAP_LIMIT)
+
+    return eligibleSnaps
+      .filter((snap) =>
+        [snap.plateNumber, snap.fullName, snap.email, snap.make, snap.model]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query),
+      )
+      .slice(0, VISIBLE_SNAP_LIMIT)
+  }, [eligibleSnaps, searchQuery])
+
+  const resetForm = () => {
+    setCcEmailAddress('')
+    setEmailToAddress('')
+    setSearchQuery('')
+    setSelectedSnapId(null)
+    setFormError(null)
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    // Closing mid-flight would leave the transition writing into a torn-down
+    // form, so the dialog stays put until the create settles either way.
+    if (isPending) return
+    setIsOpen(open)
+    if (!open) resetForm()
+  }
+
+  const handleSubmit = (event: Event) => {
+    event.preventDefault()
+
+    if (!emailFromAddress.trim()) {
+      setFormError('Your signed-in account needs an email address before creating a verification.')
+      return
+    }
+
+    if (!selectedSnap) {
+      setFormError('Select a snap to create a verification.')
+      return
+    }
+
+    const plateNumber = selectedSnap.plateNumber.trim()
+    if (!plateNumber) {
+      setFormError('The selected snap has no plate number.')
+      return
+    }
+
+    const applicant = selectedSnap.fullName.trim() || selectedSnap.email.trim()
+    if (!applicant) {
+      setFormError('The selected snap has no applicant name or email.')
+      return
+    }
+
+    const recipient = emailToAddress.trim()
+    if (!recipient) {
+      setFormError('A recipient email is required.')
+      return
+    }
+
+    const cc = ccEmailAddress.trim()
+
+    setFormError(null)
+    startTransition(async () => {
+      try {
+        await createVerificationEntry({
+          applicant,
+          attachments: [...DEFAULT_VERIFICATION_ATTACHMENTS],
+          ...(cc ? { ccEmailAddress: cc } : {}),
+          emailToAddress: recipient,
+          plateNumber,
+          uploadId: selectedSnap.uploadId,
+        })
+        setIsOpen(false)
+        resetForm()
+        onCreated?.()
+        onSuccess(`Verification created for ${applicant} · ${plateNumber}.`)
+      } catch (error) {
+        const message = errorMessage(error, 'Unable to create the verification entry.')
+        setFormError(message)
+        onError(message)
+      }
+    })
+  }
+
+fragment
+  Button(
+    ~ id='create-new-entry'
+    ~ size='sm'
+    ~ variant='dark'
+    ~ icon='add'
+    ~ label={isMobile ? undefined : 'New'}
+    ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
+    ~ onClick={() => setIsOpen(true)}
+    ~ )
+
+  Dialog.Root(open={isOpen} onOpenChange={handleOpenChange})
+    Dialog.Portal
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/60')
+      Dialog.Popup(className='fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none')
+        form(className='flex min-h-0 flex-col' onSubmit={handleSubmit})
+          div(className='shrink-0 px-6 pb-4 pt-6')
+            Dialog.Title(className='font-poly text-xl') Create verification
+            Dialog.Description(className='mt-1 text-sm text-muted-foreground')
+              | Search and select a completed snap. The verification references its plate, applicant, and upload ID.
+
+          div(className='grid min-h-0 flex-1 gap-6 overflow-y-auto px-6 pb-6')
+            div(className='grid gap-3')
+              label(className={FIELD_LABEL_CLASS} htmlFor='snap-search') Snap entry
+              div(className='relative')
+                Icon(name='search' className='pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground')
+                Input(
+                  ~ id='snap-search'
+                  ~ autoComplete='off'
+                  ~ className='rounded-lg pl-9'
+                  ~ placeholder='Search plate, name, email, make, model…'
+                  ~ value={searchQuery}
+                  ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
+                  ~ )
+
+              // Every arm is an element rather than loose text: an `@if` body is
+              // parsed as template nodes, so a bare text run there is read as a
+              // statement and fails to compile.
+              p(className='text-xs text-muted-foreground')
+                if isLoadingSnaps
+                  span Loading snaps…
+                elseif selectedSnap
+                  span
+                    span Selected&nbsp;
+                    span(className='font-medium text-foreground') #{selectedSnap.plateNumber || '—'}
+                    span  · #{selectedSnap.fullName || selectedSnap.email || 'Unknown applicant'}
+                else
+                  span #{`Showing ${filteredSnaps.length} of ${eligibleSnaps.length} eligible snaps`}#{searchQuery.trim() ? ` for “${searchQuery.trim()}”` : ''}
+
+              if selectedSnap
+                div(className='flex items-start justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3')
+                  div(className='min-w-0')
+                    div(className='flex flex-wrap items-center gap-2')
+                      span(className='font-mono text-sm font-medium uppercase tracking-wide') #{selectedSnap.plateNumber || 'Plate pending'}
+                      Badge(variant='outline' className='capitalize font-normal') #{selectedSnap.status}
+                    p(className='mt-1 truncate text-sm font-medium') #{selectedSnap.fullName || selectedSnap.email || '—'}
+                    p(className='truncate text-xs text-muted-foreground')
+                      | #{[selectedSnap.email, [selectedSnap.make, selectedSnap.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ') || '—'}
+                    p(className='mt-1 font-mono text-xs text-muted-foreground') Upload #{selectedSnap.uploadId}
+                  button(
+                    ~ type='button'
+                    ~ className={cn(GHOST_BUTTON_CLASS, 'h-7 shrink-0 gap-1 px-2 text-xs')}
+                    ~ onClick={() => { setSelectedSnapId(null); setFormError(null) }}
+                    ~ )
+                    Icon(name='cancel' className='size-3.5')
+                    span Clear
+              else
+                div(className='rounded-lg border border-border')
+                  ScrollArea(className='h-56')
+                    div(className='p-1')
+                      if isLoadingSnaps
+                        div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')
+                          Icon(name='spinner-ring' className='size-5 animate-spin')
+                          span Loading snaps…
+                      elseif filteredSnaps.length === 0
+                        div(className='px-3 py-10 text-center text-sm text-muted-foreground')
+                          p(className='font-medium') No eligible snaps match
+                          p(className='mt-1 text-xs') Try a different plate, name, email, make or model.
+                      else
+                        ul(className='grid gap-1')
+                          each snap in filteredSnaps key snap._id
+                            li
+                              button(
+                                ~ type='button'
+                                ~ onClick={() => { setSelectedSnapId(snap._id); setFormError(null) }}
+                                ~ className={cn(GHOST_BUTTON_CLASS, 'flex w-full items-center gap-3 px-2.5 py-2 text-left hover:bg-muted')}
+                                ~ )
+                                span(className='grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground')
+                                  Icon(name='gallery' className='size-4')
+                                span(className='min-w-0 flex-1')
+                                  span(className='flex items-center gap-1.5')
+                                    span(className='truncate font-mono text-xs font-medium uppercase tracking-wide') #{snap.plateNumber || '—'}
+                                    span(className='truncate text-xs text-muted-foreground') #{[snap.make, snap.model].filter(Boolean).join(' ') || '·'}
+                                  span(className='block truncate text-sm font-medium leading-tight') #{snap.fullName || 'Unknown applicant'}
+                                  span(className='block truncate text-xs leading-tight text-muted-foreground') #{snap.email || 'No email'}
+                                Badge(variant='outline' className='hidden shrink-0 capitalize text-xs sm:inline-flex') #{snap.status}
+
+            if selectedSnap
+              div(className='grid gap-4 rounded-lg border border-dashed border-border/70 bg-card p-3 sm:grid-cols-2')
+                div(className='grid gap-1.5')
+                  span(className='text-xs text-muted-foreground') Applicant (from snap)
+                  div(className={cn(READONLY_FIELD_CLASS, 'truncate font-medium')}) #{selectedSnap.fullName || selectedSnap.email || '—'}
+                div(className='grid gap-1.5')
+                  span(className='text-xs text-muted-foreground') Plate (from snap)
+                  div(className={cn(READONLY_FIELD_CLASS, 'truncate font-mono uppercase tracking-wide')}) #{selectedSnap.plateNumber || '—'}
+                div(className='grid gap-1.5 sm:col-span-2')
+                  span(className='text-xs text-muted-foreground') Upload ID (from snap)
+                  div(className={cn(READONLY_FIELD_CLASS, 'truncate font-mono text-xs')}) #{selectedSnap.uploadId}
+
+            div(className='grid gap-2')
+              label(className={FIELD_LABEL_CLASS} htmlFor='verification-email-from') From
+              Input(id='verification-email-from' className='rounded-lg' readOnly type='email' value={emailFromAddress})
+              p(className='text-xs text-muted-foreground') Taken from your authenticated LiveSnaps account.
+
+            div(className='grid gap-4 sm:grid-cols-2')
+              div(className='grid gap-2')
+                label(className={FIELD_LABEL_CLASS} htmlFor='verification-email-to') To *
+                Input(
+                  ~ id='verification-email-to'
+                  ~ autoComplete='email'
+                  ~ className='rounded-lg'
+                  ~ maxLength={VERIFICATION_EMAIL_MAX_LENGTH}
+                  ~ placeholder='applicant@example.com'
+                  ~ required
+                  ~ type='email'
+                  ~ value={emailToAddress}
+                  ~ onInput={(event: Event) => { setEmailToAddress((event.currentTarget as HTMLInputElement).value); setFormError(null) }}
+                  ~ )
+              div(className='grid gap-2')
+                label(className={FIELD_LABEL_CLASS} htmlFor='verification-email-cc') CC
+                Input(
+                  ~ id='verification-email-cc'
+                  ~ autoComplete='email'
+                  ~ className='rounded-lg'
+                  ~ maxLength={VERIFICATION_EMAIL_MAX_LENGTH}
+                  ~ placeholder='Optional'
+                  ~ type='email'
+                  ~ value={ccEmailAddress}
+                  ~ onInput={(event: Event) => { setCcEmailAddress((event.currentTarget as HTMLInputElement).value); setFormError(null) }}
+                  ~ )
+
+            if formError
+              p(className='text-sm text-destructive' role='alert') #{formError}
+
+          div(className='flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4')
+            Button(type='button' size='sm' variant='secondary' label='Cancel' disabled={isPending} onClick={() => handleOpenChange(false)})
+            Button(
+              ~ type='submit'
+              ~ size='sm'
+              ~ variant='primary'
+              ~ label='Create entry'
+              ~ pending={isPending}
+              ~ pendingLabel='Creating…'
+              ~ disabled={isPending || !selectedSnap || !emailFromAddress.trim()}
+              ~ )

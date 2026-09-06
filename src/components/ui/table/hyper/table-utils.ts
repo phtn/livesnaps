@@ -28,8 +28,8 @@ function isFalsy(val: unknown) {
 }
 
 function isValidDate(value: unknown): boolean {
-  if (value instanceof Date) return !isNaN(value.getTime())
-  if (typeof value === 'string') return !isNaN(Date.parse(value))
+  if (value instanceof Date) return !Number.isNaN(value.getTime())
+  if (typeof value === 'string') return !Number.isNaN(Date.parse(value))
   return false
 }
 
@@ -37,7 +37,7 @@ function toDate(value: unknown): Date | null {
   if (value instanceof Date) return value
   if (typeof value === 'string') {
     const date = new Date(value)
-    return !isNaN(date.getTime()) ? date : null
+    return !Number.isNaN(date.getTime()) ? date : null
   }
   return null
 }
@@ -186,7 +186,7 @@ const filterFn_inBetween: FilterFn<FuzzyFeatures, RowData> = (row, columnId: str
       return typeof rowValue === 'number' && typeof min === 'number' ? rowValue >= min : String(rowValue) >= String(min)
     }
 
-    if (rowValue instanceof Date || (typeof rowValue === 'string' && !isNaN(Date.parse(rowValue)))) {
+    if (rowValue instanceof Date || (typeof rowValue === 'string' && !Number.isNaN(Date.parse(rowValue)))) {
       const dateValue = new Date(rowValue).getTime()
       const minDate = new Date(min as string | Date).getTime()
       const maxDate = new Date(max as string | Date).getTime()
@@ -194,7 +194,7 @@ const filterFn_inBetween: FilterFn<FuzzyFeatures, RowData> = (row, columnId: str
     }
 
     const numValue = Number(rowValue)
-    return !isNaN(numValue) && numValue >= Number(min) && numValue <= Number(max)
+    return !Number.isNaN(numValue) && numValue >= Number(min) && numValue <= Number(max)
   }
   return true
 }
@@ -220,7 +220,7 @@ const filterFn_isRelativeToToday: FilterFn<FuzzyFeatures, RowData> = (row, colum
     return diffInDays === filterValue
   } else if (typeof filterValue === 'string') {
     const numValue = parseInt(filterValue, 10)
-    if (!isNaN(numValue)) {
+    if (!Number.isNaN(numValue)) {
       return diffInDays === numValue
     }
   } else if (Array.isArray(filterValue) && filterValue.length === 2) {
@@ -228,7 +228,7 @@ const filterFn_isRelativeToToday: FilterFn<FuzzyFeatures, RowData> = (row, colum
     const minDays = typeof min === 'number' ? min : parseInt(min as string, 10)
     const maxDays = typeof max === 'number' ? max : parseInt(max as string, 10)
 
-    if (!isNaN(minDays) && !isNaN(maxDays)) {
+    if (!Number.isNaN(minDays) && !Number.isNaN(maxDays)) {
       return diffInDays >= minDays && diffInDays <= maxDays
     }
   }

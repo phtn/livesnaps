@@ -98,7 +98,7 @@ export const acceptInvite = mutation({
 
     const invite = await getMembershipByEmail(ctx, accountId, email)
 
-    if (!invite || invite.status !== 'invited') {
+    if (invite?.status !== 'invited') {
       throw new ConvexError('No pending invitation for this account.')
     }
 

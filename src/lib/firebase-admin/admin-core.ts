@@ -59,7 +59,7 @@ function readServiceAccountFromEnv(): ServiceAccount | null {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
   const rawServiceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
   const privateKey =
-    rawServiceAccountKey && rawServiceAccountKey.includes('BEGIN PRIVATE KEY')
+    rawServiceAccountKey?.includes('BEGIN PRIVATE KEY')
       ? rawServiceAccountKey
       : process.env.FIREBASE_PRIVATE_KEY
 

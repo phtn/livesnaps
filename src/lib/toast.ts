@@ -21,7 +21,10 @@ let nextToastId = 0
 let records: ToastRecord[] = []
 const listeners = new Set<() => void>()
 
-const notify = () => listeners.forEach((listener) => listener())
+const notify = () =>
+  listeners.forEach((listener) => {
+    listener()
+  })
 export const subscribeToToasts = (listener: () => void) => {
   listeners.add(listener)
   return () => listeners.delete(listener)

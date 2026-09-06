@@ -58,7 +58,7 @@ export const requireAccountAccess = async (
 
   const membership = await getMembershipByTokenIdentifier(ctx, accountId, identity.tokenIdentifier)
 
-  if (!membership || membership.status !== 'active') {
+  if (membership?.status !== 'active') {
     throw new ConvexError('Unauthorized.')
   }
 

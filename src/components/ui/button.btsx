@@ -75,9 +75,9 @@ module
   const BUTTON_SIZE_CLASSES = {
     icon: "size-6",
     'icon-lg': "h-8 w-9",
-    sm: "h-[32px] rounded-full px-4",
-    mm: "h-[36px] rounded-lg px-5",
-    lg: "h-[40px] rounded-xl px-6",
+    sm: "h-[32px] rounded-full",
+    mm: "h-[36px] rounded-lg",
+    lg: "h-[40px] rounded-xl",
   } as const satisfies Record<ButtonSize, string>
 
   const BUTTON_ICON_SIZES = {
@@ -93,7 +93,7 @@ module
   } as const satisfies Record<ButtonSize, number>
 
   const BUTTON_BASE_CLASS = "group relative isolate inline-flex min-w-0 shrink-0 touch-manipulation select-none appearance-none items-center justify-center overflow-hidden border-0 align-middle text-sm font-medium leading-5 tracking-tight transition-all duration-250 ease-out focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 motion-reduce:transition-none active:scale-[0.97] aria-disabled:scale-100"
-  const BUTTON_CONTENT_CLASS = "relative z-10 inline-flex min-w-0 items-center justify-center gap-1 whitespace-nowrap transition-[transform,opacity] duration-300 ease-out group-active:opacity-95 group-disabled:scale-100 group-disabled:opacity-100 group-aria-disabled:opacity-100 motion-reduce:transform-none motion-reduce:transition-none"
+  const BUTTON_CONTENT_CLASS = "relative z-10 inline-flex min-w-0 items-center justify-center whitespace-nowrap transition-[transform,opacity] duration-300 ease-out group-active:opacity-95 group-disabled:scale-100 group-disabled:opacity-100 group-aria-disabled:opacity-100 motion-reduce:transform-none motion-reduce:transition-none"
   const BUTTON_LIGHT_OVERLAY_CLASS = "pointer-events-none absolute inset-0 rounded-[inherit] bg-white/30 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100 group-disabled:opacity-0 group-aria-disabled:opacity-0 motion-reduce:transition-none"
 
   const BUTTON_VARIANT_CLASSES = {
@@ -138,7 +138,7 @@ props { size = "sm", variant = "default", type = "button", href, target, rel, do
 setup
   const isInteractionDisabled = disabled || pending
   const resolvedLabel = pending && pendingLabel !== undefined ? pendingLabel : label
-  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", className)
+  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", {'':icon, 'ps-2 pe-4 gap-1': label}, className)
   const anchorRel = getSafeAnchorRel(target, rel)
   const handleClick = (event: MouseEvent) => {
     if (isInteractionDisabled) {

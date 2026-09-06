@@ -132,10 +132,16 @@ export const snapVerificationStatus: Record<
     label: 'Submitted'
   },
   unsubmitted: {
-    className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
-    icon: 'circle-minus-line',
-    label: 'Unsubmitted'
+    className: 'border-mist-500/10 bg-mist-500/10 text-mist-600 dark:text-mist-400',
+    icon: 'not-started',
+    label: 'Not Started'
   }
+  // unsubmitted: {
+  //   className:
+  //     'size-5 aspect-square flex items-center justify-center gap-0! px-0! border-mist-500/10 bg-mist-500/10 text-mist-600 dark:text-mist-400',
+  //   icon: 'draft',
+  //   label: ''
+  // }
 }
 
 /**
@@ -153,7 +159,7 @@ export const verificationEntryStatus: Record<
     label: 'Draft'
   },
   active: {
-    className: 'border-active/80 bg-active/8 text-active dark:active',
+    className: 'border-active/50 bg-active/8 text-active dark:active',
     icon: 'bolt',
     label: 'Sending'
   },
@@ -602,19 +608,16 @@ const runAnalyticsIndex = async (source: ReadonlyArray<SnapRow>): Promise<Analyt
     if (chunkEnd < source.length) await yieldToMain()
   }
 
-  const rows = Array.from(
-    buckets.values(),
-    (bucket): AnalyticsRow => ({
-      accuracySamples: bucket.accuracySamples,
-      accuracyTotal: bucket.accuracyTotal,
-      countryCode: bucket.countryCode,
-      id: `${bucket.countryCode}:${bucket.status}`,
-      photoTotal: bucket.photoTotal,
-      snaps: bucket.snaps,
-      status: bucket.status,
-      submittedTotal: bucket.submittedTotal
-    })
-  )
+  const rows = Array.from(buckets.values(), (bucket): AnalyticsRow => ({
+    accuracySamples: bucket.accuracySamples,
+    accuracyTotal: bucket.accuracyTotal,
+    countryCode: bucket.countryCode,
+    id: `${bucket.countryCode}:${bucket.status}`,
+    photoTotal: bucket.photoTotal,
+    snaps: bucket.snaps,
+    status: bucket.status,
+    submittedTotal: bucket.submittedTotal
+  }))
 
   return {
     elapsedMs: performance.now() - startedAt,

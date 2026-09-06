@@ -21,14 +21,18 @@ function json(body: unknown, status = 200) {
   })
 }
 
+/**
+ * Control characters are the point of this pattern, not an accident: these
+ * values come off a multipart form and end up in response headers and archive
+ * entry names, where a stray CR or LF would let a caller inject structure
+ * rather than text.
+ */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: the control range is what is being stripped
+const CONTROL_CHARACTERS = /[\u0000-\u001f]/g
+
 function cleanText(value: FormDataEntryValue | null, fallback: string, limit: number) {
   if (typeof value !== 'string') return fallback
-  return (
-    value
-      .replace(/[\u0000-\u001f]/g, ' ')
-      .trim()
-      .slice(0, limit) || fallback
-  )
+  return value.replace(CONTROL_CHARACTERS, ' ').trim().slice(0, limit) || fallback
 }
 
 function cleanMimeType(value: string) {
@@ -37,12 +41,7 @@ function cleanMimeType(value: string) {
 }
 
 function cleanFilename(value: string) {
-  return (
-    value
-      .replace(/[\u0000-\u001f]/g, ' ')
-      .trim()
-      .slice(0, 255) || 'untitled'
-  )
+  return value.replace(CONTROL_CHARACTERS, ' ').trim().slice(0, 255) || 'untitled'
 }
 
 async function toStoredFile(record: FileRecord): Promise<StoredFile> {

@@ -1,0 +1,178 @@
+import { useLinkedState, useTransition } from 'octane'
+import { Dialog } from '@octanejs/base-ui/dialog'
+import Button from '@/components/ui/button.btsx'
+import Checkbox from '@/components/ui/checkbox.btsx'
+import Input from '@/components/ui/input.btsx'
+import { Icon } from '@/lib/icons'
+import { onError, onSuccess } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+import { sendVerificationEmail } from '@/lib/verifications/admin-writes'
+import { DEFAULT_VERIFICATION_ATTACHMENTS } from '@/lib/verifications/entries'
+import type { VerificationEntryRow } from './data'
+
+module
+  export interface SendVerificationEntryDialogProps {
+    entry: VerificationEntryRow | null
+    onOpenChange: (open: boolean) => void
+    /** Called after a successful send so the table can pick the status up early. */
+    onSent?: () => void
+    open: boolean
+  }
+
+  const GHOST_BUTTON_CLASS =
+    'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+  const FIELD_LABEL_CLASS = 'text-sm font-medium leading-none'
+
+  const defaultAttachments = (entry: VerificationEntryRow): string[] =>
+    entry.attachments ?? [...DEFAULT_VERIFICATION_ATTACHMENTS]
+
+  const defaultSubject = (entry: VerificationEntryRow) =>
+    `Verification – ${entry.plateNumber} – ${entry.applicant}`
+
+  const defaultBody = (entry: VerificationEntryRow) =>
+    `Hi ${entry.applicant},\n\nPlease find attached: ${defaultAttachments(entry).join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
+
+  const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
+
+props { entry, onOpenChange, onSent, open }: SendVerificationEntryDialogProps
+
+setup
+  // The dialog is mounted once per table and re-pointed at a row, so the draft
+  // has to follow `entry` rather than being seeded on mount. `useLinkedState`
+  // keeps an in-progress edit until the row underneath actually changes.
+  const [subject, setSubject] = useLinkedState(entry?._id ?? '', () => (entry ? defaultSubject(entry) : ''))
+  const [body, setBody] = useLinkedState(entry?._id ?? '', () => (entry ? defaultBody(entry) : ''))
+  const [selectedAttachments, setSelectedAttachments] = useLinkedState(entry?._id ?? '', () =>
+    entry ? defaultAttachments(entry) : [],
+  )
+  const [isPending, startTransition] = useTransition()
+
+  const toggleAttachment = (value: string) => {
+    setSelectedAttachments((current) =>
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    )
+  }
+
+  // Only the names travel: the bytes are assembled server-side from R2 and the
+  // snap record, so a browsed file here is a label for something Convex
+  // already has, not an upload.
+  const customAttachments = selectedAttachments.filter(
+    (value) => !([...DEFAULT_VERIFICATION_ATTACHMENTS] as readonly string[]).includes(value),
+  )
+
+  const handleSend = () => {
+    if (!entry) return
+
+    if (selectedAttachments.length === 0) {
+      onError('Select at least one attachment to send.')
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        await sendVerificationEmail({
+          id: entry._id,
+          attachments: selectedAttachments,
+          subject: subject.trim() || undefined,
+          body: body.trim() || undefined,
+        })
+        onSuccess(`Email sent to ${entry.emailToAddress}.`)
+        onSent?.()
+        onOpenChange(false)
+      } catch (error) {
+        onError(errorMessage(error, 'Unable to send the verification email.'))
+      }
+    })
+  }
+
+// Nothing to compose against until a row is picked; the dialog owns no state
+// worth keeping mounted in that case.
+if entry
+  Dialog.Root(open={open} onOpenChange={onOpenChange})
+    Dialog.Portal
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/60')
+      Dialog.Popup(className='fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[min(calc(100vw-1rem),48rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-2xl outline-none')
+        div(className='shrink-0 px-6 pb-4 pt-6')
+          Dialog.Title(className='font-poly text-lg') Compose verification email
+          Dialog.Description(className='mt-1 font-mono text-xs text-muted-foreground')
+            | #{entry.applicant} · #{entry.plateNumber} → #{entry.emailToAddress}
+
+        div(className='flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 pb-6')
+          div(className='grid gap-3 rounded-lg border border-border bg-muted/30 p-3')
+            div(className='flex flex-col gap-1')
+              div(className='flex items-center gap-1')
+                span(className='text-xs text-muted-foreground') Created by:
+                span(className='truncate text-xs') #{entry.senderName}
+                span(className='truncate text-xs font-medium') &lt;#{entry.emailFromAddress}&gt;
+              span(className='text-[10px] leading-none text-muted-foreground')
+                | Reference only — verification email is sent from the LiveSnaps verified domain.
+            div(className='grid grid-cols-2 gap-3')
+              div(className='flex items-center gap-1')
+                span(className='text-xs text-muted-foreground') To:
+                span(className='truncate text-xs') #{entry.emailToAddress}
+              div(className='flex items-center gap-1')
+                span(className='text-xs text-muted-foreground') CC:
+                span(className='truncate text-xs') #{entry.ccEmailAddress ?? '—'}
+
+          div(className='grid gap-2')
+            label(className={FIELD_LABEL_CLASS} htmlFor='email-subject') Subject
+            Input(
+              ~ id='email-subject'
+              ~ placeholder='Verification subject'
+              ~ value={subject}
+              ~ onInput={(event: Event) => setSubject((event.currentTarget as HTMLInputElement).value)}
+              ~ )
+
+          div(className='grid gap-2')
+            label(className={FIELD_LABEL_CLASS} htmlFor='email-body') Message
+            textarea(
+              ~ id='email-body'
+              ~ className='min-h-32 w-full rounded-xs border border-sidebar-border bg-sidebar/50 px-3 py-2 text-sm placeholder:text-border focus-visible:bg-background focus-visible:outline-active focus-visible:outline-[2px] focus-visible:outline-offset-0'
+              ~ placeholder='Compose your message…'
+              ~ value={body}
+              ~ onInput={(event: Event) => setBody((event.currentTarget as HTMLTextAreaElement).value)}
+              ~ )
+
+          div(className='grid gap-2')
+            span(className={FIELD_LABEL_CLASS}) Attachments
+            div(className='grid divide-y rounded-lg border border-border')
+              each option in DEFAULT_VERIFICATION_ATTACHMENTS key option
+                label(className='flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-muted/50')
+                  span(className='flex items-center gap-3')
+                    Checkbox(checked={selectedAttachments.includes(option)} onCheckedChange={() => toggleAttachment(option)})
+                    span(className='text-sm capitalize') #{option}
+                  Icon(name='attachment' className='size-4 text-muted-foreground')
+
+            if customAttachments.length > 0
+              div(className='grid gap-2')
+                span(className='text-xs text-muted-foreground') Additional
+                div(className='grid divide-y rounded-lg border border-border')
+                  each name in customAttachments key name
+                    label(className='flex cursor-pointer items-center justify-between px-3 py-2 hover:bg-muted/50')
+                      span(className='flex min-w-0 items-center gap-3')
+                        Checkbox(checked={selectedAttachments.includes(name)} onCheckedChange={() => toggleAttachment(name)})
+                        span(className='truncate text-sm') #{name}
+                      button(
+                        ~ type='button'
+                        ~ aria-label={`Remove ${name}`}
+                        ~ className={cn(GHOST_BUTTON_CLASS, 'size-6 text-muted-foreground')}
+                        ~ onClick={(event: MouseEvent) => { event.preventDefault(); setSelectedAttachments((current) => current.filter((value) => value !== name)) }}
+                        ~ )
+                        Icon(name='close' className='size-3.5')
+
+            p(className='px-1 text-xs text-muted-foreground')
+              | #{selectedAttachments.length} selected · photos are read from storage at send time
+
+        div(className='flex shrink-0 items-center justify-end gap-2 border-t border-border px-6 py-4')
+          Button(type='button' size='sm' variant='secondary' label='Cancel' disabled={isPending} onClick={() => onOpenChange(false)})
+          Button(
+            ~ type='button'
+            ~ size='sm'
+            ~ variant='primary'
+            ~ icon='send'
+            ~ label='Send email'
+            ~ pending={isPending}
+            ~ pendingLabel='Sending…'
+            ~ disabled={isPending}
+            ~ onClick={handleSend}
+            ~ )

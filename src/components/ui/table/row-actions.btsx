@@ -80,7 +80,7 @@ component SnapPhotosCell
       throw new Error('SnapPhotosCell must be rendered within SnapPhotoViewerContext.')
     }
 
-    const handleDownload = async () => {
+    const download = async () => {
       if (photoCount === 0 || isDownloading) return
 
       setIsDownloading(true)
@@ -95,6 +95,10 @@ component SnapPhotosCell
         setIsDownloading(false)
       }
     }
+    const handleDownload = async (event: MouseEvent) => {
+      event.stopPropagation();
+      void await download()
+    }
 
   div(className='flex items-center gap-4 opacity-80')
     button(
@@ -105,18 +109,18 @@ component SnapPhotosCell
       ~ onClick={(event: MouseEvent) => { event.stopPropagation(); openPhotoViewer(snap._id) }}
       ~ className={cn(GHOST_BUTTON_CLASS, 'h-8 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400')}
       ~ )
-      span(className='font-okx text-base font-medium') #{photoCount}
-      Icon(name='images' className='size-5')
+      span(className='font-sans text-base font-medium') #{photoCount}
+      Icon(name='images' className='size-4')
 
     button(
       ~ type='button'
       ~ disabled={photoCount === 0 || isDownloading}
       ~ aria-label={`Download all ${photoCount} proof ${photoWord}`}
       ~ title={photoCount === 0 ? 'No proof photos available' : 'Download all photos as ZIP'}
-      ~ onClick={(event: MouseEvent) => { event.stopPropagation(); void handleDownload() }}
+      ~ onClick={handleDownload}
       ~ className={cn(GHOST_BUTTON_CLASS, 'size-8 hover:text-blue-600 dark:hover:text-blue-400')}
       ~ )
-      Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className={cn('size-5', isDownloading && 'animate-spin')})
+      Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className='size-4')
 
 component SnapReportViewerContent
   props { reportSnap, isLoading, loadError, onRetry }: { reportSnap: Doc<'snaps'> | null; isLoading: boolean; loadError: string | null; onRetry: () => void }

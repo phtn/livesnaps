@@ -16,7 +16,7 @@ const normalizeListLimit = (limit: number | undefined) => {
 const requireAdminIdentity = async (ctx: QueryCtx) => {
   const identity = await ctx.auth.getUserIdentity()
 
-  if (!identity || identity.admin !== true) {
+  if (identity?.admin !== true) {
     throw new ConvexError('Unauthorized.')
   }
 

@@ -3,7 +3,7 @@ import type { ColumnPinningState, ColumnVisibilityState, PaginationState, Sortin
 import { useMemo, useState } from 'octane'
 import { Button } from '@/components/ui/'
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
-import { TableBody, TableCell, TableRow } from '@/components/ui/table'
+import { TableBody } from '@/components/ui/table'
 import Header from '@/components/ui/header.btsx'
 import HyperRow from '@/components/ui/table/hyper/HyperRow.btsx'
 import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
@@ -14,6 +14,8 @@ import { snapsFeatures } from '@/components/admin/table-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import type { OctaneNode } from 'octane'
 import Popper from '@/components/ui/popper.btsx'
+import TableEmptyState from '@/components/ui/table/table-empty-state.btsx'
+import { cn } from '@/lib/utils'
 import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from '@octanejs/nuqs'
 import { createColumnFiltersParser, createColumnOrderParser, createColumnVisibilityParser } from '@/components/ui/table/hyper/parsers'
 
@@ -26,6 +28,14 @@ module
   interface Props {
     columns: any[]
     data: ReadonlyArray<any>
+    /**
+     * Optional call to action for the empty panel — typically "create the first
+     * record". The table never learns what it does; it only decides when to
+     * offer it, which is when there are no records rather than when a query has
+     * hidden them. Pair it with `emptyActionLabel`.
+     */
+    emptyAction?: VoidFunction
+    emptyActionLabel?: string
     emptyDescription?: string
     emptyTitle?: string
     eyebrow?: string
@@ -55,6 +65,12 @@ module
      */
     urlKeyPrefix?: string
     children?: OctaneNode
+    /**
+     * Rendered in the toolbar row immediately after the filter control, for
+     * actions that belong with the query controls rather than with the title —
+     * "create a record", say. `children` stays the header slot.
+     */
+    toolbarActions?: OctaneNode
   }
   interface QueryState {
     completed: number
@@ -77,11 +93,28 @@ module
   }
   const QUERY_KEYS = ['q', 'page', 'size', 'sort', 'desc', 'filters', 'visibility', 'order'] as const
 
+  /**
+   * Shared by the table viewport and the empty panel so the section keeps the
+   * same height either way and the footer never jumps. `dvh` rather than `vh`
+   * so a mobile browser's collapsing toolbar doesn't push the footer off.
+   */
+  const VIEWPORT_CLASS_NAME = 'h-[calc(100dvh-157px)] w-full'
+  const SCROLLBAR_CLASS_NAME =
+    'overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin'
+
+  // Copy for a table emptied by the reader's own query. The `empty*` props stay
+  // reserved for the other case — a table with no records at all — because the
+  // two want to say completely different things.
+  const FILTERED_EMPTY_TITLE = 'No matching rows'
+  const FILTERED_EMPTY_DESCRIPTION = 'Nothing matches the current search and filters.'
+
 props {
   ~ columns,
   ~ data,
-  ~ emptyDescription = 'Try a shorter query or clear the search.',
-  ~ emptyTitle = 'No matching rows',
+  ~ emptyAction,
+  ~ emptyActionLabel,
+  ~ emptyDescription = 'Nothing has been recorded here yet.',
+  ~ emptyTitle = 'No rows yet',
   ~ eyebrow,
   ~ filterList,
   ~ getRowId,
@@ -93,6 +126,7 @@ props {
   ~ queryState = IDLE_QUERY_STATE,
   ~ urlKeyPrefix = '',
   ~ children,
+  ~ toolbarActions,
   ~ title = ''}: Props
 
 setup
@@ -234,6 +268,16 @@ setup
   const handleResetFilters = () => {
     void setQuery({ filters: null, page: null })
   }
+  // Clears everything the reader can narrow by, not just the column filters,
+  // since the empty panel offers one button for the whole dead end.
+  const handleClearQuery = () => {
+    void setQuery({ q: null, filters: null, page: null })
+  }
+  // Only a table that *has* records can be filtered down to none. With no
+  // records at all, clearing a stale `?q=` would not reveal anything, so that
+  // case keeps the consumer's own "nothing here yet" copy.
+  const hasActiveQuery = data.length > 0 && (globalFilter.trim().length > 0 || columnFilters.length > 0)
+  const isEmpty = visibleRows.length === 0
   const handleSearchChange = (event: Event) => table.setGlobalFilter((event.currentTarget as HTMLInputElement).value)
 
   const isQuerying = queryState.phase === 'filtering' || queryState.phase === 'sorting'
@@ -248,7 +292,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
     fragment #{children}
 
   div(className='flex min-h-12 items-center justify-between px-1 md:pb-2')
-    div(className='flex items-center gap-0.75')
+    div(className='flex items-center md:gap-0.75 gap-1')
       ColumnView(
         ~ cols={table.getAllLeafColumns()}
         ~ columnVisibility={table.state.columnVisibility}
@@ -265,36 +309,45 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
     div(className='flex items-center gap-2.5 font-mono text-sm text-active')
       Popper(condition={isQuerying} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
       Popper(condition={queryState.phase === 'error'} lead='error' trail='index interrupted')
-      span(className='uppercase text-sm whitespace-nowrap') #{visibleRows.length.toLocaleString()} ROWS
+      if toolbarActions
+        fragment #{toolbarActions}
+      else
+        span(className='hidden sm:flex uppercase text-sm whitespace-nowrap') #{visibleRows.length.toLocaleString()} ROWS
       Search(value={globalFilter} onChange={handleSearchChange})
 
-  div(className='h-[calc(100vh-157px)] w-full overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin')
-    HyperTable(
-      ~ table={table}
-      ~ title={title}
-      ~ columnPinning={table.state.columnPinning}
-      ~ columnVisibility={table.state.columnVisibility}
-      ~ selectAllChecked={table.getIsAllPageRowsSelected()}
-      ~ onSelectAllChange={table.getToggleAllPageRowsSelectedHandler()}
-      ~ )
-      TableBody
-        each row in visibleRows key row.id
-          HyperRow(
-            ~ row={row}
-            ~ isActive={false}
-            ~ isEditing={false}
-            ~ isPinned={false}
-            ~ isSelected={row.getIsSelected()}
-            ~ showSelectColumn={table.getColumn('select') !== undefined}
-            ~ columnPinning={table.state.columnPinning}
-            ~ columnVisibility={table.state.columnVisibility}
-            ~ pinnedColumnLayouts={pinnedColumnLayouts}
-            ~ )
-        empty
-          TableRow
-            TableCell(className='h-[300px]! text-center! text-[#8b9188]!' colSpan={table.getVisibleLeafColumns().length})
-              b #{emptyTitle}
-              span #{emptyDescription}
+  if isEmpty
+    div(className={VIEWPORT_CLASS_NAME})
+      TableEmptyState(
+        ~ title={hasActiveQuery ? FILTERED_EMPTY_TITLE : emptyTitle}
+        ~ description={hasActiveQuery ? FILTERED_EMPTY_DESCRIPTION : emptyDescription}
+        ~ isFiltered={hasActiveQuery}
+        ~ onClearFilters={handleClearQuery}
+        ~ action={hasActiveQuery ? undefined : emptyAction}
+        ~ actionLabel={emptyActionLabel}
+        ~ )
+  else
+    div(className={cn(VIEWPORT_CLASS_NAME, SCROLLBAR_CLASS_NAME)})
+      HyperTable(
+        ~ table={table}
+        ~ title={title}
+        ~ columnPinning={table.state.columnPinning}
+        ~ columnVisibility={table.state.columnVisibility}
+        ~ selectAllChecked={table.getIsAllPageRowsSelected()}
+        ~ onSelectAllChange={table.getToggleAllPageRowsSelectedHandler()}
+        ~ )
+        TableBody
+          each row in visibleRows key row.id
+            HyperRow(
+              ~ row={row}
+              ~ isActive={false}
+              ~ isEditing={false}
+              ~ isPinned={false}
+              ~ isSelected={row.getIsSelected()}
+              ~ showSelectColumn={table.getColumn('select') !== undefined}
+              ~ columnPinning={table.state.columnPinning}
+              ~ columnVisibility={table.state.columnVisibility}
+              ~ pinnedColumnLayouts={pinnedColumnLayouts}
+              ~ )
 
   footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-input/50 dark:bg-sidebar p-3 text-xs')
     SelectOctane(

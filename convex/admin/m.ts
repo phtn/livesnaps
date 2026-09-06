@@ -4,14 +4,14 @@ import { mutation } from '../_generated/server'
 
 const requireAdmin = async (ctx: { auth: { getUserIdentity: () => Promise<unknown | null> } }) => {
   const identity = (await ctx.auth.getUserIdentity()) as { admin?: boolean } | null
-  if (!identity || identity.admin !== true) {
+  if (identity?.admin !== true) {
     throw new ConvexError('Unauthorized')
   }
   return identity
 }
 
-const getAdminDocumentByIdentifier = async (
-  db: {
+const _getAdminDocumentByIdentifier = async (
+  _db: {
     query: (table: string) => {
       withIndex: (
         name: string,
@@ -19,7 +19,7 @@ const getAdminDocumentByIdentifier = async (
       ) => { first: () => Promise<{ _id: string; value: { updatedAt: number } } | null> }
     }
   },
-  identifier: string
+  _identifier: string
 ) => {
   // typed wrapper not needed - use ctx.db directly in handler
   return null as unknown as { _id: string } | null

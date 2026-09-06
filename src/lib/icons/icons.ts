@@ -277,7 +277,7 @@ export const icons = {
   },
   bolt: {
     symbol:
-      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2" d="m14 9 3-6H9l-4 9h5l-3 9L19 9z"/></g>',
+      '<g transform="scale(0.667)"><path d="M12.5 11.5 13 7l-4.5 6 3-.5L11 17l4.5-6z" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/><path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="2" d="M12.5 11.5 13 7l-4.5 6 3-.5L11 17l4.5-6z"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
@@ -715,6 +715,24 @@ export const icons = {
   overview: {
     symbol:
       '<g transform="scale(0.667)"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 7a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zm6 5a1 1 0 0 0-1 1v3a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1z" fill="currentColor"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  history: {
+    symbol:
+      '<g transform="scale(0.063)"><path fill="currentColor" d="M136 80v43.47l36.12 21.67a8 8 0 0 1-8.24 13.72l-40-24A8 8 0 0 1 120 128V80a8 8 0 0 1 16 0m-8-48a95.44 95.44 0 0 0-67.92 28.15C52.81 67.51 46.35 74.59 40 82V64a8 8 0 0 0-16 0v40a8 8 0 0 0 8 8h40a8 8 0 0 0 0-16H49c7.15-8.42 14.27-16.35 22.39-24.57a80 80 0 1 1 1.66 114.75 8 8 0 1 0-11 11.64A96 96 0 1 0 128 32" transform-origin="0 0"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  refresh: {
+    symbol:
+      '<g transform="scale(0.063)"><path fill="currentColor" d="M224 48v48a8 8 0 0 1-8 8h-48a8 8 0 0 1 0-16h28.69l-14.63-14.63a79.56 79.56 0 0 0-56.13-23.43h-.45a79.52 79.52 0 0 0-55.89 22.77 8 8 0 0 1-11.18-11.44 96 96 0 0 1 135 .79L208 76.69V48a8 8 0 0 1 16 0m-37.59 135.29a80 80 0 0 1-112.47-.66L59.31 168H88a8 8 0 0 0 0-16H40a8 8 0 0 0-8 8v48a8 8 0 0 0 16 0v-28.69l14.63 14.63A95.43 95.43 0 0 0 130 222.06h.53a95.36 95.36 0 0 0 67.07-27.33 8 8 0 0 0-11.18-11.44Z" transform-origin="0 0"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  'not-started': {
+    symbol:
+      '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.334" d="M9.438 2.173a6 6 0 0 1 1.675.694m2.028 2.027a6 6 0 0 1 .693 1.676m0 2.867a6 6 0 0 1-.693 1.675m-2.028 2.028a6 6 0 0 1-1.676.694m-2.866 0a6 6 0 0 1-1.676-.694m-2.027-2.028a6 6 0 0 1-.694-1.675m0-2.868a6 6 0 0 1 .694-1.675m2.028-2.027a6 6 0 0 1 1.675-.694m-1.235 5.83h5.336"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   }

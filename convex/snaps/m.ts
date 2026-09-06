@@ -518,7 +518,7 @@ export const endSession = mutation({
       latest: lastLocation,
       status,
       ended_at: endedAt,
-      ...(status === 'invalidated' ? { invalidation_reason: invalidationReason!.slice(0, 500) } : {})
+      ...(status === 'invalidated' ? { invalidation_reason: invalidationReason?.slice(0, 500) } : {})
     }
 
     await ctx.db.patch(snap._id, {
@@ -553,7 +553,7 @@ export const abandonExpiredSessions = internalMutation({
     for (const proof of proofs) {
       const session = proof.location_session
 
-      if (!session || session.status !== 'active' || session.started_at > cutoff) {
+      if (session?.status !== 'active' || session.started_at > cutoff) {
         continue
       }
 

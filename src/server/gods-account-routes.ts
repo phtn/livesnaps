@@ -1,3 +1,4 @@
+import type { UserRecord } from 'firebase-admin/auth'
 import {
   getFirebaseAdminAuth,
   getFirebaseUserByUid,
@@ -97,7 +98,7 @@ async function grantContactAdminClaim(session: GodSession, uid: string): Promise
     return { granted: false, reason: 'Firebase Admin credentials are not configured.' }
   }
 
-  let target
+  let target: UserRecord
   try {
     target = await getFirebaseUserByUid(uid)
   } catch {

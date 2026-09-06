@@ -1,6 +1,10 @@
 import { handleAdminSession } from './server/admin-auth-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
-import { handleAdminVerificationEntryList } from './server/admin-verification-routes'
+import {
+  handleAdminVerificationEntryCreate,
+  handleAdminVerificationEntryList,
+  handleAdminVerificationEntrySend
+} from './server/admin-verification-routes'
 import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
 import { handleGodsSession } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
@@ -37,6 +41,7 @@ const PHOTO_PATH = '/api/proofs'
 const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
+const ADMIN_VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 const ADMIN_SNAP_PHOTO_PATH = /^\/api\/r2\/(.+)$/
 
@@ -106,7 +111,14 @@ export default {
     }
 
     if (pathname === ADMIN_VERIFICATION_ENTRIES_PATH) {
-      return handleAdminVerificationEntryList(request, { convexUrl })
+      // One path, two verbs: GET polls the table, POST creates a draft entry.
+      return request.method === 'POST'
+        ? handleAdminVerificationEntryCreate(request, { convexUrl })
+        : handleAdminVerificationEntryList(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_VERIFICATION_ENTRY_SEND_PATH) {
+      return handleAdminVerificationEntrySend(request, { convexUrl })
     }
 
     const adminSnapDetailMatch = ADMIN_SNAP_DETAIL_PATH.exec(pathname)

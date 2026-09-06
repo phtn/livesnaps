@@ -20,7 +20,7 @@ export const listAll = query({
   handler: async (ctx, { limit }) => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (!identity || identity.admin !== true) {
+    if (identity?.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
 

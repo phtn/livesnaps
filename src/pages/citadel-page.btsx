@@ -14,13 +14,23 @@ module
   type NavItem = {
     icon: string
     label: string
-    path: '/citadel' | '/citadel/accounts'
+    path: '/citadel' | '/citadel/accounts' | '/citadel/settings'
+    /**
+     * Index routes match by prefix like every other link, so `/citadel` would
+     * stay lit on every page beneath it. Only those need an exact match.
+     */
+    exact?: boolean
   }
   const navs: NavItem[] = [
-    { icon: 'folder', label: 'Overview', path: '/citadel' },
+    { icon: 'folder', label: 'Overview', path: '/citadel', exact: true },
     { icon: 'account', label: 'Accounts', path: '/citadel/accounts' },
     { icon: 'settings', label: 'Settings', path: '/citadel/settings' },
   ]
+
+  // The router sets `data-status="active"` on a matching Link, so the active
+  // route is read off the link itself rather than by comparing paths here.
+  const navLinkClassName =
+    'relative flex h-14 items-center text-foreground/70 transition-colors data-[status=active]:bg-sidebar data-[status=active]:text-sand dark:data-[status=active]:text-lime-200'
 
 component Navigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
@@ -28,7 +38,14 @@ component Navigation
     ul(className='flex flex-col space-y-2 py-0')
       each item in navs key item.path
         li(className='w-full font-sans text-foreground/70 hover:text-foreground hover:bg-foreground/4 tracking-tight')
-          Link(to={item.path} onClick={onNavigate} aria-label={item.label} title={compact ? item.label : undefined} className={cn('relative flex h-14 items-center text-foreground/70', compact ? 'justify-center px-0' : 'gap-3 px-6')})
+          Link(
+            ~ to={item.path}
+            ~ onClick={onNavigate}
+            ~ aria-label={item.label}
+            ~ title={compact ? item.label : undefined}
+            ~ activeOptions={{ exact: item.exact ?? false, includeSearch: false }}
+            ~ className={cn(navLinkClassName, compact ? 'justify-center px-0' : 'gap-3 px-6')}
+            ~ )
             Icon(name={item.icon} className='size-5')
             if !compact
               span(className='font-sans') #{item.label}

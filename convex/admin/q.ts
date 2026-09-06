@@ -20,7 +20,7 @@ type AdminDb = MutationCtx['db'] | QueryCtx['db']
 
 const requireAdmin = async (ctx: AdminCtx) => {
   const identity = await ctx.auth.getUserIdentity()
-  if (!identity || identity.admin !== true) {
+  if (identity?.admin !== true) {
     throw new ConvexError('Unauthorized')
   }
 

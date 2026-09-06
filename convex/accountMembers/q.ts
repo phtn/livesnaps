@@ -67,15 +67,19 @@ export const listMyInvitations = query({
   handler: async (ctx, { limit }) => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (!identity || identity.emailVerified !== true || !identity.email) {
+    if (identity?.emailVerified !== true || !identity.email) {
       return []
     }
 
+    // Hoisted out of the index callback: TypeScript drops the `!identity.email`
+    // narrowing inside a closure, and neither way back is safe on its own — `!`
+    // trips `noNonNullAssertion`, and `?.` widens the argument to
+    // `string | undefined` and stops compiling.
+    const email = identity.email.trim().toLowerCase()
+
     return await ctx.db
       .query('accountMembers')
-      .withIndex('by_email_and_status', (q) =>
-        q.eq('email', identity.email!.trim().toLowerCase()).eq('status', 'invited')
-      )
+      .withIndex('by_email_and_status', (q) => q.eq('email', email).eq('status', 'invited'))
       .take(normalizeListLimit(limit))
   }
 })

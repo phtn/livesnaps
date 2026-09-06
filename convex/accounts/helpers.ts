@@ -35,7 +35,7 @@ export const requireAdminIdentity = async (ctx: QueryCtx | MutationCtx) => {
 export const requireGodIdentity = async (ctx: QueryCtx | MutationCtx) => {
   const identity = await ctx.auth.getUserIdentity()
 
-  if (!identity || identity.god !== true) {
+  if (identity?.god !== true) {
     throw new ConvexError('Creating an account requires a god account.')
   }
 
@@ -50,7 +50,7 @@ export const requireGodIdentity = async (ctx: QueryCtx | MutationCtx) => {
 export const requireTopgIdentity = async (ctx: QueryCtx | MutationCtx) => {
   const identity = await ctx.auth.getUserIdentity()
 
-  if (!identity || identity.topg !== true) {
+  if (identity?.topg !== true) {
     throw new ConvexError('Deleting an account requires a top-god account.')
   }
 

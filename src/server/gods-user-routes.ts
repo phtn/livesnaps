@@ -1,3 +1,4 @@
+import type { UserRecord } from 'firebase-admin/auth'
 import {
   getFirebaseAdminAuth,
   getFirebaseUserByUid,
@@ -145,7 +146,7 @@ export async function handleGodsUserClaims(request: Request): Promise<Response> 
     return json({ error: `Changing \`${managedClaim}\` access requires a top-god account.` }, 403)
   }
 
-  let target
+  let target: UserRecord
   try {
     target = await getFirebaseUserByUid(uid)
   } catch {

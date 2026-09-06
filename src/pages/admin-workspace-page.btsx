@@ -1,8 +1,15 @@
+import { createElement, useCallback, useEffect, useState } from 'octane'
+import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
-import { DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_VERIFICATION_ENTRIES, PAGE_SIZES, VERIFICATION_ENTRY_LIST_LIMIT, verificationEntryColumns } from '@/components/admin/verification-entry-columns'
+import { DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_VERIFICATION_ENTRIES, PAGE_SIZES, VERIFICATION_ENTRY_LIST_LIMIT, verificationEntryColumns, type VerificationEntryRow } from '@/components/admin/verification-entry-columns'
+import { SNAP_LIST_LIMIT } from '@/components/admin/snap-columns'
+import CreateVerificationEntryDialog from '@/components/admin/new-verification-entry.btsx'
+import SendVerificationEntryDialog from '@/components/admin/send-verification-entry.btsx'
+import { VerificationSendProvider } from '@/components/admin/verification-row-actions.btsx'
 import DataTable from '@/components/ui/table/DataTable.btsx'
 import VerificationEntryFilterList from '@/components/admin/VerificationEntryFilterList.btsx'
 import ErrorPage from '@/components/error.btsx'
+import { Icon } from '@/lib/icons'
 
 props {}: {}
 setup
@@ -14,7 +21,62 @@ setup
   // A poll failure keeps the last good rows, so the table stays up and the
   // error reads as "stale" rather than replacing everything.
   const hasRows = entries !== undefined
-  const freshnessLabel = lastUpdatedAt ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
+  const freshnessLabel = lastUpdatedAt ? `${new Date(lastUpdatedAt).toLocaleTimeString()}` : ''
+
+  // The create dialog picks a snap to verify, so it needs the snaps list too.
+  // Its own poll shares the same Worker route the snaps table uses.
+  const { isLoading: isLoadingSnaps, refresh: refreshSnaps, snaps } = useAdminSnaps(SNAP_LIST_LIMIT)
+
+  // The signed-in administrator's address. `create` derives the real sender
+  // from the Convex identity; this is shown so the operator can see which
+  // account the entry will be attributed to before committing.
+  const [sessionEmail, setSessionEmail] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/admin/session', { credentials: 'same-origin' })
+        if (!response.ok) return
+
+        const payload: unknown = await response.json()
+        const email =
+          typeof payload === 'object' && payload !== null && typeof (payload as { email?: unknown }).email === 'string'
+            ? (payload as { email: string }).email
+            : ''
+
+        if (!cancelled) setSessionEmail(email)
+      } catch {
+        // The dialog degrades to a disabled submit rather than a broken page.
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const [sendEntry, setSendEntry] = useState<VerificationEntryRow | null>(null)
+  const closeSendDialog = useCallback((open: boolean) => {
+    if (!open) setSendEntry(null)
+  }, [])
+
+  // A create claims a snap and a send moves an entry's status, so both tables
+  // are refetched rather than waiting out the next 30s poll.
+  const handleWritten = useCallback(() => {
+    refresh()
+    refreshSnaps()
+  }, [refresh, refreshSnaps])
+
+  // Sits in the table's toolbar row beside the filter control rather than in
+  // the header, so creating an entry reads as one of the table's own controls.
+  const createEntryButton = createElement(CreateVerificationEntryDialog, {
+    emailFromAddress: sessionEmail,
+    isLoadingSnaps,
+    onCreated: handleWritten,
+    snaps: snaps ?? []
+  })
 
 main
   div
@@ -23,23 +85,35 @@ main
     elseif error && !hasRows
       ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
     else
-      DataTable(
-        ~ title='Verification Entries'
-        ~ data={rows}
-        ~ columns={verificationEntryColumns}
-        ~ filterList={VerificationEntryFilterList}
-        ~ getRowId={(row) => row._id}
-        ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
-        ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-        ~ initialPageSize={50}
-        ~ pageSizes={PAGE_SIZES}
-        ~ emptyTitle='No verification entries'
-        ~ emptyDescription='Try a shorter query or clear the search.'
-        ~ )
-        fragment
-          div(className='mb-3 flex items-center gap-3 text-xs text-muted-foreground')
-            if error
-              span(className='text-destructive') #{error} — showing the last successful load.
-            else
-              span #{freshnessLabel}
-            button(type='button' className='underline underline-offset-4' onClick={refresh}) Refresh
+      VerificationSendProvider(onOpenSendDialog={setSendEntry})
+        DataTable(
+          ~ title='Verification Entries'
+          ~ data={rows}
+          ~ columns={verificationEntryColumns}
+          ~ filterList={VerificationEntryFilterList}
+          ~ getRowId={(row) => row._id}
+          ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+          ~ initialPageSize={50}
+          ~ pageSizes={PAGE_SIZES}
+          ~ emptyTitle='No verification entries'
+          ~ emptyDescription='Entries appear here once a verification email is sent.'
+          ~ toolbarActions={createEntryButton}
+          ~ )
+          fragment
+            div(className='flex items-center gap-3 text-xs text-muted-foreground')
+              if error
+                span(className='text-destructive') #{error} — showing the last successful load.
+              else
+                div(className='flex items-center gap-1')
+                  Icon(name='history' size='12')
+                  span(className='font-mono') #{freshnessLabel}
+              button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border transition-colors duration-200 ease-out' onClick={refresh})
+                Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+
+  SendVerificationEntryDialog(
+    ~ entry={sendEntry}
+    ~ open={sendEntry !== null}
+    ~ onOpenChange={closeSendDialog}
+    ~ onSent={handleWritten}
+    ~ )

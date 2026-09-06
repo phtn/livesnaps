@@ -10,6 +10,7 @@ import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, mutation } from '../_generated/server'
+import { getR2ObjectBytes, isR2Configured, toBase64 as bytesToBase64 } from '../lib/r2'
 import { createVerificationEntrySchema, verificationEntryDocumentSchema } from './d'
 
 const FIREBASE_UID_MAX_LENGTH = 128
@@ -26,7 +27,6 @@ type SendEmailArgs = {
 type EmailAttachment = {
   filename: string
   content: string
-  path: string
   contentType?: string
 }
 
@@ -34,8 +34,22 @@ type ResendAttachmentPayload = {
   filename: string
   content: string
   content_type?: string
-  path?: string
 }
+
+/**
+ * Resend rejects any sender outside a verified domain, so this default tracks
+ * the domain the account actually owns. `RESEND_FROM` overrides it without a
+ * deploy, which is how a second verified domain would be adopted.
+ */
+const DEFAULT_FROM_ADDRESS = 'hq@livesnapsnow.com'
+
+/**
+ * Resend caps a whole message at 40MB. Snap photos run to roughly 2MB each and
+ * base64 inflates them by a third, so five slots already sit near half that.
+ * Stopping here names the problem; letting it through returns an opaque Resend
+ * failure after every photo has been fetched.
+ */
+const MAX_ATTACHMENT_BYTES = 24 * 1024 * 1024
 
 const normalizeApplicant = (value: string): string => {
   const applicant = value.trim().replace(/\s+/g, ' ')
@@ -66,12 +80,13 @@ const normalizeOptionalEmailAddress = (value: string | undefined): string | unde
   return emailAddress ? normalizeEmailAddress(emailAddress, 'CC email address') : undefined
 }
 
+/**
+ * `btoa` is Latin-1 only, so text goes through UTF-8 bytes first. An applicant
+ * name with an accent in it would otherwise throw here rather than at send.
+ */
 const toBase64 = (value: string): string => {
   try {
-    if (typeof Buffer !== 'undefined') {
-      return Buffer.from(value, 'utf-8').toString('base64')
-    }
-    return btoa(value)
+    return bytesToBase64(new TextEncoder().encode(value))
   } catch {
     return ''
   }
@@ -93,7 +108,7 @@ export const create = mutation({
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (!identity || identity.admin !== true) {
+    if (identity?.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
 
@@ -199,7 +214,7 @@ export const updateAttachments = mutation({
     args: { id: Id<'verificationEntries'>; attachments: string[] }
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity || identity.admin !== true) {
+    if (identity?.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
@@ -226,7 +241,7 @@ export const sendEmail = action({
   returns: verificationEntryDocumentSchema,
   handler: async (ctx: ActionCtx, args: SendEmailArgs): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity || identity.admin !== true) {
+    if (identity?.admin !== true) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.runQuery(
@@ -250,6 +265,12 @@ export const sendEmail = action({
 
     const emailAttachments: EmailAttachment[] = []
     const attachmentErrors: string[] = []
+    // Counted as they are pushed rather than recovered from filenames later:
+    // a filename check would quietly pass on any attachment that happened to
+    // be named the right way.
+    let photoAttachmentCount = 0
+    let hasReportAttachment = false
+    let attachedBytes = 0
 
     const generateFullReport = (): string => {
       const lines: string[] = [
@@ -259,7 +280,7 @@ export const sendEmail = action({
         `Plate: ${entry.plateNumber}`,
         `Upload ID: ${entry.uploadId}`,
         `Sender: ${entry.senderName} <${entry.emailFromAddress}>`,
-        `Recipients: ${entry.emailToAddress}${entry.ccEmailAddress ? ' / CC ' + entry.ccEmailAddress : ''}`,
+        `Recipients: ${entry.emailToAddress}${entry.ccEmailAddress ? ` / CC ${entry.ccEmailAddress}` : ''}`,
         `Status: ${entry.status}`,
         `Created: ${new Date(entry.createdAt).toISOString()}`,
         ``,
@@ -274,48 +295,41 @@ export const sendEmail = action({
     }
 
     if (finalAttachments.includes('photos')) {
-      if (snaps && snaps.metadata.photos.length > 0) {
+      if (!snaps) {
+        attachmentErrors.push(`snap not found for uploadId ${entry.uploadId}`)
+      } else if (snaps.metadata.photos.length === 0) {
+        attachmentErrors.push(`snap ${entry.uploadId} has no photos`)
+      } else if (!isR2Configured()) {
+        attachmentErrors.push('R2 is not configured for this deployment, so photos cannot be attached')
+      } else {
+        // Each photo is read straight out of R2 and attached as the real
+        // `.webp` bytes. A slot that fails to read is named rather than
+        // swallowed, so a partial send is visible instead of looking complete.
+        const plateSlug: string = entry.plateNumber.replace(/\s+/g, '_')
+
         for (const photo of snaps.metadata.photos) {
           try {
-            const slotLabel: string = `photo-${photo.slot}`
-            const filename: string = `${slotLabel}-${entry.plateNumber.replace(/\s+/g, '_')}.webp`
-            const placeholder: string = `Photo slot ${photo.slot} for ${entry.uploadId} - r2_key: ${photo.r2_key ?? 'unknown'}`
-            const content: string = toBase64(placeholder)
-            if (!content || !filename) {
-              attachmentErrors.push(`photo slot ${photo.slot}: missing content or path`)
+            const label: string = photo.label.trim().replace(/\s+/g, '-').toLowerCase() || `slot-${photo.slot}`
+            const bytes: ArrayBuffer = await getR2ObjectBytes(photo.r2_key)
+            const content: string = bytesToBase64(bytes)
+
+            if (!content) {
+              attachmentErrors.push(`photo slot ${photo.slot}: empty content`)
               continue
             }
+
             emailAttachments.push({
-              filename,
+              filename: `${photo.slot}-${label}-${plateSlug}.webp`,
               content,
-              path: filename,
-              contentType: 'image/webp'
+              contentType: photo.content_type
             })
+            photoAttachmentCount += 1
+            attachedBytes += content.length
           } catch (error: unknown) {
             const message: string = error instanceof Error ? error.message : String(error)
             attachmentErrors.push(`photo slot ${photo.slot}: ${message}`)
           }
         }
-        const photoCount: number = emailAttachments.filter((attachment: EmailAttachment): boolean =>
-          attachment.filename.startsWith('photo-')
-        ).length
-        if (photoCount === 0) {
-          attachmentErrors.push('photos requested but no photo attachments were prepared')
-        }
-      } else {
-        const filename: string = `photos-${entry.plateNumber.replace(/\s+/g, '_')}.txt`
-        const content: string = toBase64(`No photos found for uploadId ${entry.uploadId}`)
-        if (!content || !filename) {
-          attachmentErrors.push('photos placeholder: missing content or path')
-        } else {
-          emailAttachments.push({
-            filename,
-            content,
-            path: filename,
-            contentType: 'text/plain'
-          })
-        }
-        if (!snaps) attachmentErrors.push('proof not found for photos attachment')
       }
     }
 
@@ -324,15 +338,11 @@ export const sendEmail = action({
         const report: string = generateFullReport()
         const filename: string = `verification-report-${entry.plateNumber.replace(/\s+/g, '_')}.txt`
         const content: string = toBase64(report)
-        if (!content || !filename) {
-          attachmentErrors.push('full report: missing content or path')
+        if (!content) {
+          attachmentErrors.push('full report: empty content')
         } else {
-          emailAttachments.push({
-            filename,
-            content,
-            path: filename,
-            contentType: 'text/plain'
-          })
+          emailAttachments.push({ filename, content, contentType: 'text/plain' })
+          hasReportAttachment = true
         }
       } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error)
@@ -347,42 +357,36 @@ export const sendEmail = action({
       try {
         const filename: string = name.includes('.') ? name : `${name}.txt`
         const content: string = toBase64(`Custom attachment: ${name} for ${entry.plateNumber}`)
-        const path: string = filename
-        if (!content || !path) {
-          attachmentErrors.push(`${name}: missing content or path`)
+        if (!content) {
+          attachmentErrors.push(`${name}: empty content`)
           continue
         }
-        emailAttachments.push({
-          filename,
-          content,
-          path,
-          contentType: 'application/octet-stream'
-        })
+        emailAttachments.push({ filename, content, contentType: 'application/octet-stream' })
       } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error)
         attachmentErrors.push(`${name}: ${message}`)
       }
     }
 
-    // Validate every prepared attachment has content and path before sending
+    // Nothing empty goes out: an attachment with no content reads to the
+    // recipient as a corrupt file rather than a missing one.
     for (const attachment of emailAttachments) {
-      if (!attachment.content || !attachment.path) {
-        attachmentErrors.push(`${attachment.filename}: prepared incorrectly and should have a content and path`)
+      if (!attachment.content) {
+        attachmentErrors.push(`${attachment.filename}: prepared incorrectly and has no content`)
       }
     }
 
     try {
-      const hasPhotos: boolean = emailAttachments.some(
-        (attachment: EmailAttachment): boolean =>
-          attachment.filename.startsWith('photo-') || attachment.filename.startsWith('photos-')
-      )
-      const hasReport: boolean = emailAttachments.some((attachment: EmailAttachment): boolean =>
-        attachment.filename.includes('verification-report')
-      )
-      if (finalAttachments.includes('photos') && !hasPhotos) {
+      if (attachedBytes > MAX_ATTACHMENT_BYTES) {
+        throw new ConvexError(
+          `Attachments total ${Math.round(attachedBytes / 1024 / 1024)}MB, over the ${MAX_ATTACHMENT_BYTES / 1024 / 1024}MB limit. Send fewer attachments.`
+        )
+      }
+
+      if (finalAttachments.includes('photos') && photoAttachmentCount === 0) {
         throw new ConvexError(`Failed to prepare photos attachment: ${attachmentErrors.join('; ') || 'unknown'}`)
       }
-      if (finalAttachments.includes('full report') && !hasReport) {
+      if (finalAttachments.includes('full report') && !hasReportAttachment) {
         throw new ConvexError(`Failed to prepare full report attachment: ${attachmentErrors.join('; ') || 'unknown'}`)
       }
       if (attachmentErrors.length > 0 && emailAttachments.length === 0) {
@@ -397,61 +401,51 @@ export const sendEmail = action({
         args.body?.trim() ||
         `Hi ${entry.applicant},\n\nPlease find attached: ${finalAttachments.join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
 
-      const envResendKey: string | undefined = '' //env.RESEND_API_KEY
-      const envResendLegacy: string | undefined = '' // env.RESEND
-      const processResendKey: string | undefined =
-        typeof process !== 'undefined' ? (process.env.RESEND_API_KEY as string | undefined) : undefined
-      const processResendLegacy: string | undefined =
-        typeof process !== 'undefined'
-          ? ((process.env as Record<string, string | undefined>)['RESEND'] as string | undefined)
-          : undefined
-      const resendApiKey: string = (processResendKey ??
-        processResendLegacy ??
-        envResendKey ??
-        envResendLegacy ??
-        '') as string
-      const HQ_FROM_ADDRESS = 'hq@bigticket.ph' as const
-      const resendFrom: string = HQ_FROM_ADDRESS
-      if (resendApiKey) {
-        try {
-          const payload: Record<string, unknown> = {
-            from: resendFrom,
-            to: [entry.emailToAddress],
-            cc: entry.ccEmailAddress ? [entry.ccEmailAddress] : undefined,
-            subject: emailSubject,
-            text: emailBody,
-            attachments: emailAttachments.map(
-              (attachment: EmailAttachment): ResendAttachmentPayload => ({
-                filename: attachment.filename,
-                content: attachment.content,
-                content_type: attachment.contentType
-              })
-            )
-          }
-          const response: Response = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${resendApiKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
+      const resendApiKey: string = (process.env.RESEND_API_KEY ?? process.env.RESEND ?? '').trim()
+      const resendFrom: string = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
+
+      // A missing key used to log and fall through, which marked the entry
+      // submitted even though nothing was sent. Refusing here keeps the entry's
+      // status honest.
+      if (!resendApiKey) {
+        throw new ConvexError('Resend is not configured for this deployment. Set RESEND_API_KEY.')
+      }
+
+      const payload: Record<string, unknown> = {
+        from: resendFrom,
+        to: [entry.emailToAddress],
+        cc: entry.ccEmailAddress ? [entry.ccEmailAddress] : undefined,
+        subject: emailSubject,
+        text: emailBody,
+        attachments: emailAttachments.map(
+          (attachment: EmailAttachment): ResendAttachmentPayload => ({
+            filename: attachment.filename,
+            content: attachment.content,
+            content_type: attachment.contentType
           })
-          if (!response.ok) {
-            const text: string = await response.text().catch((): string => '')
-            throw new ConvexError(`Resend API failed (${response.status}): ${text.slice(0, 500)}`)
-          }
-        } catch (error: unknown) {
-          const message: string = error instanceof Error ? error.message : 'Email send failed'
-          throw new ConvexError(message)
-        }
-      } else {
-        console.log('[verification sendEmail] Resend not configured - accounting only', {
+        )
+      }
+
+      const response: Response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const text: string = await response.text().catch((): string => '')
+        throw new ConvexError(`Resend API failed (${response.status}): ${text.slice(0, 500)}`)
+      }
+
+      // Attachments that failed to prepare but did not fail the checks above —
+      // a custom name, say — are worth a line in the logs even on a good send.
+      if (attachmentErrors.length > 0) {
+        console.warn('[verification sendEmail] sent with attachment errors', {
           entryId: entry._id,
-          to: entry.emailToAddress,
-          subject: emailSubject,
-          finalAttachments,
-          emailAttachments: emailAttachments.map((attachment: EmailAttachment): string => attachment.filename),
-          attachmentErrors: attachmentErrors.length ? attachmentErrors : undefined
+          attachmentErrors
         })
       }
 

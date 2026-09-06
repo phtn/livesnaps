@@ -84,6 +84,7 @@ function parseArgs(argv: string[]): ParsedArgs {
       case '-h':
         console.log(usage)
         process.exit(0)
+        break
       default:
         throw new Error(`Unknown argument: ${arg}\n\n${usage}`)
     }

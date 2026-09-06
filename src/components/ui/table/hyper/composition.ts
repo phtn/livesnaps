@@ -23,7 +23,7 @@ function composeEventHandlers<E>(
  */
 
 type RefCallback<T> = {
-  bivarianceHack(value: T | null): void | (() => void)
+  bivarianceHack(value: T | null): undefined | (() => void)
 }['bivarianceHack']
 type Ref<T> = RefCallback<T> | { current: T | null } | null
 type PossibleRef<T> = Ref<T> | undefined
@@ -34,7 +34,7 @@ const COMPOSED_REFS_SLOT = Symbol.for('table:useComposedRefs')
  * Set a given ref to a given value.
  * This utility takes care of different types of refs: callback refs and RefObject(s).
  */
-function setRef<T>(ref: PossibleRef<T>, value: T | null): void | (() => void) {
+function setRef<T>(ref: PossibleRef<T>, value: T | null): undefined | (() => void) {
   if (typeof ref === 'function') {
     return ref(value)
   }
@@ -81,7 +81,7 @@ function composeRefs<T>(...refs: Array<PossibleRef<T>>): RefCallback<T> {
  * A custom hook that composes multiple refs.
  * Accepts callback refs and RefObject(s).
  */
-function useComposedRefs<T>(...args: any[]): RefCallback<T> {
+function useComposedRefs<T>(...args: unknown[]): RefCallback<T> {
   const tail = args[args.length - 1]
   const injectedSlot = typeof tail === 'symbol' ? tail : undefined
   const refs = (injectedSlot ? args.slice(0, -1) : args) as Array<PossibleRef<T>>

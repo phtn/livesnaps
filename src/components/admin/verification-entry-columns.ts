@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { createElement } from 'octane'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
 import StatusBadge from './badges.btsx'
+import VerificationRowActionsCell from './verification-row-actions.btsx'
 import { verificationEntryStatus, type VerificationEntryRow } from './data'
 import type { snapsFeatures } from './table-config'
 
@@ -30,10 +31,12 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   uploadId: false
 }
 
-export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: [], start: [] }
+export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
 
 /** Matches the `status` union in `verificationEntrySchema`. */
-export const VERIFICATION_ENTRY_STATUS_FILTERS = Object.keys(verificationEntryStatus) as VerificationEntryRow['status'][]
+export const VERIFICATION_ENTRY_STATUS_FILTERS = Object.keys(
+  verificationEntryStatus
+) as VerificationEntryRow['status'][]
 
 const formatTimestamp = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
 
@@ -126,5 +129,18 @@ export const verificationEntryColumns = columnHelper.columns([
     cell: (info) => formatTimestamp(info.getValue())
   }),
   columnHelper.accessor('senderUid', { header: 'Sender UID', size: 260, sortFn: 'text' }),
-  columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' })
+  columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' }),
+  columnHelper.display({
+    id: 'actions',
+    header: createHeader('⁞'),
+    size: 40,
+    enableHiding: false,
+    enableSorting: false,
+    enableGlobalFilter: false,
+    enableColumnFilter: false,
+    enablePinning: true,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(VerificationRowActionsCell, { entry: info.row.original })
+  })
 ])

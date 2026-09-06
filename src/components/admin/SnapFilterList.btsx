@@ -276,7 +276,7 @@ component SnapDateRangeFilter
     ~ value={selectedRange}
     ~ onValueChange={handleValueChange}
     ~ placeholder='Any date'
-    ~ className={cn('font-okx text-xs', triggerClassName)}
+    ~ className={cn('font-sans text-xs', triggerClassName)}
     ~ contentClassName={calendarContentClassName}
     ~ numberOfMonths={2}
     ~ )
@@ -289,7 +289,7 @@ component SnapFilterField
 
   if column
     div(className='grid grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2')
-      span(id={fieldLabelId} className='truncate font-okx text-sm') #{definition.label}
+      span(id={fieldLabelId} className='truncate font-sans text-sm') #{definition.label}
       if definition.variant === 'faceted'
         SnapFacetedFilter(column={column} definition={definition} fieldLabelId={fieldLabelId} rawFilterValue={rawFilterValue})
       elseif definition.variant === 'number-range'
@@ -315,16 +315,16 @@ setup
     'relative md:h-9 h-8.5 flex items-center justify-center gap-2',
     'rounded-[4px] text-sm select-none md:space-x-1 md:mx-1 md:w-auto px-2 md:px-2.5 w-9',
     'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
-    'border border-transparent hover:border hover:border-indigo-500 hover:bg-indigo-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
-    'active:bg-foreground/10 dark:active:bg-indigo-100/5',
+    'border border-transparent hover:border-indigo-500 hover:bg-indigo-200/20 dark:hover:bg-mist-100/5',
+    'transition-colors duration-75 active:bg-foreground/10 dark:active:bg-indigo-100/5',
     'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1',
-    {'gap-0.5! md:ps-2 md:pe-2.5': activeFilterCount > 0},
+    {'gap-0.5! md:ps-2 md:pe-2.5 md:border-indigo-100': activeFilterCount > 0},
   ), [activeFilterCount])
 
 Popover(open={open} onOpenChange={setOpen})
-  PopoverTrigger(type='button' aria-label='Filter' className={cn({'border-indigo-500!': activeFilterCount > 0},buttonClass)})
+  PopoverTrigger(type='button' aria-label='Filter' className={cn(buttonClass)})
     if activeFilterCount > 0
-      span(className='min-w-6 w-6 rounded-xs bg-indigo-500 px-1.5 font-okx font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
+      span(className='min-w-6 w-6 rounded-xs bg-indigo-500 px-1.5 font-sans font-semibold text-white dark:bg-indigo-300 dark:text-background') #{activeFilterLabel}
     else
       Icon(name='filter' className='size-4')
     span(className='hidden opacity-80 md:inline') Filter

@@ -7,28 +7,44 @@ import { Group, Panel, Separator } from '@octanejs/resizable-panels'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import { useMobile } from '@/hooks/use-mobile'
-import {Link} from '@octanejs/tanstack-router'
 
 module
   type NavItem = {
     icon: string
     label: string
     path: '/' | '/admin-snaps' | '/admin-snaps-lab' | '/admin-workspace' | '/admin-settings'
+    /**
+     * Index routes match by prefix like every other link, so `/` would stay lit
+     * on every page in the app. Only those need an exact match.
+     */
+    exact?: boolean
   }
   const navs: NavItem[] = [
-    { icon: 'overview', label: 'Overview', path: '/' },
+    { icon: 'overview', label: 'Overview', path: '/', exact: true },
     { icon: 'snap', label: 'Snaps', path: '/admin-snaps' },
     { icon: 'timeline', label: 'Workspace', path: '/admin-workspace' },
     { icon: 'settings', label: 'Settings', path: '/admin-settings' },
   ]
 
+  // The router sets `data-status="active"` on a matching Link, so the active
+  // route is read off the link itself rather than by comparing paths here.
+  const navLinkClassName =
+    'relative flex h-14 items-center text-foreground/70 transition-colors data-[status=active]:bg-sidebar data-[status=active]:text-sand dark:data-[status=active]:text-lime-200'
+
 component AdminNavigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className='flex flex-col space-y-2 py-2')
+    ul(className='flex flex-col')
       each item in navs key item.path
         li(className='w-full hover:text-foreground hover:bg-foreground/4')
-          Link(to={item.path} onClick={onNavigate} aria-label={item.label} title={compact ? item.label : undefined} className={cn('relative flex h-14 items-center text-foreground/70', compact ? 'justify-center px-0' : 'gap-3 px-6')})
+          Link(
+            ~ to={item.path}
+            ~ onClick={onNavigate}
+            ~ aria-label={item.label}
+            ~ title={compact ? item.label : undefined}
+            ~ activeOptions={{ exact: item.exact ?? false, includeSearch: false }}
+            ~ className={cn(navLinkClassName, compact ? 'justify-center px-0' : 'gap-3 px-6')}
+            ~ )
             Icon(name={item.icon} className='size-5')
             if !compact
               span #{item.label}
