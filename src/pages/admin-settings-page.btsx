@@ -5,8 +5,8 @@ import type { PanelRoute } from '@/components/ui/tabs.btsx'
 module
   // One entry per child route under `adminSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
-    { id: 'members', href: '/admin-settings', label: 'Members', shortLabel: 'Members', icon: 'users' },
-    { id: 'invite', href: '/admin-settings/invite', label: 'Invite', shortLabel: 'Invite', icon: 'add' }
+    { id: 'staff', href: '/admin-settings', label: 'Staff', shortLabel: 'Staff', icon: 'member' },
+    { id: 'invite', href: '/admin-settings/invite', label: 'Invite', shortLabel: 'Invite', icon: 'add-user' }
   ]
 
   // Longest href wins, otherwise the `/admin-settings` index would also claim

@@ -777,6 +777,18 @@ export const icons = {
       '<g transform="scale(0.667)"><path fill-rule="evenodd" d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm10 4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" clip-rule="evenodd" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  member: {
+    symbol:
+      '<g transform="scale(0.667)"><g fill="none"><path fill="currentColor" fill-rule="evenodd" d="M2 12C2 6.477 6.477 2 12 2s10 4.477 10 10a9.98 9.98 0 0 1-3.443 7.55 7 7 0 0 0-13.114 0A9.98 9.98 0 0 1 2 12m14.83 8.706.013.045A9.96 9.96 0 0 1 12 22a9.96 9.96 0 0 1-4.843-1.249q.008-.022.013-.045a5 5 0 0 1 9.66 0M10 9a2 2 0 1 1 4 0 2 2 0 0 1-4 0m2-4a4 4 0 1 0 0 8 4 4 0 0 0 0-8" clip-rule="evenodd"/><rect width="19" height="19" stroke="currentColor" rx="9.5" transform="translate(2.5 2.5)"/></g></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  key: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill-rule="evenodd" d="M10.75 2a3.75 3.75 0 0 1 3.718 3.269 4.5 4.5 0 0 1 3.93 2.249l2 3.463a4.5 4.5 0 0 1-7.796 4.5l-.59-1.022A5.98 5.98 0 0 0 14 10a5.97 5.97 0 0 0-.839-3.06 1 1 0 0 1-.66-.905l-.002-.297a1.75 1.75 0 0 0-3.383-.612 5.001 5.001 0 0 1 1.263 9.272l.09.36.02.087a1 1 0 0 1-.095.602l-.276.553.277.553a1 1 0 0 1 0 .894l-.395.79V19a2 2 0 1 1-4 0v-4.418a4.999 4.999 0 0 1 1.059-9.493A3.75 3.75 0 0 1 10.75 2M8 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2" clip-rule="evenodd" fill="currentColor"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

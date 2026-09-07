@@ -52,7 +52,7 @@ setup
   const [hasFailedImage, setHasFailedImage] = useState(false)
   const showImage = Boolean(snap.imageUrl) && !hasFailedImage
 
-div(className={cn('flex w-full min-w-0 items-center gap-3 text-left', className)})
+div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-xs', className)})
   span(className='relative size-10 shrink-0')
     if showImage
       img(
@@ -84,5 +84,7 @@ div(className={cn('flex w-full min-w-0 items-center gap-3 text-left', className)
         span(className='flex min-w-0 items-center gap-1.5')
           span(className='shrink-0 text-muted-foreground/50') #{'·'}
           span(className='truncate') #{email}
-    time(dateTime={createdAtIso} className='mt-1 block font-mono text-2xs text-muted-foreground/70')
-      | #{formatCreatedAt(snap.createdAt)}
+    div(className='flex items-center gap-1 mt-1 text-muted-foreground/70')
+      Icon(name='history' className='size-3')
+      time(dateTime={createdAtIso} className='block font-mono text-2xs')
+        | #{formatCreatedAt(snap.createdAt)}

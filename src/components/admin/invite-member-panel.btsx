@@ -13,7 +13,7 @@ import { readValidationMessage, useMemberForm, validateMemberForm, type MemberFo
 
 module
   const chipClassName =
-    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono text-2xs uppercase tracking-wider transition-colors'
+    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono font-medium text-2xs uppercase tracking-wider transition-colors'
 
   interface TextFieldProps {
     form: MemberForm
@@ -64,7 +64,7 @@ component RoleField
           ~ type='button'
           ~ onClick={() => field.handleChange(option)}
           ~ aria-pressed={field.state.value === option}
-          ~ className={cn(chipClassName, field.state.value === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+          ~ className={cn(chipClassName, field.state.value === option ? 'border-active bg-active text-white' : 'border-border/60 text-muted-foreground hover:bg-accent')}
           ~ )
           | #{ACCOUNT_MEMBER_ROLE_LABEL[option]}
     p(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[field.state.value]}
@@ -168,17 +168,17 @@ setup
   }
 
 section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
-  form(className='mx-auto w-full max-w-3xl' onSubmit={submit})
+  form(className='w-full max-w-3xl' onSubmit={submit})
 
     div(className='flex items-center justify-between gap-3 pb-3')
       div(className='min-w-0')
-        h2(className='font-poly text-lg leading-none tracking-tight') Invite a member
+        h2(className='font-poly text-base leading-none tracking-tight') Invite a staff member
         p(className='mt-1.5 text-sm text-muted-foreground')
           if workspace?.account
             | #{`They are emailed an invitation to ${workspace.account.name} and join once they accept.`}
           else
             | #{'They are emailed an invitation and join the workspace once they accept.'}
-      span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/30 bg-border/20 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+      span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/30 bg-sidebar px-2.5 py-1 font-mono text-2xs text-muted-foreground')
         span #{completedSteps}
         span(className='opacity-50') #{`/`}
         span settled
@@ -186,7 +186,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
     if workspaceError
       p(className='mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive' role='alert') #{workspaceError}
 
-    div(className='rounded-2xl border border-border/40 bg-popover p-4 shadow-sm')
+    div(className='')
 
       Step(
         ~ icon='at'
@@ -199,7 +199,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
           TextField(form={memberForm} name='email' label='Email' type='email' required={true} placeholder='ada@northwind.com')
           TextField(form={memberForm} name='name' label='Name' placeholder='Ada Reyes')
 
-      Step(icon='users' title='Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
+      Step(icon='key' title='Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
         RoleField(form={memberForm})
 
       Step(
@@ -221,7 +221,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
       if submitError
         p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
 
-    div(className='mt-3 flex items-center justify-between gap-3 border-t border-border/50 pt-3')
+    div(className='mt-3 flex items-center justify-between gap-3 pt-3')
       div(className='flex min-w-0 items-center gap-2')
         span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
         span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
@@ -229,9 +229,9 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
         Button(
           ~ type='button'
           ~ size='sm'
-          ~ variant='secondary'
+          ~ variant='ghost'
           ~ label='Cancel'
-          ~ className='rounded-xs'
+          ~ className=''
           ~ disabled={isSubmitting}
           ~ onClick={cancel}
           ~ )
@@ -242,7 +242,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
           ~ icon='send'
           ~ iconPosition='right'
           ~ label='Send invite'
-          ~ className='rounded-xs'
+          ~ className=''
           ~ pending={isSubmitting}
           ~ pendingLabel='Sending…'
           ~ disabled={!canSubmit}

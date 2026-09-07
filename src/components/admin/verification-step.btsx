@@ -33,7 +33,7 @@ div(className='flex gap-3')
       ~ )
       Icon(name={icon} className='size-4')
     if !isLast
-      span(className='relative mt-1 w-px flex-1 overflow-hidden bg-border/50')
+      span(className='relative w-px flex-1 overflow-hidden bg-border/25')
         span(
           ~ style={{ transitionDelay: railDelay }}
           ~ className={cn('absolute inset-x-0 top-0 h-full origin-top bg-gradient-to-b from-[#01bf7c]/45 to-[#01bf7c] transition-transform duration-400 ease-out motion-reduce:transition-none', state === 'done' ? 'scale-y-100' : 'scale-y-0')}

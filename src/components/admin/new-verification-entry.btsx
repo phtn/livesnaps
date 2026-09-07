@@ -252,7 +252,7 @@ fragment
               | Select a completed snap, confirm the recipients, and create the verification entry.
 
           div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
-            div(className='rounded-2xl border border-border/40 bg-popover p-4 shadow-sm')
+            div(className='rounded-2xl border border-border/0 bg-popover p-4 shadow-sm')
 
               Step(
                 ~ icon='camera-enhance'
@@ -316,7 +316,7 @@ fragment
                   p(className={cn('font-mono text-xs text-muted-foreground/50', ENTER_CLASS)}) Derived from the selected snap
 
               Step(
-                ~ icon='send'
+                ~ icon='at'
                 ~ title='Recipients'
                 ~ state={recipientState}
                 ~ index={2}
