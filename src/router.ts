@@ -52,10 +52,25 @@ const adminWorkspaceRoute = createRoute({
   component: lazyRoute(() => import('./pages/admin-workspace-page.btsx'))
 })
 
+// `admin-settings-page.btsx` is a shell — its tab bar above an `Outlet`, the
+// same shape as the citadel settings surface; these are the panels its
+// `panelRoutes` point at, one child per tab.
 const adminSettingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin-settings',
   component: lazyRoute(() => import('./pages/admin-settings-page.btsx'))
+})
+
+const adminSettingsIndexRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: '/',
+  component: lazyRoute(() => import('./pages/admin-settings-members-page.btsx'))
+})
+
+const adminSettingsInviteRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: 'invite',
+  component: lazyRoute(() => import('./pages/admin-settings-invite-page.btsx'))
 })
 
 // `citadel-page.btsx` is a shell — nav plus an `Outlet` — so it only renders
@@ -147,7 +162,7 @@ const routeTree = rootRoute.addChildren([
   adminSnapsRoute,
   adminSnapsLabRoute,
   adminWorkspaceRoute,
-  adminSettingsRoute,
+  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsInviteRoute]),
   citadelRoute.addChildren([
     citadelIndexRoute,
     citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),

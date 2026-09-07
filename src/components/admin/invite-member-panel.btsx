@@ -1,0 +1,249 @@
+import { useEffect, useState } from 'octane'
+import { useNavigate } from '@octanejs/tanstack-router'
+import { useField, useSelector } from '@octanejs/tanstack-form'
+import { Button, Input } from '@/components/ui'
+import Step from '@/components/admin/verification-step.btsx'
+import { cn } from '@/lib/utils'
+import { onSuccess } from '@/lib/toast'
+import { isAccountEmailAddress } from '@/lib/accounts/accounts'
+import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
+import { ENTER_CLASS, errorTextClassName, fieldLabelClassName, type StepState } from '@/lib/verifications/step-flow'
+import { ACCOUNT_MEMBER_ROLE_HINT, ACCOUNT_MEMBER_ROLE_LABEL, fetchAccountMembers, inviteAccountMember, MEMBER_ROLES, type MemberWorkspace } from '@/lib/admin/account-members'
+import { readValidationMessage, useMemberForm, validateMemberForm, type MemberForm, type MemberTextField } from '@/lib/admin/member-form'
+
+module
+  const chipClassName =
+    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono text-2xs uppercase tracking-wider transition-colors'
+
+  interface TextFieldProps {
+    form: MemberForm
+    name: MemberTextField
+    label: string
+    type?: 'text' | 'email'
+    placeholder?: string
+    required?: boolean
+  }
+
+// One text control bound to one form field. Value, blur, and the error message
+// all come from the field's own state rather than from a second copy kept here.
+component TextField
+  props { form, name, label, type = 'text', placeholder, required = false }: TextFieldProps
+  setup
+    const field = useField({ form, name })
+    const controlId = `member-${name}`
+    const errorId = `${controlId}-error`
+    const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
+
+  label(className='flex flex-col gap-1.5' htmlFor={controlId})
+    span(className={fieldLabelClassName}) #{label}
+    Input(
+      ~ id={controlId}
+      ~ type={type}
+      ~ value={field.state.value}
+      ~ required={required}
+      ~ autoComplete='off'
+      ~ className='rounded-xs'
+      ~ placeholder={placeholder}
+      ~ aria-invalid={message !== null}
+      ~ aria-describedby={message === null ? undefined : errorId}
+      ~ onBlur={field.handleBlur}
+      ~ onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)}
+      ~ )
+    if message
+      p(id={errorId} className={cn('mt-1.5', errorTextClassName)}) #{message}
+
+component RoleField
+  props { form }: { form: MemberForm }
+  setup
+    const field = useField({ form, name: 'role' })
+
+  div(className={cn('grid gap-2', ENTER_CLASS)})
+    div(className='flex flex-wrap gap-1.5')
+      each option in MEMBER_ROLES key option
+        button(
+          ~ type='button'
+          ~ onClick={() => field.handleChange(option)}
+          ~ aria-pressed={field.state.value === option}
+          ~ className={cn(chipClassName, field.state.value === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+          ~ )
+          | #{ACCOUNT_MEMBER_ROLE_LABEL[option]}
+    p(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[field.state.value]}
+
+setup
+  const navigate = useNavigate()
+
+  // The workspace is read for its name only — the Worker derives the account
+  // the invitation lands on from the administrator's own membership, so the
+  // page never gets to choose it.
+  const [workspace, setWorkspace] = useState<MemberWorkspace | null>(null)
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetchAccountMembers(controller.signal)
+      .then((response) => {
+        setWorkspace(response)
+        setWorkspaceError(null)
+      })
+      .catch((error: unknown) => {
+        if (isAbortError(error)) return
+        setWorkspaceError(readErrorMessage(error, 'Could not load this workspace.'))
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  const memberForm = useMemberForm({
+    onSubmit: async (input) => {
+      await inviteAccountMember(input)
+      memberForm.reset()
+      onSuccess(`Invitation sent to ${input.email}.`)
+      void navigate({ to: '/admin-settings' })
+    }
+  })
+
+  const isSubmitting = useSelector(memberForm.store, (state) => state.isSubmitting)
+  // `canSubmit` alone stays true on a pristine form, before any validator has
+  // run, so the same whole-form check the validator uses is applied here.
+  const isFormValid = useSelector(
+    memberForm.store,
+    (state) => state.canSubmit && validateMemberForm(state.values) === undefined
+  )
+  const submitError = useSelector(memberForm.store, (state) =>
+    typeof state.errorMap.onSubmit === 'string' ? state.errorMap.onSubmit : null
+  )
+  const emailValue = useSelector(memberForm.store, (state) => state.values.email)
+  const nameValue = useSelector(memberForm.store, (state) => state.values.name)
+  const titleValue = useSelector(memberForm.store, (state) => state.values.title)
+  const roleValue = useSelector(memberForm.store, (state) => state.values.role)
+
+  const hasWorkspace = workspace?.account != null
+  const isEmailValid = isAccountEmailAddress(emailValue.trim())
+  // Name and title are optional, so this step is measured rather than validated.
+  const hasDetails = nameValue.trim().length > 0 || titleValue.trim().length > 0
+  const canSubmit = isFormValid && hasWorkspace && !isSubmitting
+
+  // A step is `done` once it is settled, `active` while it is the one thing left
+  // to do, and `idle` while an earlier step still blocks it.
+  const personState: StepState = isEmailValid ? 'done' : 'active'
+  const roleState: StepState = !isEmailValid ? 'idle' : 'done'
+  const detailsState: StepState = !isEmailValid ? 'idle' : hasDetails ? 'done' : 'active'
+  const inviteState: StepState = canSubmit ? 'active' : 'idle'
+
+  // The idle Invite step shows how far the form has come rather than an inert
+  // bar, so the last step still moves while the earlier ones are settled.
+  const completedSteps = [isEmailValid, hasDetails].filter(Boolean).length
+  const progressWidth = `${Math.round((completedSteps / 2) * 100)}%`
+
+  // Reduced to one value rather than an if/elseif chain in the template: a
+  // chain whose last branch is an `elseif` was observed emitting that branch
+  // outside the conditional.
+  const statusLabel = isSubmitting
+    ? 'Sending invitation…'
+    : !hasWorkspace
+      ? 'No workspace on this session'
+      : !isEmailValid
+        ? 'Needs an email address'
+        : canSubmit
+          ? 'Ready to invite'
+          : 'Check the highlighted fields'
+
+  const statusToneClass = isSubmitting
+    ? 'text-active'
+    : canSubmit
+      ? 'text-positive'
+      : hasWorkspace
+        ? 'text-muted-foreground'
+        : 'text-destructive'
+
+  const submit = (event: SubmitEvent) => {
+    event.preventDefault()
+    void memberForm.handleSubmit()
+  }
+
+  const cancel = () => {
+    memberForm.reset()
+    void navigate({ to: '/admin-settings' })
+  }
+
+section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
+  form(className='mx-auto w-full max-w-3xl' onSubmit={submit})
+
+    div(className='flex items-center justify-between gap-3 pb-3')
+      div(className='min-w-0')
+        h2(className='font-poly text-lg leading-none tracking-tight') Invite a member
+        p(className='mt-1.5 text-sm text-muted-foreground')
+          if workspace?.account
+            | #{`They are emailed an invitation to ${workspace.account.name} and join once they accept.`}
+          else
+            | #{'They are emailed an invitation and join the workspace once they accept.'}
+      span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/30 bg-border/20 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+        span #{completedSteps}
+        span(className='opacity-50') #{`/`}
+        span settled
+
+    if workspaceError
+      p(className='mb-3 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive' role='alert') #{workspaceError}
+
+    div(className='rounded-2xl border border-border/40 bg-popover p-4 shadow-sm')
+
+      Step(
+        ~ icon='at'
+        ~ title='Person'
+        ~ state={personState}
+        ~ index={0}
+        ~ meta={isEmailValid ? emailValue.trim() : undefined}
+        ~ )
+        div(className='grid gap-4 md:grid-cols-2')
+          TextField(form={memberForm} name='email' label='Email' type='email' required={true} placeholder='ada@northwind.com')
+          TextField(form={memberForm} name='name' label='Name' placeholder='Ada Reyes')
+
+      Step(icon='users' title='Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
+        RoleField(form={memberForm})
+
+      Step(
+        ~ icon='person'
+        ~ title='Details'
+        ~ state={detailsState}
+        ~ index={2}
+        ~ meta='optional'
+        ~ )
+        TextField(form={memberForm} name='title' label='Title' placeholder='Claims Adjuster')
+
+      Step(icon='send' title='Invite' state={inviteState} index={3} isLast={true})
+        if canSubmit
+          p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Email the invitation and hold the seat until it is accepted.
+        else
+          div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
+            div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
+
+      if submitError
+        p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
+
+    div(className='mt-3 flex items-center justify-between gap-3 border-t border-border/50 pt-3')
+      div(className='flex min-w-0 items-center gap-2')
+        span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
+        span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
+      div(className='flex shrink-0 items-center gap-2')
+        Button(
+          ~ type='button'
+          ~ size='sm'
+          ~ variant='secondary'
+          ~ label='Cancel'
+          ~ className='rounded-xs'
+          ~ disabled={isSubmitting}
+          ~ onClick={cancel}
+          ~ )
+        Button(
+          ~ type='submit'
+          ~ size='sm'
+          ~ variant='dark'
+          ~ icon='send'
+          ~ iconPosition='right'
+          ~ label='Send invite'
+          ~ className='rounded-xs'
+          ~ pending={isSubmitting}
+          ~ pendingLabel='Sending…'
+          ~ disabled={!canSubmit}
+          ~ )

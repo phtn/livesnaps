@@ -1,0 +1,3 @@
+import InviteMemberPanel from '@/components/admin/invite-member-panel.btsx'
+
+InviteMemberPanel

@@ -140,8 +140,8 @@ if isMobile
     Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
       div(className='w-full fixed top-0 z-35 flex items-center justify-between h-12 border-b border-border/70 px-2.5 text-white bg-black')
         Drawer.Trigger(type='button' aria-label='Open citadel navigation' className='gap-2.5 inline-flex items-center justify-center')
-          Icon(name='sidebar' className='size-4 text-white/70')
-          h1(className='inline-flex items-center gap-0 font-poly font-medium text-white/90 tracking-tight')
+          Icon(name='sidebar' className='size-6 text-white/70')
+          h1(className='inline-flex items-center gap-0 font-poly text-white/90')
             span(className='dark:text-lime-200') Citadel
       Drawer.Portal
         Drawer.Overlay(className='fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]')

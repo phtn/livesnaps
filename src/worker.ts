@@ -10,6 +10,7 @@ import {
 import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
 import { handleGodsSession, handleGodsSessionToken } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
+import { handleAdminAccountMemberInvite, handleAdminAccountMemberList } from './server/admin-member-routes'
 import { handleResendWebhook } from './server/resend-webhook-routes'
 import {
   handleAdminSnapPhotoRequest,
@@ -46,6 +47,7 @@ const GODS_USER_CLAIMS_PATH = '/api/gods/users/claims'
 const PHOTO_PATH = '/api/proofs'
 const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
+const ADMIN_ACCOUNT_MEMBERS_PATH = '/api/admin/account-members'
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const ADMIN_VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
 const ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entries/attachments'
@@ -132,6 +134,13 @@ export default {
 
     if (pathname === ADMIN_SNAPS_PATH) {
       return handleAdminSnapList(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_ACCOUNT_MEMBERS_PATH) {
+      // One path, two verbs: GET reads the workspace roster, POST invites.
+      return request.method === 'POST'
+        ? handleAdminAccountMemberInvite(request, { convexUrl })
+        : handleAdminAccountMemberList(request, { convexUrl })
     }
 
     if (pathname === ADMIN_VERIFICATION_ENTRIES_PATH) {

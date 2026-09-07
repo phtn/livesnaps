@@ -1,3 +1,36 @@
-main(className='p-8')
-  p(className='font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground') Admin
-  h1(className='mt-3 font-poly text-3xl font-medium') Settings
+import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
+import Tabs from '@/components/ui/tabs.btsx'
+import type { PanelRoute } from '@/components/ui/tabs.btsx'
+
+module
+  // One entry per child route under `adminSettingsRoute` in `router.ts`.
+  export const panelRoutes: readonly PanelRoute[] = [
+    { id: 'members', href: '/admin-settings', label: 'Members', shortLabel: 'Members', icon: 'users' },
+    { id: 'invite', href: '/admin-settings/invite', label: 'Invite', shortLabel: 'Invite', icon: 'add' }
+  ]
+
+  // Longest href wins, otherwise the `/admin-settings` index would also claim
+  // `/admin-settings/invite` and both tabs would read as active at once.
+  const panelRoutesByDepth = [...panelRoutes].sort((left, right) => right.href.length - left.href.length)
+
+  const resolveActiveId = (pathname: string) =>
+    panelRoutesByDepth.find((route) => pathname === route.href || pathname.startsWith(`${route.href}/`))?.id ??
+    panelRoutes[0].id
+
+setup
+  const location = useLocation()
+  const navigate = useNavigate()
+  const activeId = resolveActiveId(location.pathname)
+  const handleNavigate = (href: string) => {
+    void navigate({ to: href })
+  }
+
+main(className='min-h-screen')
+  div(className='flex items-end h-12 md:h-16 border-b border-border/70')
+    Tabs(
+      ~ activeId={activeId}
+      ~ items={panelRoutes}
+      ~ label='Admin settings'
+      ~ onNavigate={handleNavigate}
+      ~ )
+  Outlet

@@ -1,0 +1,3 @@
+import MembersPanel from '@/components/admin/members-panel.btsx'
+
+MembersPanel

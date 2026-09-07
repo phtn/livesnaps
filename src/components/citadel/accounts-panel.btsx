@@ -51,6 +51,8 @@ module
     placeholder?: string
     required?: boolean
     className?: string
+    /** Called with every keystroke, for a caller that mirrors this field. */
+    onEdit?: (value: string) => void
   }
 
 component StatusBadge
@@ -60,12 +62,18 @@ component StatusBadge
 // One text control bound to one form field. Value, blur, and the error message
 // all come from the field's own state rather than from a second copy kept here.
 component TextField
-  props { form, name, label, type = 'text', placeholder, required = false, className }: TextFieldProps
+  props { form, name, label, type = 'text', placeholder, required = false, className, onEdit }: TextFieldProps
   setup
     const field = useField({ form, name })
     const controlId = `account-${name}`
     const errorId = `${controlId}-error`
     const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
+
+    const handleInput = (event: Event) => {
+      const next = (event.currentTarget as HTMLInputElement).value
+      field.handleChange(next)
+      onEdit?.(next)
+    }
 
   label(className={cn('flex flex-col gap-1.5', className)} htmlFor={controlId})
     span(className={fieldLabelClassName}) #{label}
@@ -79,7 +87,7 @@ component TextField
       ~ aria-invalid={message !== null}
       ~ aria-describedby={message === null ? undefined : errorId}
       ~ onBlur={field.handleBlur}
-      ~ onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)}
+      ~ onInput={handleInput}
       ~ )
     if message
       p(id={errorId} className={cn('mt-1.5', errorTextClassName)}) #{message}
@@ -146,6 +154,19 @@ component CreateAccountForm
     const contactName = useSelector(accountForm.store, (state) => state.values.contactName)
     const contactEmail = useSelector(accountForm.store, (state) => state.values.contactEmail)
     const contactUid = useSelector(accountForm.store, (state) => state.values.contactUid)
+
+    // Billing defaults to the contact address rather than being left blank —
+    // a stored `null` is what the account is invoiced on. The mirror holds
+    // until someone types a different address into the billing field.
+    const [isBillingMirrored, setIsBillingMirrored] = useState(
+      () => initialValues.billingEmail.trim().length === 0 || initialValues.billingEmail === initialValues.contactEmail
+    )
+
+    useEffect(() => {
+      if (!isBillingMirrored) return
+      if (accountForm.state.values.billingEmail === contactEmail) return
+      accountForm.setFieldValue('billingEmail', contactEmail)
+    }, [accountForm, contactEmail, isBillingMirrored])
 
     const [contactQuery, setContactQuery] = useState('')
     const [contactResults, setContactResults] = useState<GodUser[]>([])
@@ -370,7 +391,14 @@ component CreateAccountForm
             TextField(form={accountForm} name='legalName' label='Legal name' placeholder='Optional')
             TextField(form={accountForm} name='website' label='Website' type='url' placeholder='https://northwind.com')
             TextField(form={accountForm} name='industry' label='Industry' placeholder='Optional')
-            TextField(form={accountForm} name='billingEmail' label='Billing email' type='email' placeholder='Defaults to the contact email')
+            TextField(
+              ~ form={accountForm}
+              ~ name='billingEmail'
+              ~ label='Billing email'
+              ~ type='email'
+              ~ placeholder='Defaults to the contact email'
+              ~ onEdit={(value: string) => setIsBillingMirrored(value.trim().length === 0)}
+              ~ )
           TextField(form={accountForm} name='notes' label='Notes' placeholder='Optional')
 
       Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
@@ -470,7 +498,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
           ~ className={cn(addButtonClassName, { 'bg-[#1b1b1b]! dark:bg-[#f0f0f0]': filters.create })}
           ~ )
           Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', {'rotate-68': filters.create})})
-      p(className='mt-1 text-sm text-muted-foreground') Organizations using the platform, and where each one stands.
+      p(className='mt-1 text-sm text-muted-foreground') List of organizations using the platform.
     div(className='flex items-center gap-3')
       if rosterStatus === 'ready'
         span(className='shrink-0 font-mono text-xs text-muted-foreground capitalize') #{`${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}`}
