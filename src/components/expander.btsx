@@ -165,8 +165,10 @@ module
 
 import type { api } from '../../convex/_generated/api'
 import { useConvexQuery } from '@/hooks/use-convex-query'
+import { useCaptureSettings } from '@/hooks/use-capture-settings'
+import { useConvexAuth } from '@/hooks/use-convex-auth'
 import {Icon} from "@/lib/icons";
-import { DEFAULT_IMAGE_CAPTURE_SETTINGS, type ImageCaptureSettingsValues } from '@/lib/snaps/snap-settings'
+import { type ImageCaptureSettingsValues } from '@/lib/snaps/snap-settings'
 import { parseCaptureReading } from '@/lib/snaps/capture-reading'
 import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
 import  CapturedPhotos from './captured-photos.btsx'
@@ -200,9 +202,9 @@ component Poster
     Icon(name={'re-up.ph'} className='size-12')
 
 setup
-  const snapSettingsQuery = 'snapSettings/q:get' as unknown as typeof api.snapSettings.q.get
   const snapByUploadIdQuery = 'snaps/q:getByUploadId' as unknown as typeof api.snaps.q.getByUploadId
-  const snapSettings = useConvexQuery(snapSettingsQuery, {}) ?? DEFAULT_IMAGE_CAPTURE_SETTINGS
+  const snapSettings = useCaptureSettings(isExpanded)
+  const convexAuth = useConvexAuth()
   const {
     cameraIdealHeight,
     cameraIdealWidth,
@@ -229,6 +231,7 @@ setup
   const [vehicleDetails, setVehicleDetails] = useState<VehicleDetails>(EMPTY_VEHICLE_DETAILS)
   const [mileageKm, setMileageKm] = useState<number | null>(null)
   const [plateNumber, setPlateNumber] = useState('')
+  const submittingRef = useRef(false)
   const [plateConfirmationStage, setPlateConfirmationStage] = useState<PlateConfirmationStage | null>(null)
   const [plateConfirmationError, setPlateConfirmationError] = useState<string | null>(null)
   const isCameraActive = cameraStatus === 'active'
@@ -240,7 +243,8 @@ setup
 
   const proofSnapshot = useConvexQuery(
     snapByUploadIdQuery,
-    sessionUploadId && !isDebugMode ? { upload_id: sessionUploadId } : 'skip'
+    isExpanded && sessionUploadId && !isDebugMode && convexAuth.isAuthenticated ? { upload_id: sessionUploadId } : 'skip',
+    convexAuth.userId ?? ''
   )
 
   useEffect(() => {
@@ -361,6 +365,11 @@ setup
         }
       }
 
+      if (requestId !== requestSequenceRef.current) {
+        stopMediaStream(stream)
+        return
+      }
+
       const video = videoRef.current
       if (!video) {
         throw new Error('Camera preview is unavailable.')
@@ -380,7 +389,7 @@ setup
         streamRef.current = null
       }
 
-      if (videoRef.current) {
+      if (videoRef.current?.srcObject === stream) {
         videoRef.current.srcObject = null
       }
 
@@ -548,11 +557,6 @@ setup
         const [location, outputFile] = await Promise.all([locationPromise, outputFilePromise])
 
         if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
-          // Session ended — keep optimistic as saved locally but don't persist
-          const savedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, uploadStatus: 'saved' }
-          const savedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, savedPhoto)
-          capturedPhotosRef.current = savedPhotos
-          setCapturedPhotos(savedPhotos)
           return
         }
 
@@ -587,6 +591,8 @@ setup
                 uploadId: bgUploadId
               })
             : { vehicle: null, mileageKm: null, captureIntegrity: null }
+
+        if (captureSessionId !== requestSequenceRef.current) return
 
         // Mark photo as saved (optimistic -> saved) — keeps preview, updates file
         const savedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, file, uploadStatus: 'saved' }
@@ -682,6 +688,7 @@ setup
           // Some photos still saving — completion will fire when last background finishes
         }
       } catch (bgError) {
+        if (captureSessionId !== requestSequenceRef.current) return
         // Background failure: mark photo as failed (keep preview, allow retake) and surface error non-blockingly
         const failedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, uploadStatus: 'failed' }
         const failedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, failedPhoto)
@@ -748,6 +755,7 @@ setup
   const confirmPlateNumber = useCallback(
     async (event: SubmitEvent) => {
       event.preventDefault()
+      if (submittingRef.current) return
 
       const formattedPlateNumber = formatCapturePlateNumber(plateNumber)
       if (!isCompleteCapturePlateNumber(formattedPlateNumber)) {
@@ -755,6 +763,7 @@ setup
         return
       }
 
+      submittingRef.current = true
       setPlateNumber(formattedPlateNumber)
       setPlateConfirmationError(null)
       setPlateConfirmationStage('submitting')
@@ -767,6 +776,8 @@ setup
           error instanceof Error ? error.message : 'Unable to complete this proof session. Please try again.'
         )
         setPlateConfirmationStage('confirm')
+      } finally {
+        submittingRef.current = false
       }
     },
     [completeSession, plateNumber]

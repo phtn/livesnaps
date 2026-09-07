@@ -55,7 +55,7 @@ export type SnapRow = Pick<
 export type UserRow = UserIdentity & { _id: string }
 
 /** A `verificationEntries` document. */
-export type VerificationEntryRow = VerificationEntry & { _id: string }
+export type VerificationEntryRow = VerificationEntry & { _id: string; handler?: SnapRow['handler'] }
 
 export type SnapSessionStatus = SnapRow['status']
 export type SnapVerificationStatus = NonNullable<SnapRow['verification_status']>
@@ -98,12 +98,12 @@ export const snapIpcMatchStatus: Record<
     label: 'Verified'
   },
   mismatch: {
-    className: 'border-rose-500/25 bg-rose-500/8 text-rose-700 dark:text-rose-300',
+    className: 'border-rose-500/15 bg-rose-500/8 text-rose-700 dark:text-rose-400',
     icon: 'alert-triangle',
     label: 'Mismatch'
   },
   unknown: {
-    className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
+    className: 'border-slate-500/10 bg-slate-500/8 text-slate-600 dark:text-slate-400',
     icon: 'circle-minus-line',
     label: 'Not measured'
   }
@@ -179,33 +179,33 @@ export const verificationEntryStatus: Record<
 
 export const snapSessionStatus: Record<SnapSessionStatus, { className: string; icon: IconName; label: string }> = {
   completed: {
-    className: 'border-emerald-500 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',
+    className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400',
     icon: 'circle-check',
     label: 'Completed'
   },
   active: {
-    className: 'border-active/80 bg-active/8 text-active dark:active',
+    className: 'border-active/25 bg-active/8 text-active dark:active',
     icon: 'bolt',
     label: 'Active'
   },
   pending: {
-    className: 'border-orange-500/60 bg-orange-500/8 text-orange-700 dark:text-orange-300',
+    className: 'border-orange-500/50 bg-orange-500/8 text-orange-700 dark:text-orange-300',
     icon: 'pending',
     label: 'Pending'
   },
   abandoned: {
-    className: 'border-slate-500/30 bg-slate-500/8 text-slate-700 dark:text-slate-300',
+    className: 'border-slate-500/15 bg-slate-500/8 text-slate-600 dark:text-slate-400',
     icon: 'alert-triangle',
     label: 'Abandoned'
   },
   cancelled: {
-    className: 'border-stone-500/30 bg-stone-500/8 text-stone-700 dark:text-stone-300',
+    className: 'border-mauve-500/15 bg-mauve-500/8 text-mauve-600 dark:text-mauve-400',
     icon: 'octagon',
     label: 'Cancelled'
   },
   invalidated: {
-    className: 'border border-rose-500 bg-rose-500/8 text-rose-700 dark:text-rose-300',
-    icon: 'cancel',
+    className: 'border border-rose-500/15 bg-rose-500/8 text-rose-600 dark:text-rose-400',
+    icon: 'circle-minus',
     label: 'Rejected'
   }
 }

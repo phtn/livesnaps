@@ -127,7 +127,7 @@ export const icons = {
   },
   search: {
     symbol:
-      '<path fill="currentColor" fill-rule="evenodd" d="M1.5 6.5a5 5 0 1 1 10 0 5 5 0 0 1-10 0m5-6.5a6.5 6.5 0 1 0 4.04 11.6l3.43 3.43.53.53 1.06-1.06-.53-.53-3.43-3.43A6.5 6.5 0 0 0 6.5 0" clip-rule="evenodd" shape-rendering="geometricprecision" transform-origin="0 0"/>',
+      '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.334" d="m10.591 10.591 2.83 2.83m-1.415-6.417a5.003 5.003 0 1 1-10.005 0 5.003 5.003 0 0 1 10.005 0Z"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
@@ -455,6 +455,12 @@ export const icons = {
     viewBox: '0 0 24 24',
     set: 'svg-spinners'
   },
+  'spinner-axial': {
+    symbol:
+      '<g transform="scale(0.667)"><circle cx="4" cy="12" r="0"><animate fill="freeze" attributeName="r" begin="0;a.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="0;3"/><animate fill="freeze" attributeName="cx" begin="b.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="4;12"/><animate fill="freeze" attributeName="cx" begin="c.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="12;20"/><animate fill="freeze" attributeName="r" begin="d.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="3;0"/><animate fill="freeze" attributeName="cx" begin="e.end" dur="0.001s" values="20;4"/></circle><circle cx="4" cy="12" r="3"><animate fill="freeze" attributeName="cx" begin="0;a.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="4;12"/><animate fill="freeze" attributeName="cx" begin="b.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="12;20"/><animate fill="freeze" attributeName="r" begin="c.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="3;0"/><animate fill="freeze" attributeName="cx" begin="f.end" dur="0.001s" values="20;4"/><animate fill="freeze" attributeName="r" begin="d.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="0;3"/></circle><circle cx="12" cy="12" r="3"><animate fill="freeze" attributeName="cx" begin="0;a.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="12;20"/><animate fill="freeze" attributeName="r" begin="b.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="3;0"/><animate fill="freeze" attributeName="cx" begin="g.end" dur="0.001s" values="20;4"/><animate fill="freeze" attributeName="r" begin="c.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="0;3"/><animate fill="freeze" attributeName="cx" begin="d.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="4;12"/></circle><circle cx="20" cy="12" r="3"><animate fill="freeze" attributeName="r" begin="0;a.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="3;0"/><animate fill="freeze" attributeName="cx" begin="h.end" dur="0.001s" values="20;4"/><animate fill="freeze" attributeName="r" begin="b.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="0;3"/><animate fill="freeze" attributeName="cx" begin="c.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="4;12"/><animate fill="freeze" attributeName="cx" begin="d.end" calcMode="spline" dur="0.5s" keySplines=".36,.6,.31,1" values="12;20"/></circle></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
   'checkbox-checked': {
     symbol:
       '<path fill="currentColor" fill-rule="evenodd" d="M16.25 21A4.75 4.75 0 0 0 21 16.25v-8.5A4.75 4.75 0 0 0 16.25 3h-8.5A4.75 4.75 0 0 0 3 7.75v8.5A4.75 4.75 0 0 0 7.75 21zm.792-12.423a.75.75 0 0 0-1.06 0l-5.258 5.256-2.706-2.703a.75.75 0 1 0-1.06 1.062l3.237 3.232a.75.75 0 0 0 1.06 0l5.787-5.787a.75.75 0 0 0 0-1.06" clip-rule="evenodd"/>',
@@ -600,7 +606,7 @@ export const icons = {
   },
   draggable: {
     symbol:
-      '<path d="M5.67 4.669a1 1 0 1 0 0-2.001 1 1 0 0 0 0 2.001m0 4.336a1 1 0 1 0 0-2.002 1 1 0 0 0 0 2.002m1 3.334a1 1 0 1 1-2.001 0 1 1 0 0 1 2.001 0m3.669-7.67a1 1 0 1 0 0-2.001 1 1 0 0 0 0 2.001m1 3.335a1 1 0 1 1-2.001 0 1 1 0 0 1 2.001 0m-1 5.336a1 1 0 1 0 0-2.001 1 1 0 0 0 0 2.001" fill="currentColor"/>',
+      '<g transform="scale(0.667)"><path d="M10 15a2 2 0 1 1 4 0 2 2 0 0 1-4 0m6 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0M4 15a2 2 0 1 1 4 0 2 2 0 0 1-4 0m6-6a2 2 0 1 1 4 0 2 2 0 0 1-4 0m6 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0M4 9a2 2 0 1 1 4 0 2 2 0 0 1-4 0" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
@@ -672,7 +678,7 @@ export const icons = {
   },
   'more-v': {
     symbol:
-      '<g transform="scale(0.667)"><path d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1m0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" d="M12 12.5a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0 6a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Zm0-12a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1Z"/></g>',
+      '<g transform="scale(0.667)"><path d="M12 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0-7a2 2 0 1 1 0-4 2 2 0 0 1 0 4m0 14a2 2 0 1 1 0-4 2 2 0 0 1 0 4" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },

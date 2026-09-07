@@ -6,7 +6,7 @@ module
     children?: unknown
   }
 props {eyebrow, title, description, children}: Props
-header(className='h-7 flex items-center justify-between')
+header(className='h-7 mt-1 flex items-center justify-between')
   div
     if eyebrow
       p(className='mb-1 text-2xs font-semibold uppercase tracking-widest text-soft') #{eyebrow}

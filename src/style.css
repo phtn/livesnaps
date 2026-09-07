@@ -1,3 +1,10 @@
+/* Import Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono&display=swap');
+
+/* Apply the font to the body */
+body {
+  font-family: 'Geist Mono', monospace;
+}
 /*
  * `source(none)` turns off Tailwind's automatic detection, which walks up to
  * the repository root and scans everything that ships nothing: `convex/`,
@@ -36,11 +43,12 @@
 @theme inline {
   --font-sans: 'OKX', Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-poly: 'POLY';
-  --font-mono: 'IOS', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   --text-2xs: 10px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-sunken: var(--sunken);
   --color-soft: var(--soft);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
@@ -57,6 +65,7 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-table-head: var(--table-head);
   --color-sidebar: var(--sidebar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
@@ -128,7 +137,9 @@
 
 :root {
   color-scheme: light;
-  --surface: oklch(0.998 0 0);
+  --surface: oklch(1 0 0);
+  /*--surface:  oklch(0.998 0 0);*/
+  --sunken: oklch(0.9554 0.0013 286.37);
   --soft: oklch(0.2046 0 0 / 50%);
   --muted: oklch(0.9401 0 0);
   --muted-foreground: oklch(0.54 0 0);
@@ -136,7 +147,7 @@
   --primary: oklch(0.2046 0 0);
   --positive: oklch(0.72 0.17 155.61);
   --ring: oklch(0.708 0 0);
-  --background: oklch(0.995 0 0);
+  --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(0.9851 0 75.41);
   --card-foreground: oklch(0.145 0 0);
@@ -163,6 +174,7 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --table-head: oklch(0.9672 0 0);
   --destructive-foreground: var(--color-red-800);
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-900);
@@ -189,7 +201,9 @@
 .dark {
   color-scheme: dark;
   --soft: oklch(0.9461 0 0 / 50%);
-  --background: oklch(0.145 0 0);
+  --surface: oklch(0.205 0.002 286.23);
+  --sunken: oklch(0.0692 0.008 284.11);
+  --background: oklch(0.0692 0.008 284.11);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -220,6 +234,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --table-head: oklch(0.269 0 0);
   --destructive-foreground: var(--color-red-600);
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-600);
@@ -229,7 +244,7 @@
   --warning-foreground: var(--color-yellow-600);
   --invert: var(--color-zinc-700);
   --invert-foreground: var(--color-zinc-50);
-  --surface: oklch(0.269 0 0);
+  /*--surface: oklch(0.269 0 0);*/
   --positive: oklch(0.72 0.17 155.61);
   --beach: oklch(0.793 0.108 189.22);
   --sand: oklch(0.711 0.18 38.83);

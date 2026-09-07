@@ -98,9 +98,9 @@ module
    * same height either way and the footer never jumps. `dvh` rather than `vh`
    * so a mobile browser's collapsing toolbar doesn't push the footer off.
    */
-  const VIEWPORT_CLASS_NAME = 'h-[calc(100dvh-157px)] w-full'
+  const VIEWPORT_CLASS_NAME = 'h-[calc(100dvh-157px)] md:h-[calc(100dvh-184px)] w-full'
   const SCROLLBAR_CLASS_NAME =
-    'overflow-auto scrollbar-track-slate-200/20 ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-slate-400 scrollbar-thin'
+    'overflow-auto scrollbar-track-background ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar scrollbar-thumb-table-head scrollbar-thin'
 
   // Copy for a table emptied by the reader's own query. The `empty*` props stay
   // reserved for the other case — a table with no records at all — because the
@@ -294,7 +294,7 @@ setup
     : Math.min(100, (queryState.completed / queryState.total) * 100)
   const queryLabel = queryState.phase === 'sorting' ? 'Ranking' : 'Searching'
 
-section(className='relative overflow-hidden rounded-xs border border-sidebar-border border-l-0 bg-background dark:bg-sidebar shadow-[0_1px_2px_rgba(28,34,26,0.04)]')
+section(className='relative overflow-hidden rounded-xs _border border-sidebar-border border-l-0 bg-surface')
   div(className='hidden md:flex items-center justify-between p-2')
     Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
     fragment #{children}
@@ -303,7 +303,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
   // other control in it stands down for the duration. Hidden rather than
   // unmounted: they keep their own state and the row is whole again the moment
   // the field closes. `HyperSearch` never reports expanded on desktop.
-  div(className='flex min-h-12 items-center justify-between px-1 md:pb-2')
+  div(className='flex items-center justify-between h-12 px-2 md:px-1 pb-2 pt-3')
     div(className={cn('flex items-center md:gap-0.75 gap-1', isSearchExpanded && 'hidden md:flex')})
       ColumnView(
         ~ cols={table.getAllLeafColumns()}
@@ -361,7 +361,7 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
               ~ pinnedColumnLayouts={pinnedColumnLayouts}
               ~ )
 
-  footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-input/50 dark:bg-sidebar p-3 text-xs')
+  footer(className='flex min-h-[50px] items-center justify-between gap-5 border-t border-table-head bg-surface p-3 md:p-0 text-xs')
     SelectOctane(
       ~ className='text-xs'
       ~ menuPlacement='top'
@@ -371,9 +371,9 @@ section(className='relative overflow-hidden rounded-xs border border-sidebar-bor
       ~ direction='up'
       ~ )
     div(className='flex items-center gap-4 md:gap-8')
-      p(className='m-0 font-normal text-muted-foreground') Page #{table.state.pagination.pageIndex + 1} of #{Math.max(1, table.getPageCount()).toLocaleString()}
-      div(className='flex items-center overflow-hidden h-9.5 rounded-[4px] border border-input/50 divide-x divide-input/50 bg-background')
-        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='First page' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()}) ⏮
-        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Previous page' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()}) ⯇
-        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Next page' disabled={!table.getCanNextPage()} onClick={() => table.nextPage()}) ⯈
-        Button(className='rounded-none disabled:opacity-40' variant='' size='icon-lg' aria-label='Last page' disabled={!table.getCanNextPage()} onClick={() => table.lastPage()}) ⏭
+      p(className='m-0 font-normal text-muted-foreground') #{table.state.pagination.pageIndex + 1} / #{Math.max(1, table.getPageCount()).toLocaleString()}
+      div(className='flex items-center overflow-hidden h-9.5 rounded-sm border border-table-head divide-x divide-border')
+        Button(className='rounded-none h-full! w-10! hover:bg-table-head/80 rotate-180' variant='ghost' size='icon-lg' aria-label='First page' icon='chevrons-right' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()})
+        Button(className='rounded-none h-full! w-10! hover:bg-table-head/80 rotate-180' variant='ghost' size='icon-lg' aria-label='Previous page' icon='chevron-right' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()})
+        Button(className='rounded-none h-full! w-10! hover:bg-table-head/80' variant='ghost' size='icon-lg' aria-label='Next page' icon='chevron-right' disabled={!table.getCanNextPage()} onClick={() => table.nextPage()})
+        Button(className='rounded-none h-full! w-10! hover:bg-table-head/80' variant='ghost' size='icon-lg' aria-label='Last page' icon='chevrons-right' disabled={!table.getCanNextPage()} onClick={() => table.lastPage()})

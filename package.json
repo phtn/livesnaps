@@ -74,6 +74,7 @@
     "@tsrx/typescript-plugin": "0.3.130",
     "@types/node": "^26.4.1",
     "convex-test": "^0.0.56",
+    "happy-dom": "^20.14.0",
     "postcss": "^8.5.26",
     "postcss-loader": "^8.2.1",
     "tailwindcss": "^4.1.8",

@@ -83,7 +83,7 @@ nav(
       ~ href={item.href}
       ~ id={`route-${item.id}`}
       ~ aria-current={activeId === item.id ? 'page' : undefined}
-      ~ className={`relative z-10 flex items-center justify-center gap-1 cursor-pointer -tracking-[0.02em] px-3.5 py-2.5 hover:text-foreground max-[680px]:min-w-0 max-[680px]:flex-1 max-[680px]:px-4 ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
+      ~ className={`relative z-10 flex items-center justify-center gap-1 cursor-pointer font-sans hover:text-foreground -tracking-[0.01em] px-3.5 py-2.5 max-[680px]:min-w-0 max-[680px]:flex-1 max-[680px]:px-4 ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
       ~ onClick={(event) => handleNavigate(event, item.href)}
       ~ )
       Icon(name={item.icon} size={20})

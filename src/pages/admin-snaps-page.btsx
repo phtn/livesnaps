@@ -1,3 +1,4 @@
+import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
 import { useCallback, useMemo, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
@@ -9,6 +10,9 @@ import PhotoViewer from '@/components/photo-viewer.btsx'
 import ErrorPage from '@/components/error.btsx'
 import { Icon } from '@/lib/icons'
 import Icon from "../lib/icons/icon.btsx";
+import {cn} from '@/lib/utils'
+import Container from "../components/admin/container.btsx";
+import Loading from "../components/loading.btsx";
 
 props {}: {}
 setup
@@ -35,13 +39,13 @@ setup
     if (!open) setReportViewerSnapId(null)
   }, [])
 
-main
-  div
-    if isLoading && !hasRows
-      ErrorPage(code={200} title='Fetching Data' message={'Loading Snaps'} actionLabel='')
-    elseif error && !hasRows
-      ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
-    else
+Container(className='md:py-0')
+  if isLoading && !hasRows
+    Loading
+  elseif error && !hasRows
+    ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
+  else
+    SnapHandlerProvider(refresh={refresh})
       SnapRowActions.Provider(
         ~ onExportReport={exportSnapReportById}
         ~ onOpenPhotoViewer={setActivePhotoSnapId}

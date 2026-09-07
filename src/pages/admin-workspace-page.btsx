@@ -1,3 +1,4 @@
+import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
 import { createElement, useCallback, useEffect, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
@@ -10,6 +11,9 @@ import DataTable from '@/components/ui/table/DataTable.btsx'
 import VerificationEntryFilterList from '@/components/admin/VerificationEntryFilterList.btsx'
 import ErrorPage from '@/components/error.btsx'
 import { Icon } from '@/lib/icons'
+import {cn} from '@/lib/utils'
+import Container from "../components/admin/container.btsx";
+import Loading from "../components/loading.btsx";
 
 props {}: {}
 setup
@@ -78,13 +82,13 @@ setup
     snaps: snaps ?? []
   })
 
-main
-  div
-    if isLoading && !hasRows
-      ErrorPage(code={200} title='Fetching Data' message={'Loading verification entries'} actionLabel='')
-    elseif error && !hasRows
-      ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
-    else
+Container(className='md:py-0')
+  if isLoading && !hasRows
+    Loading
+  elseif error && !hasRows
+    ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
+  else
+    SnapHandlerProvider(refresh={handleWritten})
       VerificationSendProvider(onOpenSendDialog={setSendEntry})
         DataTable(
           ~ title='Verification Entries'

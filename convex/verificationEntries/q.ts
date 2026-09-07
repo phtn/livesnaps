@@ -1,6 +1,8 @@
 import { ConvexError, v } from 'convex/values'
 import { type QueryCtx, query } from '../_generated/server'
 import { verificationEntryDocumentSchema } from './d'
+import { snapHandlerSchema } from '../snaps/d'
+import { workspaceAccess } from '../lib/workspaceAccess'
 
 const DEFAULT_LIST_LIMIT = 100
 const MAX_LIST_LIMIT = 250
@@ -45,23 +47,19 @@ export const listForAdmin = query({
   }
 })
 
-/**
- * Every entry, newest first, regardless of who sent it — the workspace table
- * reviews the whole queue rather than one administrator's own sends. Mirrors
- * `snaps.q.listForAdmin`, which is admin-wide for the same reason.
- */
+/** Account administrators see the queue; members see only their own sends. */
 export const listAllForAdmin = query({
-  args: {
-    limit: v.optional(v.number())
-  },
-  returns: v.array(verificationEntryDocumentSchema),
+  args: { limit: v.optional(v.number()) },
+  returns: v.array(verificationEntryDocumentSchema.extend({ handler: v.optional(snapHandlerSchema) })),
   handler: async (ctx, { limit }) => {
-    await requireAdminIdentity(ctx)
-
-    return await ctx.db
-      .query('verificationEntries')
-      .withIndex('by_createdAt')
-      .order('desc')
-      .take(normalizeListLimit(limit))
+    const { identity, canManage } = await workspaceAccess(ctx)
+    const entries = await (canManage
+      ? ctx.db.query('verificationEntries').withIndex('by_createdAt')
+      : ctx.db.query('verificationEntries').withIndex('by_senderTokenIdentifier_and_createdAt', q => q.eq('senderTokenIdentifier', identity.tokenIdentifier))
+    ).order('desc').take(normalizeListLimit(limit))
+    return await Promise.all(entries.map(async entry => {
+      const snap = await ctx.db.query('snaps').withIndex('by_metadata_upload_id', q => q.eq('metadata.upload_id', entry.uploadId)).unique()
+      return { ...entry, handler: snap?.handler }
+    }))
   }
 })

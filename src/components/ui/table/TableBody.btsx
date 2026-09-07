@@ -7,7 +7,7 @@ module
     className?: NativeTableBodyProps['className']
   }
 
-  const baseClassName = '[&_tr:last-child_td]:border-b-0'
+  const baseClassName = '_[&_tr:last-child_td]:border-b-0'
 
 props { children, className, ...bodyProps }: Props
 

@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { Link } from '@octanejs/tanstack-router'
 import { COMPARISON_DAYS, readActivity, readCaptures, readIntegrity, readTurnaround, readVerifications, PRECISE_FIX_METRES, TREND_DAYS } from '@/lib/overview/admin-overview'
 import { formatCount, formatDuration, formatPercent, formatRelativeTime, formatTime, percentDelta, toDailySeries } from '@/lib/overview/metrics'
+import Container from "../components/admin/container.btsx";
 
 module
   // The overview reads the same rows the tables do, so it shares their cap
@@ -49,7 +50,7 @@ setup
     refreshEntries()
   }
 
-main(className='h-screen overflow-scroll mx-auto w-full max-w-6xl px-6 py-8')
+Container(className='p-4')
   Masthead(
     ~ eyebrow='Live Snaps Now · Operations'
     ~ title='Overview'
@@ -71,102 +72,102 @@ main(className='h-screen overflow-scroll mx-auto w-full max-w-6xl px-6 py-8')
       Icon(name='spinner-ferris' className='size-4')
       p(className='text-sm text-muted-foreground') Reading capture and verification history…
   else
-    div(className='mt-12 space-y-6')
-      if error
-        div(className='flex items-start gap-2.5 rounded-lg border border-chart-warn/30 bg-chart-warn/5 px-4 py-3')
-          Icon(name='alert-triangle' size={14} className='mt-0.5 shrink-0 text-amber-700 dark:text-amber-400')
-          p(className='text-xs text-muted-foreground') #{`${error} Showing the last successful read.`}
+  div(className='mt-12 space-y-6')
+    if error
+      div(className='flex items-start gap-2.5 rounded-lg border border-chart-warn/30 bg-chart-warn/5 px-4 py-3')
+        Icon(name='alert-triangle' size={14} className='mt-0.5 shrink-0 text-amber-700 dark:text-amber-400')
+        p(className='text-xs text-muted-foreground') #{`${error} Showing the last successful read.`}
 
-      Panel(title='Capture throughput' description={`Sessions opened per day, and the total across the window.`} meta={`Last ${TREND_DAYS} days`})
-        div(className='grid gap-10 lg:grid-cols-5 lg:gap-8')
-          div(className='lg:col-span-2')
-            p(className={readingLabelClass}) Captures
-            div(className='mt-3 flex items-end gap-3')
-              span(className='font-sans text-5xl font-medium leading-none tracking-tight text-foreground') #{formatCount(captures.totals.current)}
-              if captureDelta !== null
-                span(className={cn('mb-1 inline-flex items-center gap-1 font-mono text-xs', captureDelta >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')})
-                  span(aria-hidden={true}) #{captureDelta >= 0 ? '↑' : '↓'}
-                  span #{`${captureDelta >= 0 ? '+' : ''}${Math.round(captureDelta * 100)}%`}
-            p(className='mt-2 text-xs text-muted-foreground') #{`Opened in the last ${COMPARISON_DAYS} days · ${comparisonLabel}`}
-            dl(className='mt-8 space-y-3 border-t border-dotted border-border/60 pt-5')
-              div(className='flex items-baseline justify-between gap-4')
-                dt(className='text-xs text-muted-foreground') Sessions on record
-                dd(className='font-mono text-sm tabular-nums text-foreground') #{formatCount(captures.total)}
-              div(className='flex items-baseline justify-between gap-4')
-                dt(className='text-xs text-muted-foreground') Photos captured
-                dd(className='font-mono text-sm tabular-nums text-foreground') #{formatCount(integrity.photos)}
-              div(className='flex items-baseline justify-between gap-4')
-                dt(className='text-xs text-muted-foreground') Photos per session
-                dd(className='font-mono text-sm tabular-nums text-foreground') #{integrity.photosPerSession === null ? '—' : integrity.photosPerSession.toFixed(1)}
-          div(className='lg:col-span-3')
-            ColumnChart(buckets={captureBuckets} unit='capture')
+    Panel(title='Capture throughput' description={`Sessions opened per day, and the total across the window.`} meta={`Last ${TREND_DAYS} days`})
+      div(className='grid gap-10 lg:grid-cols-5 lg:gap-8')
+        div(className='lg:col-span-2')
+          p(className={readingLabelClass}) Captures
+          div(className='mt-3 flex items-end gap-3')
+            span(className='font-sans text-5xl font-medium leading-none tracking-tight text-foreground') #{formatCount(captures.totals.current)}
+            if captureDelta !== null
+              span(className={cn('mb-1 inline-flex items-center gap-1 font-mono text-xs', captureDelta >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-destructive')})
+                span(aria-hidden={true}) #{captureDelta >= 0 ? '↑' : '↓'}
+                span #{`${captureDelta >= 0 ? '+' : ''}${Math.round(captureDelta * 100)}%`}
+          p(className='mt-2 text-xs text-muted-foreground') #{`Opened in the last ${COMPARISON_DAYS} days · ${comparisonLabel}`}
+          dl(className='mt-8 space-y-3 border-t border-dotted border-border/60 pt-5')
+            div(className='flex items-baseline justify-between gap-4')
+              dt(className='text-xs text-muted-foreground') Sessions on record
+              dd(className='font-mono text-sm tabular-nums text-foreground') #{formatCount(captures.total)}
+            div(className='flex items-baseline justify-between gap-4')
+              dt(className='text-xs text-muted-foreground') Photos captured
+              dd(className='font-mono text-sm tabular-nums text-foreground') #{formatCount(integrity.photos)}
+            div(className='flex items-baseline justify-between gap-4')
+              dt(className='text-xs text-muted-foreground') Photos per session
+              dd(className='font-mono text-sm tabular-nums text-foreground') #{integrity.photosPerSession === null ? '—' : integrity.photosPerSession.toFixed(1)}
+        div(className='lg:col-span-3')
+          ColumnChart(buckets={captureBuckets} unit='capture')
 
-      div(className='grid gap-6 md:grid-cols-3')
-        StatTile(
-          ~ label='Completion'
-          ~ value={captures.settled === 0 ? '—' : formatPercent(captures.completionRate)}
-          ~ caption={captures.settled === 0 ? 'No sessions have settled yet.' : `${formatCount(captures.completed)} of ${formatCount(captures.settled)} settled sessions reached the end.`}
-          ~ )
-          Meter(value={captures.completionRate} color='var(--chart-good)' aria-label='Share of settled sessions completed' className='mb-3')
-        StatTile(
-          ~ label='Verifications sent'
-          ~ value={formatCount(verifications.totals.current)}
-          ~ caption={`Entries opened in the last ${COMPARISON_DAYS} days.`}
-          ~ delta={verificationDelta}
-          ~ deltaLabel={comparisonLabel}
-          ~ trend={verifications.trend}
-          ~ color='var(--chart-info)'
-          ~ )
-        StatTile(
-          ~ label='Median turnaround'
-          ~ value={turnaround.median === null ? '—' : formatDuration(turnaround.median)}
-          ~ caption={turnaround.sampled === 0 ? 'No capture has been matched to an entry yet.' : `Capture to verification entry, across ${formatCount(turnaround.sampled)} matched pairs.`}
-          ~ )
+    div(className='grid gap-6 md:grid-cols-3')
+      StatTile(
+        ~ label='Completion'
+        ~ value={captures.settled === 0 ? '—' : formatPercent(captures.completionRate)}
+        ~ caption={captures.settled === 0 ? 'No sessions have settled yet.' : `${formatCount(captures.completed)} of ${formatCount(captures.settled)} settled sessions reached the end.`}
+        ~ )
+        Meter(value={captures.completionRate} color='var(--chart-good)' aria-label='Share of settled sessions completed' className='mb-3')
+      StatTile(
+        ~ label='Verifications sent'
+        ~ value={formatCount(verifications.totals.current)}
+        ~ caption={`Entries opened in the last ${COMPARISON_DAYS} days.`}
+        ~ delta={verificationDelta}
+        ~ deltaLabel={comparisonLabel}
+        ~ trend={verifications.trend}
+        ~ color='var(--chart-info)'
+        ~ )
+      StatTile(
+        ~ label='Median turnaround'
+        ~ value={turnaround.median === null ? '—' : formatDuration(turnaround.median)}
+        ~ caption={turnaround.sampled === 0 ? 'No capture has been matched to an entry yet.' : `Capture to verification entry, across ${formatCount(turnaround.sampled)} matched pairs.`}
+        ~ )
 
-      div(className='grid gap-6 lg:grid-cols-2')
-        Panel(title='Capture pipeline' description='Where every session on record currently stands.' meta={`${formatCount(captures.total)} sessions`})
-          Distribution(segments={captures.segments} caption='In progress folds together sessions that are pending and sessions still open in the field.')
-        Panel(title='Verification pipeline' description='Where every verification entry currently stands.' meta={`${formatCount(verifications.total)} entries`})
-          Distribution(segments={verifications.segments} caption={verifications.drafts === 0 ? 'No drafts are waiting to be sent.' : `${formatCount(verifications.drafts)} draft${verifications.drafts === 1 ? '' : 's'} are waiting to be sent.`})
+    div(className='grid gap-6 lg:grid-cols-2')
+      Panel(title='Capture pipeline' description='Where every session on record currently stands.' meta={`${formatCount(captures.total)} sessions`})
+        Distribution(segments={captures.segments} caption='In progress folds together sessions that are pending and sessions still open in the field.')
+      Panel(title='Verification pipeline' description='Where every verification entry currently stands.' meta={`${formatCount(verifications.total)} entries`})
+        Distribution(segments={verifications.segments} caption={verifications.drafts === 0 ? 'No drafts are waiting to be sent.' : `${formatCount(verifications.drafts)} draft${verifications.drafts === 1 ? '' : 's'} are waiting to be sent.`})
 
-      Panel(title='Signal integrity' description='How much a capture can be trusted before anyone opens it.' meta='All sessions on record')
-        div(className='grid gap-8 md:grid-cols-3')
-          div
-            p(className={readingLabelClass}) Country agreement
-            p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.geoChecked === 0 ? '—' : formatPercent(integrity.geoMatchRate)}
-            Meter(value={integrity.geoMatchRate} color='var(--chart-good)' className='mt-4' aria-label='Share of captures whose country matched the IP lookup')
-            p(className='mt-3 text-xs text-muted-foreground') #{integrity.geoChecked === 0 ? 'No capture has been checked against an IP lookup yet.' : `${formatCount(integrity.geoMatched)} of ${formatCount(integrity.geoChecked)} checked captures reported a country matching their IP lookup.`}
-          div
-            p(className={readingLabelClass}) Precise fixes
-            p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.locatedSessions === 0 ? '—' : formatPercent(integrity.preciseRate)}
-            Meter(value={integrity.preciseRate} color='var(--chart-info)' className='mt-4' aria-label={`Share of sessions with a fix inside ${PRECISE_FIX_METRES} metres`})
-            p(className='mt-3 text-xs text-muted-foreground') #{integrity.locatedSessions === 0 ? 'No session has reported a GPS fix yet.' : `${formatCount(integrity.preciseFixes)} of ${formatCount(integrity.locatedSessions)} located sessions landed inside ${PRECISE_FIX_METRES} m.`}
-          div
-            p(className={readingLabelClass}) Median accuracy
-            p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.medianAccuracyMetres === null ? '—' : `${Math.round(integrity.medianAccuracyMetres)} m`}
-            div(className='mt-4 h-1.5')
-            p(className='mt-3 text-xs text-muted-foreground') #{integrity.medianAccuracyMetres === null ? 'Accuracy is recorded once a session reports its best fix.' : `The middle session on record placed itself within this radius.`}
+    Panel(title='Signal integrity' description='How much a capture can be trusted before anyone opens it.' meta='All sessions on record')
+      div(className='grid gap-8 md:grid-cols-3')
+        div
+          p(className={readingLabelClass}) Country agreement
+          p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.geoChecked === 0 ? '—' : formatPercent(integrity.geoMatchRate)}
+          Meter(value={integrity.geoMatchRate} color='var(--chart-good)' className='mt-4' aria-label='Share of captures whose country matched the IP lookup')
+          p(className='mt-3 text-xs text-muted-foreground') #{integrity.geoChecked === 0 ? 'No capture has been checked against an IP lookup yet.' : `${formatCount(integrity.geoMatched)} of ${formatCount(integrity.geoChecked)} checked captures reported a country matching their IP lookup.`}
+        div
+          p(className={readingLabelClass}) Precise fixes
+          p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.locatedSessions === 0 ? '—' : formatPercent(integrity.preciseRate)}
+          Meter(value={integrity.preciseRate} color='var(--chart-info)' className='mt-4' aria-label={`Share of sessions with a fix inside ${PRECISE_FIX_METRES} metres`})
+          p(className='mt-3 text-xs text-muted-foreground') #{integrity.locatedSessions === 0 ? 'No session has reported a GPS fix yet.' : `${formatCount(integrity.preciseFixes)} of ${formatCount(integrity.locatedSessions)} located sessions landed inside ${PRECISE_FIX_METRES} m.`}
+        div
+          p(className={readingLabelClass}) Median accuracy
+          p(className='mt-3 font-sans text-3xl font-medium leading-none tracking-tight text-foreground') #{integrity.medianAccuracyMetres === null ? '—' : `${Math.round(integrity.medianAccuracyMetres)} m`}
+          div(className='mt-4 h-1.5')
+          p(className='mt-3 text-xs text-muted-foreground') #{integrity.medianAccuracyMetres === null ? 'Accuracy is recorded once a session reports its best fix.' : `The middle session on record placed itself within this radius.`}
 
-      Panel(title='Latest activity' description='Captures and verification entries on one clock.' meta='Newest first')
-        if activity.length === 0
-          p(className='text-sm text-muted-foreground') Nothing has been recorded yet.
-        else
-          ul(className='divide-y divide-dotted divide-border/60')
-            each event in activity key event.id
-              li(className='flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0')
-                span(aria-hidden={true} className={cn('h-6 w-0.5 shrink-0 rounded-full', event.tone)})
-                div(className='flex min-w-0 flex-1 basis-[calc(100%-1.25rem)] items-center gap-2.5 sm:basis-0')
-                  Icon(name={event.kind === 'capture' ? 'snap' : 'send'} size={13} className='shrink-0 text-muted-foreground')
-                  p(className='truncate text-sm text-foreground') #{event.actor}
-                span(className='shrink-0 font-mono text-xs uppercase tracking-wider text-foreground/70') #{event.plate}
-                span(className='hidden min-w-0 flex-1 truncate text-xs text-muted-foreground md:block') #{event.detail}
-                span(className='shrink-0 font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground') #{event.status}
-                span(className='w-20 shrink-0 text-right font-mono text-2xs tabular-nums text-muted-foreground/70') #{formatRelativeTime(event.at, now)}
+    Panel(title='Latest activity' description='Captures and verification entries on one clock.' meta='Newest first')
+      if activity.length === 0
+        p(className='text-sm text-muted-foreground') Nothing has been recorded yet.
+      else
+        ul(className='divide-y divide-dotted divide-border/60')
+          each event in activity key event.id
+            li(className='flex flex-wrap items-center gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0')
+              span(aria-hidden={true} className={cn('h-6 w-0.5 shrink-0 rounded-full', event.tone)})
+              div(className='flex min-w-0 flex-1 basis-[calc(100%-1.25rem)] items-center gap-2.5 sm:basis-0')
+                Icon(name={event.kind === 'capture' ? 'snap' : 'send'} size={13} className='shrink-0 text-muted-foreground')
+                p(className='truncate text-sm text-foreground') #{event.actor}
+              span(className='shrink-0 font-mono text-xs uppercase tracking-wider text-foreground/70') #{event.plate}
+              span(className='hidden min-w-0 flex-1 truncate text-xs text-muted-foreground md:block') #{event.detail}
+              span(className='shrink-0 font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground') #{event.status}
+              span(className='w-20 shrink-0 text-right font-mono text-2xs tabular-nums text-muted-foreground/70') #{formatRelativeTime(event.at, now)}
 
-      div(className='flex flex-wrap gap-3 pt-2')
-        Link(to='/admin-snaps' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
-          span Open snaps
-          Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')
-        Link(to='/admin-workspace' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
-          span Open workspace
-          Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')
+    div(className='flex flex-wrap gap-3 pt-2')
+      Link(to='/admin-snaps' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
+        span Open snaps
+        Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')
+      Link(to='/admin-workspace' className='group inline-flex items-center gap-2 rounded-full border border-border/50 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
+        span Open workspace
+        Icon(name='arrow-right' size={13} className='transition-transform duration-200 ease-out group-hover:translate-x-0.5')

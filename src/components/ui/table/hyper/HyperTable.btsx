@@ -53,8 +53,8 @@ component HeaderCell
     const sort = sorting.find((entry) => entry.id === header.column.id)
     const sorted = sort ? (sort.desc ? 'desc' : 'asc') : false
     const headerClassName = cn(
-      'mx-2 h-9 overflow-hidden font-sans font-medium text-foreground text-sm md:h-10 tracking-tight',
-      pinnedColumnLayout && 'sticky z-30 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none dark:bg-[#1d2129]',
+      'mx-2 h-9 overflow-hidden font-mono font-normal text-sm md:text-sm md:h-10 -tracking-[0.015em]',
+      pinnedColumnLayout && 'sticky z-30 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none',
       pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start' && 'shadow-[4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
       pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end' && 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
       !visible && 'pointer-events-none',
@@ -87,7 +87,7 @@ component HeaderCell
         button(
           ~ type='button'
           ~ aria-label={`Resize ${header.column.id} column`}
-          ~ className={`absolute right-0 top-0 z-100 h-full w-3 touch-none rounded-[2px] border-0 bg-transparent outline-none hover:bg-active/10 p-0 after:absolute after:right-0 after:top-0 after:h-[38px] after:w-1 after:rounded-[1px] after:bg-brand/5 after:content-[''] hover:after:w-1 hover:after:bg-active ${header.column.getIsResizing() ? 'cursor-col-resize after:w-1 after:bg-active' : ' '}`}
+          ~ className={cn(`absolute right-0 top-0 z-100 h-full w-3 mt-0.5 touch-none rounded-[2px] border-0 bg-transparent outline-none hover:bg-active/0 p-0 after:absolute after:right-0 after:top-0 after:h-[36px] after:w-1 after:rounded-full after:bg-brand/0 after:content-[''] hover:after:w-1 hover:after:bg-active hover:after:cursor-col-resize`, {'bg-active': header.column.getIsResizing()})}
           ~ onMouseDown={header.getResizeHandler()}
           ~ onTouchStart={header.getResizeHandler()}
           ~ onDoubleClick={() => header.column.resetSize()}
@@ -130,14 +130,14 @@ table(
   ~ data-slot='table'
   ~ aria-busy={loading}
   ~ aria-label={title ?? 'Data table'}
-  ~ className='w-fit min-w-full table-fixed border-separate border-spacing-0 whitespace-nowrap caption-bottom text-sm transition-[width] duration-200 ease-out motion-reduce:transition-none md:min-w-4xl border-b border-sidebar-border border-dotted'
+  ~ className='w-fit min-w-full table-fixed whitespace-nowrap caption-bottom text-sm transition-[width] duration-200 ease-out motion-reduce:transition-none md:min-w-4xl'
   ~ style={{ width: layout.visibleTableSize }}
   ~ )
   colgroup
     each column in layout.orderedLeafColumns key column.id
       ColumnDefinition(visible={layout.columnWidths.get(column.id)?.visible ?? false} width={layout.columnWidths.get(column.id)?.width ?? 0})
-  TableHeader(className='w-full text-foreground')
-    TableRow(className='sticky top-0 z-20 h-7 bg-slate-300/30 backdrop-blur-3xl md:h-8 dark:bg-slate-400/20')
+  TableHeader(className='')
+    TableRow(className='sticky top-0 z-20 h-7 md:h-8')
       each column in layout.orderedLeafColumns key column.id
         if layout.headersByColumnId.has(column.id)
           HeaderCell(

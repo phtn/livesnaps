@@ -1,0 +1,13 @@
+import { useConvexQuery } from '../../src/hooks/use-convex-query'
+import type { FunctionReference } from 'convex/server'
+
+module
+  const settings = 'snapSettings/q:get' as unknown as FunctionReference<'query'>
+  const proof = 'snaps/q:getByUploadId' as unknown as FunctionReference<'query'>
+
+props { active = true, uploadId = '', tick = 0 }: { active?: boolean; uploadId?: string; tick?: number }
+setup
+  const settingsValue = useConvexQuery(settings, active ? {} : 'skip')
+  const proofValue = useConvexQuery(proof, uploadId ? { upload_id: uploadId } : 'skip')
+
+p #{JSON.stringify({ settingsValue, proofValue, tick })}

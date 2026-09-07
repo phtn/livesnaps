@@ -64,7 +64,7 @@ component RoleField
           ~ type='button'
           ~ onClick={() => field.handleChange(option)}
           ~ aria-pressed={field.state.value === option}
-          ~ className={cn(chipClassName, field.state.value === option ? 'border-active bg-active text-white' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+          ~ className={cn(chipClassName, field.state.value === option ? 'border-mist-500 bg-mist-500 text-white' : 'border-border/60 text-muted-foreground hover:bg-accent')}
           ~ )
           | #{ACCOUNT_MEMBER_ROLE_LABEL[option]}
     p(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[field.state.value]}
@@ -167,13 +167,13 @@ setup
     void navigate({ to: '/admin-settings' })
   }
 
-section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
+section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
   form(className='w-full max-w-3xl' onSubmit={submit})
 
     div(className='flex items-center justify-between gap-3 pb-3')
-      div(className='min-w-0')
-        h2(className='font-poly text-base leading-none tracking-tight') Invite a staff member
-        p(className='mt-1.5 text-sm text-muted-foreground')
+      div(className='min-w-0 md:space-y-5 md:mt-3')
+        h2(className='font-sans text-lg leading-none tracking-tight') Invite a staff member
+        p(className='text-sm text-muted-foreground')
           if workspace?.account
             | #{`They are emailed an invitation to ${workspace.account.name} and join once they accept.`}
           else
@@ -199,7 +199,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
           TextField(form={memberForm} name='email' label='Email' type='email' required={true} placeholder='ada@northwind.com')
           TextField(form={memberForm} name='name' label='Name' placeholder='Ada Reyes')
 
-      Step(icon='key' title='Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
+      Step(icon='key' title='Access Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
         RoleField(form={memberForm})
 
       Step(
@@ -209,7 +209,7 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
         ~ index={2}
         ~ meta='optional'
         ~ )
-        TextField(form={memberForm} name='title' label='Title' placeholder='Claims Adjuster')
+        TextField(form={memberForm} name='title' label='Position' placeholder='Lead Verifier')
 
       Step(icon='send' title='Invite' state={inviteState} index={3} isLast={true})
         if canSubmit
@@ -225,11 +225,11 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
       div(className='flex min-w-0 items-center gap-2')
         span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
         span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
-      div(className='flex shrink-0 items-center gap-2')
+      div(className='flex shrink-0 items-center gap-3')
         Button(
           ~ type='button'
           ~ size='sm'
-          ~ variant='ghost'
+          ~ variant='secondary'
           ~ label='Cancel'
           ~ className=''
           ~ disabled={isSubmitting}

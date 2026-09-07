@@ -16,16 +16,17 @@ const fetchAuthToken = async ({ forceRefreshToken }: { forceRefreshToken: boolea
 export interface ConvexAuthState {
   isAuthenticated: boolean
   isLoading: boolean
+  userId: string | null
 }
 
 // `convex/react` is a React-only package, so its `useConvexAuth` is unavailable
 // here. This store mirrors the same contract off the client's `setAuth` change
 // callback so an Octane hook can subscribe to it.
-let convexAuthState: ConvexAuthState = { isAuthenticated: false, isLoading: Boolean(convexClient) }
+let convexAuthState: ConvexAuthState = { isAuthenticated: false, isLoading: Boolean(convexClient), userId: null }
 const convexAuthListeners = new Set<() => void>()
 
 const publishConvexAuthState = (next: ConvexAuthState) => {
-  if (next.isAuthenticated === convexAuthState.isAuthenticated && next.isLoading === convexAuthState.isLoading) {
+  if (next.isAuthenticated === convexAuthState.isAuthenticated && next.isLoading === convexAuthState.isLoading && next.userId === convexAuthState.userId) {
     return
   }
 
@@ -72,9 +73,10 @@ if (convexClient) {
     if (!user) syncedUid = null
     // Reconfigure only on sign-in and sign-out. Convex owns token rotation;
     // re-registering on every Firebase token change can create refresh races.
-    publishConvexAuthState({ isAuthenticated: false, isLoading: Boolean(user) })
+    publishConvexAuthState({ isAuthenticated: false, isLoading: Boolean(user), userId: null })
     convexClient.setAuth(fetchAuthToken, (isAuthenticated) => {
-      publishConvexAuthState({ isAuthenticated, isLoading: false })
+      if (auth.currentUser?.uid !== user?.uid) return
+      publishConvexAuthState({ isAuthenticated, isLoading: false, userId: isAuthenticated ? user?.uid ?? null : null })
       // Only once Convex has accepted the token does the mutation carry an
       // identity, so the upsert waits for this callback rather than firing off
       // the Firebase auth change.

@@ -164,7 +164,6 @@ MenuPrimitive.Root
           p(className='truncate text-xs font-medium text-foreground') #{displayName}
           if email
             p(className='truncate text-2xs text-foreground/60') #{email}
-        Icon(name='down' className='size-4 rotate-90 shrink-0 text-muted-foreground transition-all duration-180 ease-out group-data-popup-open:opacity-30 group-data-popup-open:rotate-0 group-data-popup-open:-translate-y-6')
 
   MenuPrimitive.Portal(container={portalContainer})
     MenuPrimitive.Positioner(

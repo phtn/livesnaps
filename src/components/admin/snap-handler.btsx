@@ -1,0 +1,66 @@
+import { createContext, use, useEffect, useState } from 'octane'
+import type { OctaneNode } from 'octane'
+import PersonCell from '@/components/ui/table/person-cell.btsx'
+
+module
+  interface HandlerOptions {
+    canManage: boolean
+    members: { id: string; name: string; email: string }[]
+  }
+  const HandlerContext = createContext<{ options: HandlerOptions; refresh: () => void } | null>(null)
+  export { SnapHandlerProvider }
+
+component SnapHandlerProvider
+  props { children, refresh }: { children?: OctaneNode; refresh: () => void }
+  setup
+    const [options, setOptions] = useState<HandlerOptions>({ canManage: false, members: [] })
+    useEffect(() => {
+      const controller = new AbortController()
+      void fetch('/api/admin/snap-handlers', { credentials: 'same-origin', signal: controller.signal })
+        .then(async response => { if (response.ok) setOptions(await response.json() as HandlerOptions) })
+        .catch(() => {})
+      return () => controller.abort()
+    }, [])
+
+  HandlerContext.Provider(value={{ options, refresh }})
+    fragment #{children}
+
+props { uploadId, name, email, imageUrl }: { uploadId: string; name?: string; email?: string; imageUrl?: string }
+setup
+  const context = use(HandlerContext)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const changeHandler = async (event: Event) => {
+    const select = event.currentTarget as HTMLSelectElement
+    const memberId = select.value
+    select.value = ''
+    if (!memberId || busy) return
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch('/api/admin/snap-handlers', {
+        method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uploadId, memberId: memberId === 'clear' ? null : memberId })
+      })
+      if (!response.ok) {
+        const payload = await response.json() as { error?: string }
+        throw new Error(payload.error || 'Unable to update handler.')
+      }
+      context?.refresh()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to update handler.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+div(className='flex flex-col gap-1' onClick={(event: MouseEvent) => event.stopPropagation()})
+  PersonCell(name={name || 'Unassigned'} imageUrl={imageUrl})
+  if context?.options.canManage
+    select(aria-label={`Change handler for ${uploadId}`} value='' disabled={busy} onChange={changeHandler} className='max-w-48 rounded border border-border bg-surface px-2 py-1 text-xs')
+      option(value='' disabled) #{busy ? 'Saving…' : 'Change handler'}
+      option(value='clear') Clear handler
+      each member in context.options.members key member.id
+        option(value={member.id} disabled={member.email === email}) #{member.name}
+  if error
+    span(role='alert' className='text-xs text-destructive') #{error}

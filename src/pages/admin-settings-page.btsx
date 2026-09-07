@@ -1,6 +1,8 @@
 import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
 import Tabs from '@/components/ui/tabs.btsx'
 import type { PanelRoute } from '@/components/ui/tabs.btsx'
+import {cn} from '@/lib/utils'
+import {Container} from '@/components/admin'
 
 module
   // One entry per child route under `adminSettingsRoute` in `router.ts`.
@@ -25,7 +27,7 @@ setup
     void navigate({ to: href })
   }
 
-main(className='min-h-screen')
+Container
   div(className='flex items-end h-12 md:h-16 border-b border-border/70')
     Tabs(
       ~ activeId={activeId}

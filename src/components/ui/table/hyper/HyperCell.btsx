@@ -23,9 +23,9 @@ td(
   ~ data-column-pinned={pinnedColumnLayout?.position || undefined}
   ~ inert={!isVisible}
   ~ style={getPinnedColumnStyle(pinnedColumnLayout)}
-  ~ className={cn('overflow-hidden p-0 border-b border-r border-sidebar-border first:border-l-0 last:border-r-0',
+  ~ className={cn('overflow-hidden p-0 border-b-2 border-r border-table-head first:border-l-0 last:border-r-0 bg-surface',
     ~ {
-      ~ 'sticky z-10 border-r-0 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none': pinnedColumnLayout,
+      ~ 'sticky z-10 border-r-0 bg-table-head/50 backdrop-blur-3xl transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none': pinnedColumnLayout,
       ~ 'border-sidebar-border': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start',
       ~ 'border-l': pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end',
       ~ 'dark:bg-background/10': isEditing && !pinnedColumnLayout,

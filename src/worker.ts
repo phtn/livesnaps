@@ -1,6 +1,6 @@
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
-import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
+import { handleAdminSnapDetail, handleAdminSnapList, handleAdminSnapHandlers } from './server/admin-snap-routes'
 import {
   handleAdminVerificationEntryAttachmentRemove,
   handleAdminVerificationEntryAttachmentUpload,
@@ -135,6 +135,10 @@ export default {
       }
 
       return handleGodsAccountDetail(request, accountSlug, { convexUrl })
+    }
+
+    if (pathname === '/api/admin/snap-handlers') {
+      return handleAdminSnapHandlers(request, { convexUrl })
     }
 
     if (pathname === ADMIN_SNAPS_PATH) {

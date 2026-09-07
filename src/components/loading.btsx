@@ -1,0 +1,18 @@
+import { Icon } from '@/lib/icons'
+import StoreMark from '@/components/store-mark.btsx'
+
+module
+  type Props = {
+    title?: string
+    code?: number
+    message?: string
+    action?: VoidFunction
+    actionLabel?: string
+  }
+props {message, action, actionLabel, code}: Props
+main(className='grid min-h-screen bg-surface place-items-center bg-sunken px-6 text-center')
+  div(className='max-w-md -mt-12 flex flex-col items-center')
+    StoreMark(className='mx-auto size-14 animate-in zoom-in')
+    Icon(name='spinner-axial' className='size-8 opacity-60 animate-in zoom-in delay-100')
+    p(className='mt-6 flex items-center justify-center gap-2 font-mono text-sm text-muted-foreground text-balance leading-6')
+      span(className='') #{message}

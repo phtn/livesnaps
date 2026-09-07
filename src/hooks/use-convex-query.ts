@@ -28,7 +28,7 @@ const createQueryStore = <Query extends FunctionReference<'query'>>(
   const listeners = new Set<() => void>()
 
   const notify = () => {
-    for (const listener of listeners) listener()
+    for (const listener of [...listeners]) listener()
   }
 
   const store: QueryStore<FunctionReturnType<Query>> = {
@@ -64,7 +64,7 @@ const createQueryStore = <Query extends FunctionReference<'query'>>(
         if (listeners.size === 0) {
           unsubscribe?.()
           unsubscribe = undefined
-          queryStores.delete(key)
+          if (queryStores.get(key) === store) queryStores.delete(key)
         }
       }
     }
@@ -73,8 +73,10 @@ const createQueryStore = <Query extends FunctionReference<'query'>>(
   return store
 }
 
-const getQueryStore = <Query extends FunctionReference<'query'>>(query: Query, args: FunctionArgs<Query>) => {
-  const key = getQueryKey(query, args)
+const getQueryStore = <Query extends FunctionReference<'query'>>(query: Query, args: FunctionArgs<Query>, identityKey: string) => {
+  // Octane appends a call-site slot when an optional hook argument is omitted.
+  const scope = typeof identityKey === 'string' ? identityKey : ''
+  const key = `${scope}:${getQueryKey(query, args)}`
   const existingStore = queryStores.get(key) as QueryStore<FunctionReturnType<Query>> | undefined
 
   if (existingStore) return existingStore
@@ -86,8 +88,9 @@ const getQueryStore = <Query extends FunctionReference<'query'>>(query: Query, a
 
 export function useConvexQuery<Query extends FunctionReference<'query'>>(
   query: Query,
-  args: FunctionArgs<Query> | 'skip'
+  args: FunctionArgs<Query> | 'skip',
+  identityKey = ''
 ): FunctionReturnType<Query> | undefined {
-  const store = args === 'skip' ? skippedQueryStore : getQueryStore(query, args)
+  const store = args === 'skip' ? skippedQueryStore : getQueryStore(query, args, identityKey)
   return useSyncExternalStore(store.subscribe, store.getSnapshot)
 }

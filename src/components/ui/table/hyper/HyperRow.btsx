@@ -55,7 +55,7 @@ TableRow(data-state={isSelected ? 'selected' : undefined}
       ~ 'bg-active hover:bg-brand/15 dark:bg-brand/20': isSelected && !isHighlighted,
       ~ 'bg-sky-300/20 hover:bg-brand/10 dark:bg-background/20 dark:hover:bg-background/30': isPinned && !isHighlighted && !isSelected,
       ~ 'cursor-pointer': showSelectColumn && row.getCanSelect(),
-      ~ 'relative z-10 bg-background/95': isDragging,
+      ~ 'relative z-10': isDragging,
       ~ 'border-t-2 border-t-primary': dropPosition === 'before',
       ~ 'border-b-2 border-b-primary': dropPosition === 'after',
       ~ })}

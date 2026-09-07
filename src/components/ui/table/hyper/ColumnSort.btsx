@@ -31,7 +31,7 @@ fragment
         ~ aria-label={`Sort by ${header.column.id}${sorted ? `, currently ${sorted === 'asc' ? 'ascending' : 'descending'}` : ''}`}
         ~ )
         span(className='min-w-0 truncate') #{flexRender(header.column.columnDef.header, header.getContext())}
-        span(className={cn('text-xs text-slate-400 line-through decoration-sidebar transition-transform duration-200 ease-out translate-x-1', {'decoration-transparent text-slate-500 text-muted-foreground text-xs -translate-x-1.5': sorted })}) #{sorted === 'asc' ? '⯅' : sorted === 'desc' ? '⯆' : '♢'}
+        span(className={cn('font-sans text-2xs text-muted-foreground/45 line-through decoration-[1.5px] decoration-table-head dark:decoration-sunken translate-x-px', {'decoration-transparent! text-xs! text-muted-foreground! translate-x-0!': sorted })}) #{sorted === 'asc' ? '⯅' : sorted === 'desc' ? '⯆' : '♦'}
 
 
     else

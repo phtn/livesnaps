@@ -1,3 +1,4 @@
+import SnapHandler from './snap-handler.btsx'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
 import PhotosCell from '@/components/ui/table/photos-cell.btsx'
 import RowActions from '@/components/ui/table/row-actions.btsx'
@@ -107,13 +108,13 @@ export const snapColumns = columnHelper.columns([
     filterFn: 'arrHas',
     enableColumnFilter: true
   }),
-  columnHelper.accessor('email', {
-    header: createHeader('Email'),
-    size: 300,
-    sortFn: 'text',
-    filterFn: 'includesString',
-    enableColumnFilter: true
-  }),
+  // columnHelper.accessor('email', {
+  //   header: createHeader('Email'),
+  //   size: 300,
+  //   sortFn: 'text',
+  //   filterFn: 'includesString',
+  //   enableColumnFilter: true
+  // }),
   columnHelper.accessor('status', {
     header: createHeader('Status'),
     size: 200,
@@ -133,7 +134,7 @@ export const snapColumns = columnHelper.columns([
     enableColumnFilter: true,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.handlerImageUrl, name: info.getValue() })
+    cell: (info) => createElement(SnapHandler, { uploadId: info.row.original.uploadId, email: info.row.original.handler?.email, imageUrl: info.row.original.handlerImageUrl, name: info.getValue() })
   }),
   columnHelper.accessor((row) => row.verification_status ?? 'unsubmitted', {
     id: 'verification_status',
@@ -173,9 +174,9 @@ export const snapColumns = columnHelper.columns([
     enableGlobalFilter: false,
     cell: (info) => formatUpdatedAt(info.getValue())
   }),
-  columnHelper.accessor('firebaseUid', { header: 'Firebase UID', size: 260, sortFn: 'text' }),
-  columnHelper.accessor('phone', { header: 'Phone', size: 180, sortFn: 'text' }),
-  columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' }),
+  // columnHelper.accessor('firebaseUid', { header: 'Firebase UID', size: 260, sortFn: 'text' }),
+  // columnHelper.accessor('phone', { header: 'Phone', size: 180, sortFn: 'text' }),
+  // columnHelper.accessor('uploadId', { header: 'Upload ID', size: 260, sortFn: 'text' }),
   columnHelper.display({
     id: 'actions',
     header: createHeader('⁞'),

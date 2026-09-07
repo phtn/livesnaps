@@ -29,9 +29,9 @@ div(className='flex gap-3')
   div(className='flex w-8 shrink-0 flex-col items-center')
     span(
       ~ style={{ transitionDelay: tileDelay }}
-      ~ className={cn('grid size-7 shrink-0 place-items-center rounded-md transition-all duration-300 ease-out motion-reduce:transition-none', state === 'active' && 'scale-105', STEP_TILE_CLASS[state])}
+      ~ className={cn('grid size-6 shrink-0 place-items-center rounded-md transition-all duration-300 ease-out motion-reduce:transition-none', state === 'active' && 'scale-105', STEP_TILE_CLASS[state])}
       ~ )
-      Icon(name={icon} className='size-4')
+      Icon(name={icon} className='size-3.5')
     if !isLast
       span(className='relative w-px flex-1 overflow-hidden bg-border/25')
         span(
@@ -42,7 +42,7 @@ div(className='flex gap-3')
     div(className='flex items-baseline justify-between gap-3')
       h3(
         ~ style={{ transitionDelay: tileDelay }}
-        ~ className={cn('mb-2 font-medium text-base leading-7 tracking-tight transition-colors duration-300 ease-out motion-reduce:transition-none', STEP_TITLE_CLASS[state])}
+        ~ className={cn('mb-2 font-sans font-medium text-sm md:text-base leading-7 -tracking-[0.01em] transition-colors duration-300 ease-out motion-reduce:transition-none', STEP_TITLE_CLASS[state])}
         ~ )
         | #{title}
       if meta

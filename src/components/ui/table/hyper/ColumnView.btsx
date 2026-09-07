@@ -41,23 +41,23 @@ component ColumnViewTrigger
   BaseButton(
     ~ {...buttonProps}
     ~ className={cn(
-    ~   'relative md:h-9 h-8.5 py-1 md:w-auto flex items-center justify-center rounded-[4px] portrait:aspect-square',
-    ~   'select-none text-foreground text-sm mx-1 md:space-x-1 md:px-2.5 gap-1 w-9',
+    ~   'relative h-8 py-1 md:w-auto flex items-center justify-center rounded-[4px] portrait:aspect-square',
+    ~   'select-none text-foreground text-sm mx-1 md:space-x-1 md:px-2 gap-1 w-9',
     ~   'data-pressed:bg-zinc-200/50 dark:data-pressed:bg-zinc-800',
-    ~   'border border-transparent hover:border-orange-400',
+    ~   'border border-zinc-200/50 dark:border-zinc-200/10 bg-zinc-200/50 dark:bg-zinc-200/8 hover:border-orange-400',
     ~   'hover:bg-orange-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
     ~   'active:bg-zinc-300 dark:active:bg-zinc-700/40',
     ~   'focus-visible:bg-none focus-visible:-outline-offset-1 focus-visible:outline-1',
-    ~   {'gap-0.5! md:ps-2 md:pe-2.5 md:border-orange-400/60!': invisibleCount > 0},
+    ~   {'gap-0.5! md:ps-1.5 md:pe-2 border-orange-400/60! dark:border-zinc-200/10! bg-orange-100/5!': invisibleCount > 0},
     ~   className,
     ~ )}
     ~ )
     if invisibleCount > 0
-      span(className='min-w-6 w-6 md:-ml-0.5 grow-0 rounded-xs bg-orange-400 font-okx font-semibold text-white dark:text-white dark:bg-sand')
+      span(className='min-w-6 w-6 md:-ml-0.5 grow-0 rounded-xs bg-orange-400 font-okx font-semibold text-white dark:text-white dark:bg-sand/80')
         | #{invisibleCount > 99 ? '99+' : invisibleCount}
     else
-      Icon(name='cols' className='size-5 dark:opacity-60 opacity-80')
-    span(className='hidden font-okx text-sm opacity-80 md:flex') Columns
+      Icon(name='cols' className='size-5 opacity-80')
+    span(className='hidden font-okx text-sm opacity-80 md:flex uppercase') Cols
     | #{children}
 
 component ColumnVisibilityItem
@@ -198,11 +198,11 @@ Sortable(value={reorderableColumnIds} onValueChange={handleColumnOrderChange})
                     ~   className: 'group/drag flex h-8 items-center justify-between rounded-xs bg-transparent ps-3 pe-1 text-sm text-foreground opacity-100 hover:bg-sand/10 dark:text-white dark:hover:bg-sand/2 dark:hover:text-sand/95',
                     ~ })}
                     ~ )
-                    span #{getColumnHeaderText(column)} 𜲉
+                    span #{getColumnHeaderText(column)}
 
                     Icon(
                       ~ name='draggable'
-                      ~ className='hidden size-5 opacity-60 group-hover/drag:opacity-100 group-hover/drag:text-mist-700 dark:group-hover/drag:text-orange-200'
+                      ~ className='size-5 opacity-60 group-hover/drag:opacity-100 group-hover/drag:text-mist-700 dark:group-hover/drag:text-orange-200'
                       ~ )
           else
             div(className='space-y-0 p-0')

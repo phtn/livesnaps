@@ -56,74 +56,82 @@ setup
     (member) => (statusFilter === 'all' || member.status === statusFilter) && matchesMemberQuery(member, query)
   )
 
-section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
-  header(className='flex flex-wrap items-baseline justify-between gap-3')
-    div
-      h2(className='font-poly font-medium tracking-tight') Members
-      p(className='mt-1 text-sm text-muted-foreground')
-        if workspace?.account
-          | #{`Everyone on ${workspace.account.name}, and where each one stands.`}
+section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
+  if workspace?.account === null && rosterStatus === 'ready'
+    div(className='rounded-sm border border-dashed border-orange-400/60 px-4 py-10 text-center')
+      p(className='text-sm text-muted-foreground') This administrator is not a member of any account.
+      p(className='mt-1 text-xs text-muted-foreground') An account has to be provisioned by the systems admin before it has a roster.
+
+  else
+    fragment
+      header(className='flex flex-wrap items-baseline justify-between gap-3')
+        div
+          h2(className='font-poly font-medium text-lg tracking-[0.01em]')
+            if rosterStatus === 'ready'
+              span #{members.length}
+            else
+              Icon(name='spinner-ring')
+          p(className='mt-1 text-sm text-muted-foreground')
+            if workspace?.account
+              | #{`Everyone on ${workspace.account.name}, and where each one stands.`}
+            else
+              | #{'Everyone on this workspace, and where each one stands.'}
+        div(className='flex items-center gap-3')
+          if rosterStatus === 'ready'
+            span(className='shrink-0 font-mono text-xs text-muted-foreground') #{`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+          button(
+            ~ type='button'
+            ~ aria-label='Refresh members'
+            ~ onClick={() => setReloadToken((token) => token + 1)}
+            ~ className='group rounded-sm p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-sidebar hover:text-foreground'
+            ~ )
+            Icon(name='refresh' size='14' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+
+      div(className='relative mt-3')
+        Input(
+          ~ id='admin-member-search'
+          ~ type='search'
+          ~ value={query}
+          ~ autoComplete='off'
+          ~ placeholder='Search by name, email, title, or role'
+          ~ onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)}
+          ~ )
+
+      div(className='mt-3 flex flex-wrap gap-1.5')
+        each option in MEMBER_STATUS_FILTERS key option
+          button(
+            ~ type='button'
+            ~ onClick={() => setStatusFilter(option)}
+            ~ aria-pressed={statusFilter === option}
+            ~ className={cn(chipClassName, statusFilter === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+            ~ )
+            span #{MEMBER_STATUS_FILTER_LABEL[option]}
+            span(className='opacity-60') #{option === 'all' ? members.length : (counts[option] ?? 0)}
+
+      if rosterError
+        p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{rosterError}
+
+      div(className='mt-4')
+        if rosterStatus === 'loading'
+          div(className='flex items-center gap-2 py-6')
+            Icon(name='spinner-ferris' className='size-4')
+            p(className='text-sm text-muted-foreground') Loading members…
+        elseif rosterStatus === 'error'
+          button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
+
+        elseif members.length === 0
+          div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
+            p(className='text-sm text-muted-foreground') No members yet.
+            Link(to='/admin-settings/invite' className={cn(actionButtonClassName, 'mt-4')}) Invite the first one
+        elseif visibleMembers.length === 0
+          p(className='px-1 py-6 text-sm text-muted-foreground') No members match this filter.
         else
-          | #{'Everyone on this workspace, and where each one stands.'}
-    div(className='flex items-center gap-3')
-      if rosterStatus === 'ready'
-        span(className='shrink-0 font-mono text-xs text-muted-foreground') #{`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
-      button(
-        ~ type='button'
-        ~ aria-label='Refresh members'
-        ~ onClick={() => setReloadToken((token) => token + 1)}
-        ~ className='group rounded-sm p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-sidebar hover:text-foreground'
-        ~ )
-        Icon(name='refresh' size='14' className='group-active:rotate-180 transition-transform duration-200 ease-out')
-
-  div(className='relative mt-3')
-    Input(
-      ~ id='admin-member-search'
-      ~ type='search'
-      ~ value={query}
-      ~ autoComplete='off'
-      ~ placeholder='Search by name, email, title, or role'
-      ~ onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)}
-      ~ )
-
-  div(className='mt-3 flex flex-wrap gap-1.5')
-    each option in MEMBER_STATUS_FILTERS key option
-      button(
-        ~ type='button'
-        ~ onClick={() => setStatusFilter(option)}
-        ~ aria-pressed={statusFilter === option}
-        ~ className={cn(chipClassName, statusFilter === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
-        ~ )
-        span #{MEMBER_STATUS_FILTER_LABEL[option]}
-        span(className='opacity-60') #{option === 'all' ? members.length : (counts[option] ?? 0)}
-
-  if rosterError
-    p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{rosterError}
-
-  div(className='mt-4')
-    if rosterStatus === 'loading'
-      div(className='flex items-center gap-2 py-6')
-        Icon(name='spinner-ferris' className='size-4')
-        p(className='text-sm text-muted-foreground') Loading members…
-    elseif rosterStatus === 'error'
-      button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
-    elseif workspace?.account === null
-      div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
-        p(className='text-sm text-muted-foreground') This administrator is not a member of any account.
-        p(className='mt-1 text-xs text-muted-foreground') An account has to be provisioned in the Citadel before it has a roster.
-    elseif members.length === 0
-      div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
-        p(className='text-sm text-muted-foreground') No members yet.
-        Link(to='/admin-settings/invite' className={cn(actionButtonClassName, 'mt-4')}) Invite the first one
-    elseif visibleMembers.length === 0
-      p(className='px-1 py-6 text-sm text-muted-foreground') No members match this filter.
-    else
-      ul(className='divide-y divide-border/60 divide-dotted rounded-sm')
-        each member in visibleMembers key member._id
-          li(className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5')
-            MemberIdentity(member={member})
-            div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
-              span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline') #{member.title ?? ''}
-              span(className='shrink-0 font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
-              span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatMemberDate(member.joinedAt ?? member.invitedAt)}
-              Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}
+          ul(className='divide-y divide-border/60 divide-dotted rounded-sm')
+            each member in visibleMembers key member._id
+              li(className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5')
+                MemberIdentity(member={member})
+                div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
+                  span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline') #{member.title ?? ''}
+                  span(className='shrink-0 font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
+                  span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatMemberDate(member.joinedAt ?? member.invitedAt)}
+                  Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}

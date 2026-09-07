@@ -1,8 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'octane'
+import { memo } from 'octane'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { useConvexAuth } from '@/hooks/use-convex-auth'
 import { Link } from '@octanejs/tanstack-router'
 import Badge from '@/components/ui/badge.btsx'
 import { Icon } from '@/lib/icons'
-import { getMySubmissions } from '@/lib/convex-client'
 import { cn } from '@/lib/utils'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
@@ -11,10 +12,7 @@ import { format } from 'date-fns'
 module
   type SnapSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
   type SnapSubmissionStatus = SnapSubmission['status']
-  type SubmissionRequest = {
-    promise: Promise<SnapSubmission[]>
-    userId: string
-  }
+  const listMineQuery = 'snaps/q:listMine' as unknown as typeof api.snaps.q.listMine
   export interface SubmitListProps {
     authenticatedUserId: string | null
     className?: string
@@ -75,34 +73,13 @@ component EmptyState
 props { authenticatedUserId, className, eyebrow = 'Activity', heading = 'Your snaps', isAuthenticated, isAuthLoading }: SubmitListProps
 
 setup
-  const [submissions, setSubmissions] = useState<SnapSubmission[] | undefined>(undefined)
-  const [isLoading, setIsLoading] = useState(isAuthLoading || isAuthenticated)
-  const requestRef = useRef<SubmissionRequest | null>(null)
-  useEffect(() => {
-    let cancelled = false
-
-    if (isAuthLoading) {
-      setIsLoading(true)
-      return () => { cancelled = true }
-    }
-
-    if (!isAuthenticated || !authenticatedUserId) {
-      requestRef.current = null
-      setSubmissions([])
-      setIsLoading(false)
-      return () => { cancelled = true }
-    }
-
-    let request = requestRef.current
-    if (!request || request.userId !== authenticatedUserId) {
-      request = { promise: getMySubmissions(), userId: authenticatedUserId }
-      requestRef.current = request
-    }
-
-    setIsLoading(true)
-    void request.promise.then((next) => { if (!cancelled) { setSubmissions(next); setIsLoading(false) } }).catch(() => { if (!cancelled) { setSubmissions([]); setIsLoading(false) } })
-    return () => { cancelled = true }
-  }, [authenticatedUserId, isAuthenticated, isAuthLoading])
+  const convexAuth = useConvexAuth()
+  const canRead = isAuthenticated && !isAuthLoading && Boolean(authenticatedUserId) &&
+    convexAuth.isAuthenticated && convexAuth.userId === authenticatedUserId
+  // Keep one subscription while this account is visible. Wait for Convex to
+  // accept its token, and never reuse another account's cached snapshot.
+  const submissions = useConvexQuery(listMineQuery, canRead ? {} : 'skip', authenticatedUserId ?? '')
+  const isLoading = isAuthLoading || (isAuthenticated && (convexAuth.isLoading || (canRead && submissions === undefined)))
 
 section(aria-labelledby='proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})
 

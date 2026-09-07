@@ -28,19 +28,20 @@ module
     { icon: 'snap', label: 'Snaps', path: '/admin-snaps' },
     { icon: 'timeline', label: 'Workspace', path: '/admin-workspace' },
     { icon: 'settings', label: 'Settings', path: '/admin-settings' },
+    { icon: 'play', label: 'Sandbox', path: '/admin-snaps-lab'}
   ]
 
   // The router sets `data-status="active"` on a matching Link, so the active
   // route is read off the link itself rather than by comparing paths here.
   const navLinkClassName =
-    'relative flex h-14 items-center text-foreground/70 transition-colors data-[status=active]:bg-sidebar-border data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
+    'relative flex h-14 items-center text-foreground/55 transition-colors data-[status=active]:rounded-e-lg data-[status=active]:bg-sidebar-border data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
 
 component AdminNavigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
     ul(className='flex flex-col')
       each item in navs key item.path
-        li(className='w-full hover:text-foreground hover:bg-sidebar/60')
+        li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
           Link(
             ~ to={item.path}
             ~ onClick={onNavigate}
@@ -99,18 +100,18 @@ setup
   }, [])
 
 if isMobile
-  div(className='min-h-screen bg-background')
+  div(className='min-h-screen bg-sunken')
     Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
-      div(className='fixed top-0 z-35 w-full bg-background flex items-center justify-between h-12 border-b border-border/70 px-2.5')
-        Drawer.Trigger(type='button' aria-label='Open admin navigation' className='fixed h-7! left-2 top-2 z-20 gap-2 inline-flex items-center justify-center bg-background text-foreground')
+      div(className='fixed top-0 z-35 w-full bg-sunken flex items-center justify-between h-12 border-b border-sidebar-border px-2.5')
+        Drawer.Trigger(type='button' aria-label='Open admin navigation' className='fixed h-7! left-2 top-2 z-20 gap-2 inline-flex items-center justify-center text-foreground')
           Icon(name='sidebar' className='size-6 text-foreground/70')
-          h1(className='inline-flex items-center gap-0 font-poly font-medium text-foreground/90 tracking-tight')
+          h1(className='mt-0.75 inline-flex items-center gap-0 font-poly font-medium text-foreground/90 tracking-tight')
             span(className='uppercase text-beach dark:text-foreground') Live
             span(className='uppercase dark:text-lime-200') Snaps
             span(className='text-sand dark:text-foreground') Now
       Drawer.Portal
         Drawer.Overlay(className='fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]')
-        Drawer.Content(className='fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-background! shadow-2xl outline-none')
+        Drawer.Content(className='fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-sunken! shadow-2xl outline-none')
           Drawer.Title(className='sr-only') Admin navigation
           div(className='flex h-16 items-center border-b border-border/70 px-6')
             Link(className='inline-flex items-center gap-2 text-[clamp(1.2rem,3vw,1.6rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
@@ -130,7 +131,7 @@ if isMobile
               ~ hasGodAccess={hasGodAccess}
               ~ onSignOut={() => setIsMobileNavOpen(false)}
               ~ )
-    main(className='min-h-screen bg-background pt-11')
+    main(className='min-h-screen bg-sunken pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your administrator session…
@@ -147,8 +148,8 @@ if isMobile
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col bg-background border-r border-border/70')
-        div(className={cn('flex h-16 items-center border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+      aside(className='flex h-full min-w-0 w-full flex-col bg-sunken _border-r border-border/70')
+        div(className={cn('flex h-16 items-center _border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
           Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
             if isNavigationCompact

@@ -1,3 +1,4 @@
+import SnapHandler from './snap-handler.btsx'
 import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
@@ -44,6 +45,13 @@ const columnHelper = createColumnHelper<typeof snapsFeatures, VerificationEntryR
 const createHeader = (header: string) => () => createElement('div', { className: 'ps-4' }, header)
 
 export const verificationEntryColumns = columnHelper.columns([
+  columnHelper.display({
+    id: 'handler', header: createHeader('Handler'), size: 240,
+    cell: (info) => {
+      const handler = info.row.original.handler
+      return createElement(SnapHandler, { uploadId: info.row.original.uploadId, name: handler?.name, email: handler?.email, imageUrl: handler?.image_url })
+    }
+  }),
   columnHelper.accessor('plateNumber', {
     header: createHeader('Plate'),
     size: 120,

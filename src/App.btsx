@@ -38,6 +38,7 @@ setup
   const sessionUploadIdRef = useRef<string | null>(null)
   const sessionCompletedRef = useRef(false)
   const startInvalidationReasonRef = useRef<string | null>(null)
+  const startPendingRef = useRef(false)
   const [isStarting, setIsStarting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
   const [locationAccuracyMeters, setLocationAccuracyMeters] = useState<number | null>(null)
@@ -167,11 +168,11 @@ setup
   }, [closeVerificationSession])
 
   const handleGetStarted = useCallback(async () => {
-    console.log('handleGetStarted', 'TRIGGERED')
-    if (isStarting || locationWatchRef.current) {
+    if (startPendingRef.current || locationWatchRef.current) {
       return
     }
 
+    startPendingRef.current = true
     setIsStarting(true)
     setStartError(null)
     startInvalidationReasonRef.current = null
@@ -248,10 +249,11 @@ setup
 
       onError(message)
     } finally {
+      startPendingRef.current = false
       startInvalidationReasonRef.current = null
       setIsStarting(false)
     }
-  }, [handleFatalLocationError, handleLocation, isStarting, isUserLoading, setIsExpanded, user])
+  }, [handleFatalLocationError, handleLocation, isUserLoading, setIsExpanded, user])
 
   useEffect(() => {
     const handlePageHide = () => {
