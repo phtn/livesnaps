@@ -13,6 +13,28 @@ type FirebaseServiceAccountInput = {
 
 let cachedAuth: Auth | null | undefined
 
+const PRIVATE_KEY_PEM_MARKER = 'BEGIN PRIVATE KEY'
+const SURROUNDING_QUOTES = /^(['"])([\s\S]*)\1$/
+
+/**
+ * A secret copied out of a `.env` line keeps the quotes that made it one line,
+ * and `wrangler secret put` stores whatever it is handed — so on the Worker the
+ * value arrives as `"{...}"` or `"-----BEGIN PRIVATE KEY-----\n..."`, quotes and
+ * all. Both the JSON parser and the PEM parser reject that, so strip the wrapper
+ * before anything else looks at the value.
+ */
+function readEnvSecret(name: string): string | undefined {
+  const value = process.env[name]?.trim()
+
+  if (!value) {
+    return undefined
+  }
+
+  const unquoted = value.replace(SURROUNDING_QUOTES, '$2').trim()
+
+  return unquoted.length > 0 ? unquoted : undefined
+}
+
 function normalizePrivateKey(privateKey: string) {
   return privateKey.replace(/\\n/g, '\n')
 }
@@ -26,15 +48,25 @@ function buildServiceAccount(
     return null
   }
 
+  const normalizedPrivateKey = normalizePrivateKey(privateKey)
+
+  // `FIREBASE_PRIVATE_KEY` is easy to point at the service account's
+  // `private_key_id` by mistake. A non-PEM value cannot be recovered from, and
+  // left alone it fails much later inside `cert()` as an unhandled throw; a
+  // missing credential is the honest description, and callers already render it.
+  if (!normalizedPrivateKey.includes(PRIVATE_KEY_PEM_MARKER)) {
+    return null
+  }
+
   return {
     projectId,
     clientEmail,
-    privateKey: normalizePrivateKey(privateKey)
+    privateKey: normalizedPrivateKey
   }
 }
 
 function readServiceAccountFromJson(): ServiceAccount | null {
-  const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY?.trim()
+  const rawServiceAccount = readEnvSecret('FIREBASE_SERVICE_ACCOUNT_KEY')
 
   if (!rawServiceAccount?.startsWith('{')) {
     return null
@@ -44,9 +76,9 @@ function readServiceAccountFromJson(): ServiceAccount | null {
     const parsed = JSON.parse(rawServiceAccount) as FirebaseServiceAccountInput
     return (
       buildServiceAccount(
-        parsed.project_id ?? parsed.projectId ?? process.env.FIREBASE_PROJECT_ID,
-        parsed.client_email ?? parsed.clientEmail ?? process.env.FIREBASE_CLIENT_EMAIL,
-        parsed.private_key ?? parsed.privateKey ?? process.env.FIREBASE_PRIVATE_KEY
+        parsed.project_id ?? parsed.projectId ?? readEnvSecret('FIREBASE_PROJECT_ID'),
+        parsed.client_email ?? parsed.clientEmail ?? readEnvSecret('FIREBASE_CLIENT_EMAIL'),
+        parsed.private_key ?? parsed.privateKey ?? readEnvSecret('FIREBASE_PRIVATE_KEY')
       ) ?? null
     )
   } catch {
@@ -55,13 +87,12 @@ function readServiceAccountFromJson(): ServiceAccount | null {
 }
 
 function readServiceAccountFromEnv(): ServiceAccount | null {
-  const projectId = process.env.FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const rawServiceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY
-  const privateKey =
-    rawServiceAccountKey?.includes('BEGIN PRIVATE KEY')
-      ? rawServiceAccountKey
-      : process.env.FIREBASE_PRIVATE_KEY
+  const projectId = readEnvSecret('FIREBASE_PROJECT_ID')
+  const clientEmail = readEnvSecret('FIREBASE_CLIENT_EMAIL')
+  const rawServiceAccountKey = readEnvSecret('FIREBASE_SERVICE_ACCOUNT_KEY')
+  const privateKey = rawServiceAccountKey?.includes(PRIVATE_KEY_PEM_MARKER)
+    ? rawServiceAccountKey
+    : readEnvSecret('FIREBASE_PRIVATE_KEY')
 
   const serviceAccount = buildServiceAccount(projectId, clientEmail, privateKey)
 
@@ -117,11 +148,21 @@ export function getFirebaseAdminAuth(): Auth | null {
     return null
   }
 
-  const app = initializeApp({
-    credential: cert(serviceAccount)
-  })
+  // `cert()` validates the key material and throws on anything it cannot parse.
+  // Every caller is written against `null` — a 503 saying the credentials are
+  // not configured — so let the throw become that instead of an unhandled
+  // exception, which on Workers is an opaque 1101 with no response body at all.
+  try {
+    const app = initializeApp({
+      credential: cert(serviceAccount)
+    })
 
-  cachedAuth = getAuth(app)
+    cachedAuth = getAuth(app)
+  } catch (error) {
+    console.error('Firebase Admin initialization failed:', error)
+    cachedAuth = null
+  }
+
   return cachedAuth
 }
 

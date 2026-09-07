@@ -21,6 +21,7 @@ import type * as admin_m from "../admin/m.js";
 import type * as admin_q from "../admin/q.js";
 import type * as lib_any from "../lib/any.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_email from "../lib/email.js";
 import type * as lib_r2 from "../lib/r2.js";
 import type * as resendWebhooks_d from "../resendWebhooks/d.js";
 import type * as resendWebhooks_m from "../resendWebhooks/m.js";
@@ -63,6 +64,7 @@ declare const fullApi: ApiFromModules<{
   "admin/q": typeof admin_q;
   "lib/any": typeof lib_any;
   "lib/auth": typeof lib_auth;
+  "lib/email": typeof lib_email;
   "lib/r2": typeof lib_r2;
   "resendWebhooks/d": typeof resendWebhooks_d;
   "resendWebhooks/m": typeof resendWebhooks_m;
