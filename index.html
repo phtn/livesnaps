@@ -28,6 +28,14 @@
     <title>LiveSnapsNow — Verify your vehicle</title>
   </head>
   <body>
-    <div id="app">Loading LiveSnapsNow…</div>
+    <div id="app">
+      <!-- The pre-hydration shell is the same loader the router shows: the mark
+           centered on an empty screen, nothing else. Styles are inline because
+           the stylesheet has not loaded yet, and the runtime clears this the
+           moment it mounts. -->
+      <div style="position: fixed; inset: 0; display: grid; place-items: center">
+        <img src="/livesnaps-icons/icon0.svg" alt="" width="48" height="48" style="width: 48px; height: 48px" />
+      </div>
+    </div>
   </body>
 </html>

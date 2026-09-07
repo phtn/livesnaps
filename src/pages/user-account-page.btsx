@@ -3,6 +3,7 @@ import type { OctaneNode } from 'octane'
 import { updateProfile, type User } from 'firebase/auth'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
 import AccountInvitations from '@/components/account/invitations.btsx'
+import { useAccountInvitations } from '@/hooks/use-account-invitations'
 import Avatar from '@/components/ui/avatar.btsx'
 import Topbar from '@/components/topbar.btsx'
 import { ScrollArea } from '@/components/ui/'
@@ -186,6 +187,15 @@ component AuthenticatedAccount
     const displayedPhotoUrl = resolveAccountProfileImageUrl(photoUrl)
     const claimEntries = Object.entries(customClaims)
 
+    // Nothing to accept is nothing to show: the section and its jump link only
+    // appear while an invitation is actually pending. The panel shares this
+    // query's subscription, so reading it here costs no extra round trip.
+    const invitations = useAccountInvitations(user.emailVerified)
+    const hasInvitations = invitations !== undefined && invitations.length > 0
+    const visibleNavigationItems = navigationItems.filter(
+      (item) => item.href !== '#invitations' || hasInvitations
+    )
+
     useEffect(() => persistReduceMotionPreference(reduceMotion), [reduceMotion])
 
     const saveProfile = async (event: SubmitEvent) => {
@@ -301,15 +311,16 @@ component AuthenticatedAccount
     div(className='mt-6 grid items-start gap-6 lg:grid-cols-[13rem_minmax(0,1fr)]')
       aside(className='hidden lg:sticky lg:top-6 lg:block')
         nav(className='space-y-1 rounded-2xl border border-border/45 bg-card/45 p-2 backdrop-blur-sm' aria-label='Account settings')
-          each item in navigationItems key item.href
+          each item in visibleNavigationItems key item.href
             a(href={item.href} className='group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
               Icon(name={item.icon} className='size-4')
               span(className='flex-1') #{item.label}
               Icon(name='chevron-right' className='size-3.5 opacity-0 transition-opacity group-hover:opacity-60')
 
       div(className='min-w-0 space-y-5')
-        SettingsSection(id='invitations' eyebrow='Membership' icon='email-body' title='Invitations' description='Accounts that have invited you. Accepting adds you to the account with the role you were invited under.')
-          AccountInvitations(isEmailVerified={user.emailVerified})
+        if hasInvitations
+          SettingsSection(id='invitations' eyebrow='Membership' icon='email-body' title='Invitations' description='Accounts that have invited you. Accepting adds you to the account with the role you were invited under.')
+            AccountInvitations(isEmailVerified={user.emailVerified})
 
         SettingsSection(id='appearance' eyebrow='Preferences' icon='theme' title='Appearance & motion' description='Personalize LiveSnapsNow while keeping the interface comfortable to use.')
           div(className='grid gap-3 grid-cols-2')

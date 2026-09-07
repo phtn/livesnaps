@@ -175,7 +175,7 @@ MenuPrimitive.Root
       ~ className='z-60 outline-hidden'
       ~ )
       MenuPrimitive.Popup(
-        ~ className='z-50 w-48 origin-(--transform-origin) rounded-md border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+        ~ className='z-50 md:w-48 w-64 origin-(--transform-origin) rounded-md border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
         ~ )
         if showCredits
           CreditsMeter(used={creditsUsed as number} total={creditsTotal as number})

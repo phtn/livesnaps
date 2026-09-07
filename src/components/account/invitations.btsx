@@ -1,9 +1,9 @@
 import { useState } from 'octane'
-import type { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { convexClient } from '@/lib/convex-client'
-import { useConvexQuery } from '@/hooks/use-convex-query'
+import { acceptInviteMutation, useAccountInvitations } from '@/hooks/use-account-invitations'
 import { Icon } from '@/lib/icons'
+import { onSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 
 module
@@ -15,20 +15,15 @@ module
 
   type AcceptState = { id: string; status: 'accepting' } | { id: string; status: 'error'; message: string } | null
 
-  const listMyInvitationsQuery =
-    'accountMembers/q:listMyInvitations' as unknown as typeof api.accountMembers.q.listMyInvitations
-  const acceptInviteMutation =
-    'accountMembers/m:acceptInvite' as unknown as typeof api.accountMembers.m.acceptInvite
-
   const invitedOn = new Intl.DateTimeFormat('en-PH', { day: 'numeric', month: 'short', year: 'numeric' })
 
 props { isEmailVerified, className }: AccountInvitationsProps
 
 setup
-  const invitations = useConvexQuery(listMyInvitationsQuery, isEmailVerified ? {} : 'skip')
+  const invitations = useAccountInvitations(isEmailVerified)
   const [acceptState, setAcceptState] = useState<AcceptState>(null)
 
-  const accept = async (accountId: Id<'accounts'>, membershipId: string) => {
+  const accept = async (accountId: Id<'accounts'>, membershipId: string, accountName: string) => {
     if (!convexClient || acceptState?.status === 'accepting') return
 
     setAcceptState({ id: membershipId, status: 'accepting' })
@@ -36,8 +31,11 @@ setup
     try {
       await convexClient.mutation(acceptInviteMutation, { accountId })
       // The list is a live query, so the accepted row leaves on its own once
-      // the mutation lands - there is nothing to remove by hand here.
+      // the mutation lands - there is nothing to remove by hand here. The row
+      // going away is the only other signal, and on the last invitation the
+      // whole section goes with it, so the toast is what confirms the join.
       setAcceptState(null)
+      onSuccess(`You joined ${accountName}.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not accept this invitation.'
       // Convex wraps a thrown ConvexError in prose; the message we raised is
@@ -75,7 +73,7 @@ div(className={cn('space-y-3', className)})
           ~ type='button'
           ~ disabled={acceptState?.status === 'accepting'}
           ~ aria-busy={acceptState?.id === invitation._id && acceptState.status === 'accepting'}
-          ~ onClick={() => { void accept(invitation.accountId, invitation._id) }}
+          ~ onClick={() => { void accept(invitation.accountId, invitation._id, invitation.accountName) }}
           ~ className='inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-85 disabled:cursor-wait disabled:opacity-60'
           ~ )
           if acceptState?.id === invitation._id && acceptState.status === 'accepting'
