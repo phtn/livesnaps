@@ -27,6 +27,7 @@ export const COMPARISON_DAYS = 30
  * a colour means the same thing on both pages.
  */
 const STATUS_TONE: Record<(typeof ACCOUNT_STATUS_VALUES)[number], string> = {
+  confirmed: 'bg-chart-good',
   active: 'bg-chart-good',
   pending: 'bg-chart-info',
   suspended: 'bg-chart-critical',
@@ -40,7 +41,7 @@ const STATUS_TONE: Record<(typeof ACCOUNT_STATUS_VALUES)[number], string> = {
  * blindness collapses first. Leading with `active` separates them and reads
  * better besides: the healthy share of the book comes first.
  */
-const STATUS_ORDER = ['active', 'pending', 'suspended', 'closed'] as const satisfies ReadonlyArray<
+const STATUS_ORDER = ['confirmed', 'active', 'pending', 'suspended', 'closed'] as const satisfies ReadonlyArray<
   (typeof ACCOUNT_STATUS_VALUES)[number]
 >
 
@@ -95,8 +96,8 @@ export function readPortfolio(accounts: readonly AccountRow[], now = Date.now())
 
   return {
     total: accounts.length,
-    active: statusCounts.active,
-    activeRate: ratio(statusCounts.active, accounts.length),
+    active: statusCounts.active + statusCounts.confirmed,
+    activeRate: ratio(statusCounts.active + statusCounts.confirmed, accounts.length),
     paid,
     paidRate: ratio(paid, accounts.length),
     linkedContacts,

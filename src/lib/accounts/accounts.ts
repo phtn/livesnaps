@@ -2,7 +2,8 @@
  * Accounts are never deleted. `closed` is the terminal state an account holder
  * can choose; `suspended` is ours to apply and is reversible from our side.
  */
-export const ACCOUNT_STATUS_VALUES = ['pending', 'active', 'suspended', 'closed'] as const
+// `active` remains valid for accounts created before confirmation was introduced.
+export const ACCOUNT_STATUS_VALUES = ['pending', 'confirmed', 'active', 'suspended', 'closed'] as const
 
 export type AccountStatus = (typeof ACCOUNT_STATUS_VALUES)[number]
 
@@ -19,6 +20,7 @@ export const ACCOUNT_SLUG_MAX_LENGTH = 63
 export const ACCOUNT_EMAIL_MAX_LENGTH = 320
 export const ACCOUNT_PHONE_MAX_LENGTH = 32
 export const ACCOUNT_NOTES_MAX_LENGTH = 2_000
+export const ACCOUNT_WEBSITE_MAX_LENGTH = 2_048
 
 const EMAIL_ADDRESS_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -38,9 +40,28 @@ export const toAccountSlug = (value: string) =>
     .slice(0, ACCOUNT_SLUG_MAX_LENGTH)
     .replace(/-+$/g, '')
 
+/**
+ * Normalizes a human-entered website into an absolute HTTP(S) URL. Most people
+ * type a hostname, so HTTPS is assumed when the scheme is omitted.
+ */
+export const normalizeAccountWebsiteUrl = (value: string): string | null => {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > ACCOUNT_WEBSITE_MAX_LENGTH || /\s/.test(trimmed)) return null
+
+  const candidate = /^[a-z][a-z\d+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+
+  try {
+    const url = new URL(candidate)
+    if ((url.protocol !== 'https:' && url.protocol !== 'http:') || !url.hostname) return null
+    return url.toString()
+  } catch {
+    return null
+  }
+}
+
 export const ACCOUNT_CLOSE_REASON_MAX_LENGTH = 500
 
 export const isClosedAccountStatus = (status: AccountStatus) => status === 'closed'
 
 /** Statuses whose members can still act on the account. */
-export const canUseAccount = (status: AccountStatus) => status === 'active'
+export const canUseAccount = (status: AccountStatus) => status === 'confirmed' || status === 'active'

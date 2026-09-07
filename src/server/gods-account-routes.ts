@@ -1,18 +1,10 @@
-import type { UserRecord } from 'firebase-admin/auth'
-import {
-  getFirebaseAdminAuth,
-  getFirebaseUserByUid,
-  revokeFirebaseUserRefreshTokens,
-  setFirebaseCustomUserClaims
-} from '@/lib/firebase-admin/admin'
 import { AdminIdTokenError, mintAdminIdToken } from '@/lib/firebase-admin/admin-id-token'
-import { updateFirebaseManagedAccessClaim } from '@/lib/firebase-admin/custom-claims'
-import { authorizeManagedClaimChange, readFirebaseCustomClaims } from '@/lib/firebase-admin/god-directory'
 import { getVerifiedGodSession } from '@/lib/firebase-admin/server-auth'
 import { getHostnameFromHostHeader } from '@/lib/routing/admin-subdomain'
 import { isGodsSubdomainHostname } from '@/lib/routing/gods-subdomain'
 import { api } from '../../convex/_generated/api'
-import { createConvexClient } from './convex'
+import { createConvexClient, RequestError } from './convex'
+import { contactAdminAccessService, type ContactAdminAccess } from './gods-account-admin-access'
 
 export interface GodsAccountRouteEnvironment {
   convexUrl?: string
@@ -22,20 +14,7 @@ export type GodsAccountListResponse = {
   accounts: Awaited<ReturnType<typeof listAccounts>>
 }
 
-/**
- * Reports what happened to the contact's `admin` claim. Granting it is a
- * best-effort follow-on: the account is already created and must not be rolled
- * back because a claim could not be applied, so the outcome is reported instead
- * of thrown.
- */
-export type AdminClaimOutcome = {
-  granted: boolean
-  reason: string | null
-}
-
-export type GodsAccountCreateResponse = GodsAccountListResponse & {
-  adminClaim: AdminClaimOutcome
-}
+export type GodsAccountCreateResponse = GodsAccountListResponse
 
 export type GodsAccountDetailResponse = {
   account: NonNullable<Awaited<ReturnType<typeof getAccountBySlug>>>
@@ -44,6 +23,7 @@ export type GodsAccountDetailResponse = {
   // decide whether to render the control; the server enforces the rule again on
   // the delete itself, so a client that ignores this gets refused anyway.
   canDelete: boolean
+  adminAccess: ContactAdminAccess
 }
 
 const ACCOUNT_LIST_LIMIT = 250
@@ -84,59 +64,6 @@ async function getGodsConvexClient(
   return createConvexClient(await mintAdminIdToken(session.decodedToken.uid), environment.convexUrl)
 }
 
-/**
- * Grants the account contact the `admin` claim once their account exists.
- *
- * The claim rules already in place are the authority here: `admin` is a managed
- * access claim, so `authorizeManagedClaimChange` still requires a `topg` actor
- * and a verified email on the recipient. A plain god can therefore create an
- * account but not mint an admin, and this reports that rather than escalating
- * around it.
- */
-async function grantContactAdminClaim(session: GodSession, uid: string): Promise<AdminClaimOutcome> {
-  if (!getFirebaseAdminAuth()) {
-    return { granted: false, reason: 'Firebase Admin credentials are not configured.' }
-  }
-
-  let target: UserRecord
-  try {
-    target = await getFirebaseUserByUid(uid)
-  } catch {
-    return { granted: false, reason: 'The contact could not be found in the user directory.' }
-  }
-
-  const targetClaims = readFirebaseCustomClaims(target.customClaims)
-
-  if (targetClaims.admin === true) {
-    return { granted: true, reason: null }
-  }
-
-  const decision = authorizeManagedClaimChange({
-    actorClaims: session.customClaims,
-    actorUid: session.decodedToken.uid,
-    claim: 'admin',
-    enabled: true,
-    target: {
-      claims: targetClaims,
-      email: target.email ?? null,
-      emailVerified: target.emailVerified,
-      uid: target.uid
-    }
-  })
-
-  if (!decision.allowed) return { granted: false, reason: decision.error }
-
-  try {
-    await setFirebaseCustomUserClaims(target.uid, updateFirebaseManagedAccessClaim(targetClaims, 'admin', true))
-    // Claims are baked into the ID token, so an unrevoked session would keep
-    // the old access until it expires on its own.
-    await revokeFirebaseUserRefreshTokens(target.uid)
-    return { granted: true, reason: null }
-  } catch {
-    return { granted: false, reason: 'Could not update this account’s access.' }
-  }
-}
-
 const listAccounts = (client: GodsConvexClient) =>
   client.query(api.accounts.q.listForAdmin, { limit: ACCOUNT_LIST_LIMIT })
 
@@ -174,14 +101,12 @@ function readCreateAccountBody(body: unknown) {
   if (!contactEmail) return { error: 'A primary contact email is required.' as const }
 
   const plan = asOptionalString(payload.plan)
-  const status = asOptionalString(payload.status)
 
   return {
     input: {
       name,
       slug: asOptionalString(payload.slug),
-      plan: plan as 'trial' | 'starter' | 'growth' | 'enterprise' | undefined,
-      status: status as 'pending' | 'active' | 'suspended' | 'closed' | undefined,
+      plan: plan as 'trial' | 'starter' | 'pro' | 'enterprise' | undefined,
       organization: {
         legalName: asOptionalString(organization.legalName),
         website: asOptionalString(organization.website),
@@ -212,6 +137,7 @@ function readConvexErrorMessage(error: unknown) {
 }
 
 function handleRouteError(error: unknown, fallback: string) {
+  if (error instanceof RequestError) return json({ error: error.message }, error.status)
   if (error instanceof AdminIdTokenError) {
     return json({ error: 'The Citadel session could not be authenticated.' }, 500)
   }
@@ -265,14 +191,9 @@ export async function handleGodsAccounts(
 
     await client.mutation(api.accounts.m.create, parsed.input)
 
-    const contactUid = parsed.input.primaryContact.firebaseUid
-    const adminClaim: AdminClaimOutcome = contactUid
-      ? await grantContactAdminClaim(session, contactUid)
-      : { granted: false, reason: 'The contact is not an existing user, so no claim was granted.' }
-
     // Re-read rather than appending the new row: the list is ordered and
     // capped server-side, so the client should not guess where it lands.
-    const created: GodsAccountCreateResponse = { accounts: await listAccounts(client), adminClaim }
+    const created: GodsAccountCreateResponse = { accounts: await listAccounts(client) }
     return json(created, 201)
   } catch (error) {
     return handleRouteError(
@@ -294,10 +215,10 @@ export async function handleGodsAccountDetail(
   environment: GodsAccountRouteEnvironment = {}
 ): Promise<Response> {
   if (!isGodsRequest(request)) return json({ error: 'Not found.' }, 404)
-  if (request.method !== 'GET' && request.method !== 'DELETE') {
+  if (request.method !== 'GET' && request.method !== 'DELETE' && request.method !== 'POST') {
     return json({ error: 'Method not allowed.' }, 405)
   }
-  if (request.method === 'DELETE' && !isSameOriginRequest(request)) {
+  if (request.method !== 'GET' && !isSameOriginRequest(request)) {
     return json({ error: 'Invalid request origin.' }, 403)
   }
 
@@ -313,7 +234,7 @@ export async function handleGodsAccountDetail(
 
   try {
     const client = await getGodsConvexClient(session, environment)
-    const account = await getAccountBySlug(client, slug)
+    let account = await getAccountBySlug(client, slug)
 
     if (!account) return json({ error: 'That account could not be found.' }, 404)
 
@@ -322,10 +243,28 @@ export async function handleGodsAccountDetail(
       return json({ ok: true })
     }
 
+    const actor = { uid: session.decodedToken.uid, claims: session.customClaims }
+    if (request.method === 'POST') {
+      let payload: unknown
+      try {
+        payload = await request.json()
+      } catch {
+        return json({ error: 'A valid JSON body is required.' }, 400)
+      }
+      const { action, memberId } = readObject(payload)
+      if ((action !== 'cancel-admin-invite' && action !== 'revoke-admin') || typeof memberId !== 'string') {
+        return json({ error: 'A valid admin access action and membership are required.' }, 400)
+      }
+      await contactAdminAccessService.change(client, account, actor, action, memberId)
+      account = await getAccountBySlug(client, slug)
+      if (!account) return json({ error: 'That account could not be found.' }, 404)
+    }
+
     const body: GodsAccountDetailResponse = {
       account,
       members: await listAccountMembers(client, account._id),
-      canDelete: isTopgSession(session)
+      canDelete: isTopgSession(session),
+      adminAccess: await contactAdminAccessService.read(client, account, actor)
     }
 
     return json(body)

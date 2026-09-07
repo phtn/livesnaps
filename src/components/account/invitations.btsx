@@ -1,6 +1,7 @@
 import { useState } from 'octane'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { convexClient } from '@/lib/convex-client'
+import { authenticatedFetch, getCurrentUser } from '@/lib/firebase'
 import { acceptInviteMutation, useAccountInvitations } from '@/hooks/use-account-invitations'
 import { Icon } from '@/lib/icons'
 import { onSuccess } from '@/lib/toast'
@@ -23,19 +24,26 @@ setup
   const invitations = useAccountInvitations(isEmailVerified)
   const [acceptState, setAcceptState] = useState<AcceptState>(null)
 
-  const accept = async (accountId: Id<'accounts'>, membershipId: string, accountName: string) => {
+  const accept = async (accountId: Id<'accounts'>, membershipId: string, accountName: string, adminConfirmation: boolean) => {
     if (!convexClient || acceptState?.status === 'accepting') return
 
     setAcceptState({ id: membershipId, status: 'accepting' })
 
     try {
-      await convexClient.mutation(acceptInviteMutation, { accountId })
-      // The list is a live query, so the accepted row leaves on its own once
-      // the mutation lands - there is nothing to remove by hand here. The row
-      // going away is the only other signal, and on the last invitation the
-      // whole section goes with it, so the toast is what confirms the join.
+      if (adminConfirmation) {
+        const response = await authenticatedFetch('/api/account/confirm-admin', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ accountId })
+        })
+        const body = await response.json() as { error?: string }
+        if (!response.ok) throw new Error(body.error ?? 'Could not confirm admin access.')
+        await getCurrentUser()?.getIdToken(true)
+      } else {
+        await convexClient.mutation(acceptInviteMutation, { accountId })
+      }
       setAcceptState(null)
-      onSuccess(`You joined ${accountName}.`)
+      onSuccess(adminConfirmation ? `Admin access confirmed for ${accountName}.` : `You joined ${accountName}.`)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not accept this invitation.'
       // Convex wraps a thrown ConvexError in prose; the message we raised is
@@ -50,15 +58,15 @@ div(className={cn('space-y-3', className)})
     div(className='flex items-start gap-3 rounded-xl bg-muted/25 p-4')
       Icon(name='email-body' className='mt-0.5 size-4 shrink-0 text-muted-foreground')
       p(className='text-xs leading-5 text-muted-foreground')
-        | Verify your email address to see invitations sent to it.
+        | Verify your email address to see account confirmations and invitations sent to it.
   elseif invitations === undefined
     div(className='flex items-center gap-2 rounded-xl bg-muted/25 p-4')
       Icon(name='spinner-ring' className='size-4 text-muted-foreground')
-      p(className='text-xs text-muted-foreground') Checking for invitations…
+      p(className='text-xs text-muted-foreground') Checking for account confirmations and invitations…
   elseif invitations.length === 0
     div(className='flex items-start gap-3 rounded-xl bg-muted/25 p-4')
       Icon(name='check' className='mt-0.5 size-4 shrink-0 text-muted-foreground')
-      p(className='text-xs leading-5 text-muted-foreground') No pending invitations.
+      p(className='text-xs leading-5 text-muted-foreground') No pending account confirmations or invitations.
   else
     each invitation in invitations key invitation._id
       div(className='flex flex-col gap-3 rounded-xl border border-border/70 p-4 sm:flex-row sm:items-center sm:justify-between')
@@ -66,18 +74,20 @@ div(className={cn('space-y-3', className)})
           p(className='truncate text-sm font-medium') #{invitation.accountName}
           p(className='mt-1 text-xs text-muted-foreground')
             span(className='font-mono uppercase tracking-wide') #{invitation.role}
-            span(className='ml-2') #{`· invited ${invitedOn.format(invitation.invitedAt)}`}
+            span(className='ml-2') #{`· ${invitation.adminConfirmation ? 'created' : 'invited'} ${invitedOn.format(invitation.invitedAt)}`}
+          if invitation.adminConfirmation
+            p(className='mt-2 text-xs text-muted-foreground') Confirm to activate admin access and manage this account as its owner.
           if acceptState?.id === invitation._id && acceptState.status === 'error'
             p(className='mt-2 text-xs text-destructive' role='alert') #{acceptState.message}
         button(
           ~ type='button'
           ~ disabled={acceptState?.status === 'accepting'}
           ~ aria-busy={acceptState?.id === invitation._id && acceptState.status === 'accepting'}
-          ~ onClick={() => { void accept(invitation.accountId, invitation._id, invitation.accountName) }}
+          ~ onClick={() => { void accept(invitation.accountId, invitation._id, invitation.accountName, !!invitation.adminConfirmation) }}
           ~ className='inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition hover:opacity-85 disabled:cursor-wait disabled:opacity-60'
           ~ )
           if acceptState?.id === invitation._id && acceptState.status === 'accepting'
             Icon(name='spinner-ring' className='size-4')
           else
             Icon(name='check' className='size-4')
-          span #{acceptState?.id === invitation._id && acceptState.status === 'accepting' ? 'Accepting…' : 'Accept'}
+          span #{acceptState?.id === invitation._id && acceptState.status === 'accepting' ? 'Confirming…' : invitation.adminConfirmation ? 'Confirm admin access' : 'Accept'}

@@ -57,8 +57,7 @@ export const create = mutation({
       updatedBy: identity.tokenIdentifier
     })
 
-    // The primary contact owns the account. They are active immediately if they
-    // already have an identity, and hold a pending invite otherwise.
+    // Every contact must confirm admin access, including an existing user.
     const ownerMemberId = await ctx.db.insert('accountMembers', {
       accountId,
       email: primaryContact.email,
@@ -67,22 +66,19 @@ export const create = mutation({
       name: primaryContact.name,
       title: primaryContact.title,
       role: 'owner',
-      status: primaryContact.tokenIdentifier ? 'active' : 'invited',
+      status: 'invited',
+      adminConfirmation: 'pending',
       invitedAt: now,
       invitedBy: identity.tokenIdentifier,
-      joinedAt: primaryContact.tokenIdentifier ? now : null,
+      joinedAt: null,
       updatedAt: now,
       updatedBy: identity.tokenIdentifier
     })
 
-    // Only a contact who still has to accept gets an email; one who already has
-    // an identity is active on the account and has nothing to accept.
-    if (!primaryContact.tokenIdentifier) {
-      await ctx.scheduler.runAfter(0, internal.accountMembers.m.sendInviteEmail, {
-        memberId: ownerMemberId,
-        inviterName: identity.name ?? null
-      })
-    }
+    await ctx.scheduler.runAfter(0, internal.accountMembers.m.sendInviteEmail, {
+      memberId: ownerMemberId,
+      inviterName: identity.name ?? null
+    })
 
     return accountId
   }
@@ -198,7 +194,10 @@ export const close = mutation({
 })
 
 export const reopen = mutation({
-  args: { id: v.id('accounts'), status: v.optional(v.union(v.literal('pending'), v.literal('active'))) },
+  args: {
+    id: v.id('accounts'),
+    status: v.optional(v.union(v.literal('pending'), v.literal('confirmed'), v.literal('active')))
+  },
   returns: accountDocumentSchema,
   handler: async (ctx, { id, status }) => {
     const identity = await requireAdminIdentity(ctx)

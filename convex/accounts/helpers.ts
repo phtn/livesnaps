@@ -5,6 +5,7 @@ import {
   ACCOUNT_PHONE_MAX_LENGTH,
   isAccountEmailAddress,
   isAccountSlug,
+  normalizeAccountWebsiteUrl,
   toAccountSlug
 } from '../../src/lib/accounts/accounts'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
@@ -186,11 +187,18 @@ export const normalizeOrganization = (organization: OrganizationInput | undefine
     return {}
   }
 
-  const { address, ...rest } = organization
+  const { address, website, ...rest } = organization
   const normalizedAddress = address ? compact(address) : undefined
+  const trimmedWebsite = trimOrNull(website)
+  const normalizedWebsite = trimmedWebsite ? normalizeAccountWebsiteUrl(trimmedWebsite) : null
+
+  if (trimmedWebsite && !normalizedWebsite) {
+    throw new ConvexError('Organization website must be a valid HTTP or HTTPS address.')
+  }
 
   return {
     ...compact(rest),
+    ...(normalizedWebsite ? { website: normalizedWebsite } : {}),
     ...(normalizedAddress && Object.keys(normalizedAddress).length > 0 ? { address: normalizedAddress } : {})
   }
 }

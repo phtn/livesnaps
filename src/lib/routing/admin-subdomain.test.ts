@@ -4,7 +4,7 @@ import { buildAdminHandoffUrl, resolveAdminNavigationPath, toAdminSubdomainHostn
 
 describe('admin routing', () => {
   test('targets the root admin subdomain from another application subdomain', () => {
-    assert.equal(toAdminSubdomainHostname('re-up.bigticket.ph'), 'admin.bigticket.ph')
+    assert.equal(toAdminSubdomainHostname('gods.livesnapsnow.ph'), 'admin.gods.livesnapsnow.ph')
     assert.equal(toAdminSubdomainHostname('aris.localhost'), 'admin.localhost')
   })
 
@@ -25,11 +25,11 @@ describe('admin routing', () => {
   })
 
   test('uses the primary origin for admin handoff when admin subdomains are unsupported', () => {
-    const handoffUrl = buildAdminHandoffUrl(new URL('https://re-up.bigticket-pro.vercel.app/'), 'firebase-token')
+    const handoffUrl = buildAdminHandoffUrl(new URL('https://livesnapsnow.com/'), 'firebase-token')
     const hash = new URLSearchParams(handoffUrl.hash.slice(1))
 
-    assert.equal(handoffUrl.origin, 'https://bigticket-pro.vercel.app')
+    assert.equal(handoffUrl.origin, 'https://admin.livesnapsnow.com')
     assert.equal(handoffUrl.pathname, '/admin-handoff')
-    assert.equal(hash.get('redirectTo'), '/admin')
+    assert.equal(hash.get('redirectTo'), '/')
   })
 })

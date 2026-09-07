@@ -39,7 +39,7 @@ module
 
   const navigationItems = [
     { href: '#profile', label: 'Profile', icon: 'person' },
-    { href: '#invitations', label: 'Invitations', icon: 'email-body' },
+    { href: '#invitations', label: 'Account access', icon: 'email-body' },
     { href: '#appearance', label: 'Appearance', icon: 'theme' },
     { href: '#security', label: 'Security', icon: 'safe-shield' },
     { href: '#data', label: 'Data', icon: 'cloud' }
@@ -191,7 +191,7 @@ component AuthenticatedAccount
     // appear while an invitation is actually pending. The panel shares this
     // query's subscription, so reading it here costs no extra round trip.
     const invitations = useAccountInvitations(user.emailVerified)
-    const hasInvitations = invitations !== undefined && invitations.length > 0
+    const hasInvitations = !user.emailVerified || (invitations !== undefined && invitations.length > 0)
     const visibleNavigationItems = navigationItems.filter(
       (item) => item.href !== '#invitations' || hasInvitations
     )
@@ -319,7 +319,7 @@ component AuthenticatedAccount
 
       div(className='min-w-0 space-y-5')
         if hasInvitations
-          SettingsSection(id='invitations' eyebrow='Membership' icon='email-body' title='Invitations' description='Accounts that have invited you. Accepting adds you to the account with the role you were invited under.')
+          SettingsSection(id='invitations' eyebrow='Membership' icon='email-body' title='Account access' description='Confirm admin access for an account created for you, or accept a membership invitation.')
             AccountInvitations(isEmailVerified={user.emailVerified})
 
         SettingsSection(id='appearance' eyebrow='Preferences' icon='theme' title='Appearance & motion' description='Personalize LiveSnapsNow while keeping the interface comfortable to use.')

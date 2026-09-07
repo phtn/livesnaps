@@ -36,7 +36,7 @@ setup
   const isPreparing = isLoading && !hasRows
   const freshnessLabel = lastUpdatedAt === null ? 'syncing' : formatTime(lastUpdatedAt)
 
-main(className='h-screen overflow-scroll mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14')
+main(className='h-screen overflow-scroll mx-auto w-full max-w-6xl px-4 py-10 md:py-14')
   Masthead(
     ~ eyebrow='Citadel · Control'
     ~ title='Overview'

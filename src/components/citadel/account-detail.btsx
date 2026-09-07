@@ -3,10 +3,15 @@ import { Link, useNavigate } from '@octanejs/tanstack-router'
 import { Icon } from '@/lib/icons'
 import { Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
-import { ACCOUNT_MEMBER_STATUS_TONE, ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, deleteAccount, fetchAccount, formatAccountDate, type AccountDetail, type AccountMemberRow } from '@/lib/citadel/accounts'
+import { ACCOUNT_MEMBER_STATUS_TONE, ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, changeContactAdminAccess, deleteAccount, fetchAccount, formatAccountDate, type AccountDetail, type AccountMemberRow, type ContactAdminAction } from '@/lib/citadel/accounts'
 
 module
   type DetailStatus = 'loading' | 'ready' | 'error'
+  const ADMIN_ACCESS_LABEL = {
+    pending: 'Pending confirmation', confirming: 'Confirmation in progress', granted: 'Granted',
+    cancelled: 'Cancelled', revoking: 'Revocation incomplete', revoked: 'Revoked',
+    'not-granted': 'Not granted', unavailable: 'Unavailable'
+  }
 
   const readErrorMessage = (error: unknown, fallback: string) =>
     error instanceof Error && error.message.length > 0 ? error.message : fallback
@@ -44,6 +49,30 @@ setup
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const [adminAction, setAdminAction] = useState<ContactAdminAction | null>(null)
+  const [isUpdatingAdmin, setIsUpdatingAdmin] = useState(false)
+  const [adminError, setAdminError] = useState<string | null>(null)
+  const [adminNotice, setAdminNotice] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const confirmAdminAction = async () => {
+    if (!detail?.adminAccess.memberId || !adminAction || isUpdatingAdmin) return
+    setIsUpdatingAdmin(true)
+    setAdminError(null)
+    setAdminNotice(null)
+    try {
+      setDetail(await changeContactAdminAccess(slug, detail.adminAccess.memberId, adminAction))
+      setAdminNotice(adminAction === 'cancel-admin-invite' ? 'Admin confirmation cancelled.' : 'Admin claim revoked and sessions invalidated.')
+      setAdminAction(null)
+    } catch (failure) {
+      setAdminError(readErrorMessage(failure, 'Could not update admin access.'))
+      // A failed Firebase write leaves a retryable revocation in the database.
+      try { setDetail(await fetchAccount(slug)) } catch { /* Preserve the action error. */ }
+      setAdminAction(null)
+    } finally {
+      setIsUpdatingAdmin(false)
+    }
+  }
 
   const confirmDelete = async () => {
     setIsDeleting(true)
@@ -62,6 +91,9 @@ setup
     const controller = new AbortController()
 
     setStatus('loading')
+    setAdminAction(null)
+    setAdminError(null)
+    setAdminNotice(null)
     fetchAccount(slug, controller.signal)
       .then((response) => {
         setDetail(response)
@@ -75,7 +107,7 @@ setup
       })
 
     return () => controller.abort()
-  }, [slug])
+  }, [slug, reloadToken])
 
 section(className='p-5')
   Link(to='/citadel/accounts' className='inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground')
@@ -123,6 +155,33 @@ section(className='p-5')
         div(className='mt-6')
           p(className={labelClassName}) Notes
           p(className='mt-1 text-sm text-foreground') #{detail.account.notes}
+
+      div(className='mt-8 rounded-sm border border-border/60 p-4')
+        div(className='flex flex-wrap items-center justify-between gap-3')
+          div(className='flex items-center gap-3')
+            p(className={labelClassName}) Contact admin access
+            button(type='button' disabled={isUpdatingAdmin || isDeleting} onClick={() => setReloadToken((value) => value + 1)} className={actionButtonClassName}) Refresh
+          Badge(variant='plain' className='rounded-xs border border-border/60 font-mono text-2xs uppercase tracking-wider') #{ADMIN_ACCESS_LABEL[detail.adminAccess.status]}
+        p(className='mt-2 text-sm text-muted-foreground') #{detail.account.primaryContact.email}
+        p(className='mt-1 text-xs text-muted-foreground') #{detail.adminAccess.claimGranted === null ? 'Admin claim could not be checked.' : detail.adminAccess.claimGranted ? 'This contact currently has admin access.' : 'This contact does not currently have an admin claim.'}
+        if detail.adminAccess.error
+          p(className='mt-3 text-sm text-destructive' role='alert') #{detail.adminAccess.error}
+        if adminError
+          p(className='mt-3 text-sm text-destructive' role='alert') #{adminError}
+        if adminNotice
+          p(className='mt-3 text-sm text-foreground' role='status') #{adminNotice}
+        if adminAction
+          fragment
+            p(className='mt-3 text-sm text-foreground') #{adminAction === 'cancel-admin-invite' ? 'Cancel this pending admin confirmation? The contact will no longer be able to confirm it.' : 'Revoke this contact’s admin claim across the app? Their account membership will be suspended and sessions invalidated.'}
+            div(className='mt-3 flex flex-wrap gap-2')
+              button(type='button' disabled={isUpdatingAdmin} onClick={() => setAdminAction(null)} className={actionButtonClassName}) Keep access
+              button(type='button' disabled={isUpdatingAdmin} onClick={() => void confirmAdminAction()} className={cn(actionButtonClassName, 'border-destructive/40 text-destructive')}) #{isUpdatingAdmin ? 'Updating…' : adminAction === 'cancel-admin-invite' ? 'Cancel admin invite' : 'Revoke admin access'}
+        else
+          div(className='mt-3 flex flex-wrap gap-2')
+            if detail.adminAccess.canCancel
+              button(type='button' disabled={isUpdatingAdmin || isDeleting} onClick={() => setAdminAction('cancel-admin-invite')} className={actionButtonClassName}) Cancel admin invite
+            if detail.adminAccess.canRevoke
+              button(type='button' disabled={isUpdatingAdmin || isDeleting} onClick={() => setAdminAction('revoke-admin')} className={cn(actionButtonClassName, 'border-destructive/40 text-destructive')}) #{detail.adminAccess.status === 'revoking' ? 'Retry revocation' : 'Revoke admin access'}
 
       div(className='mt-8')
         div(className='flex items-baseline justify-between gap-3')

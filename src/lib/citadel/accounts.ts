@@ -4,6 +4,8 @@ import type {
   GodsAccountDetailResponse,
   GodsAccountListResponse
 } from '@/server/gods-account-routes'
+import type { ContactAdminAction } from '@/server/gods-account-admin-access'
+export type { ContactAdminAction } from '@/server/gods-account-admin-access'
 
 // Type-only import: the Convex and Firebase Admin modules behind this response
 // never reach the client bundle.
@@ -70,6 +72,14 @@ export function deleteAccount(slug: string) {
   )
 }
 
+export function changeContactAdminAccess(slug: string, memberId: string, action: ContactAdminAction) {
+  return requestJson<GodsAccountDetailResponse>(
+    `${GODS_ACCOUNTS_ENDPOINT}/${encodeURIComponent(slug)}`,
+    { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ memberId, action }) },
+    'Could not update the contact’s admin access. Reload the account and try again.'
+  )
+}
+
 export function createAccount(input: CreateAccountInput) {
   return requestJson<GodsAccountCreateResponse>(
     GODS_ACCOUNTS_ENDPOINT,
@@ -88,6 +98,7 @@ export const ACCOUNT_STATUS_FILTERS: AccountStatusFilter[] = ['all', ...ACCOUNT_
 
 export const ACCOUNT_STATUS_LABEL: Record<AccountStatus, string> = {
   pending: 'Pending',
+  confirmed: 'Confirmed',
   active: 'Active',
   suspended: 'Suspended',
   closed: 'Closed'
@@ -102,6 +113,7 @@ export const ACCOUNT_STATUS_FILTER_LABEL: Record<AccountStatusFilter, string> = 
 // rather than being split between the badge's variants and the call site.
 export const ACCOUNT_STATUS_TONE: Record<AccountStatus, string> = {
   pending: 'border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400',
+  confirmed: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   active: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
   suspended: 'border-destructive/25 bg-destructive/10 text-destructive',
   closed: 'border-border/60 bg-foreground/5 text-muted-foreground'
@@ -118,6 +130,7 @@ export function countAccountsByStatus(accounts: AccountRow[]) {
   const counts: Record<AccountStatusFilter, number> = {
     all: accounts.length,
     pending: 0,
+    confirmed: 0,
     active: 0,
     suspended: 0,
     closed: 0

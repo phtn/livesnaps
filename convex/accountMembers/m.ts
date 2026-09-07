@@ -5,7 +5,7 @@ import { internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
 import { internalAction, type MutationCtx, mutation } from '../_generated/server'
 import { getAppBaseUrl, sendTransactionalEmail } from '../lib/email'
-import { normalizeAccountEmail } from '../accounts/helpers'
+import { normalizeAccountEmail, requireGodIdentity } from '../accounts/helpers'
 import { getUserByTokenIdentifier } from '../lib/auth'
 import { accountMemberDocumentSchema, accountMemberRoleSchema, inviteAccountMemberSchema } from './d'
 import {
@@ -103,7 +103,8 @@ export const sendInviteEmail = internalAction({
       inviteeEmail: context.email,
       role: context.role,
       inviterName: inviterName ?? null,
-      acceptUrl: `${getAppBaseUrl()}/account`
+      acceptUrl: `${getAppBaseUrl()}/account#invitations`,
+      adminConfirmation: context.adminConfirmation
     })
 
     await sendTransactionalEmail({
@@ -113,6 +114,79 @@ export const sendInviteEmail = internalAction({
       text: email.text
     })
 
+    return null
+  }
+})
+
+/** A provisioning confirmation is bound to the verified contact, never a supplied UID. */
+async function requireAdminConfirmation(ctx: MutationCtx, accountId: Id<'accounts'>) {
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity?.email || identity.emailVerified !== true) {
+    throw new ConvexError('Sign in with your verified contact email to confirm admin access.')
+  }
+  const account = await requireAccount(ctx, accountId)
+  const email = identity.email.trim().toLowerCase()
+  const member = await getMembershipByEmail(ctx, accountId, email)
+  if (
+    !member?.adminConfirmation ||
+    !['pending', 'confirmed', 'complete'].includes(member.adminConfirmation) ||
+    member.role !== 'owner' ||
+    member.status === 'suspended' ||
+    account.status === 'closed' ||
+    account.status === 'suspended' ||
+    account.primaryContact.email !== email ||
+    (member.tokenIdentifier !== null && member.tokenIdentifier !== identity.tokenIdentifier)
+  ) {
+    throw new ConvexError('No admin confirmation is available for this contact.')
+  }
+  return { identity, member, account }
+}
+
+export const confirmAdminAccess = mutation({
+  args: { accountId: v.id('accounts') },
+  returns: accountMemberDocumentSchema,
+  handler: async (ctx, { accountId }) => {
+    const { identity, member } = await requireAdminConfirmation(ctx, accountId)
+    if (member.adminConfirmation === 'complete') return member
+    const user = await getUserByTokenIdentifier(ctx.db, identity.tokenIdentifier)
+    await ctx.db.patch(member._id, {
+      adminConfirmation: 'confirmed',
+      tokenIdentifier: identity.tokenIdentifier,
+      userId: user?._id ?? null,
+      updatedAt: Date.now(),
+      updatedBy: identity.tokenIdentifier
+    })
+    const confirmed = await ctx.db.get(member._id)
+    if (!confirmed) throw new ConvexError('Membership not found.')
+    return confirmed
+  }
+})
+
+/** Activate only after Firebase has issued a token proving the claim was granted. */
+export const completeAdminConfirmation = mutation({
+  args: { accountId: v.id('accounts') },
+  returns: v.null(),
+  handler: async (ctx, { accountId }) => {
+    const { identity, member, account } = await requireAdminConfirmation(ctx, accountId)
+    if (identity.admin !== true || member.adminConfirmation === 'pending') {
+      throw new ConvexError('Confirm admin access and refresh your session before continuing.')
+    }
+    if (member.adminConfirmation === 'complete') return null
+    const now = Date.now()
+    await ctx.db.patch(member._id, {
+      adminConfirmation: 'complete',
+      status: 'active',
+      joinedAt: now,
+      updatedAt: now,
+      updatedBy: identity.tokenIdentifier
+    })
+    await ctx.db.patch(accountId, {
+      status: 'confirmed',
+      primaryContact: { ...account.primaryContact, tokenIdentifier: identity.tokenIdentifier },
+      ownerTokenIdentifier: identity.tokenIdentifier,
+      updatedAt: now,
+      updatedBy: identity.tokenIdentifier
+    })
     return null
   }
 })
@@ -145,6 +219,10 @@ export const acceptInvite = mutation({
     }
 
     const invite = await getMembershipByEmail(ctx, accountId, email)
+
+    if (invite?.adminConfirmation) {
+      throw new ConvexError('Confirm admin access from your Account page.')
+    }
 
     if (invite?.status !== 'invited') {
       throw new ConvexError('No pending invitation for this account.')
@@ -274,6 +352,81 @@ export const remove = mutation({
 
     await ctx.db.delete(memberId)
 
+    return null
+  }
+})
+
+async function requireContactMember(ctx: MutationCtx, accountId: Id<'accounts'>, memberId: Id<'accountMembers'>) {
+  const identity = await requireGodIdentity(ctx)
+  const account = await requireAccount(ctx, accountId)
+  const member = await ctx.db.get(memberId)
+  if (
+    !member ||
+    member.accountId !== accountId ||
+    member.email !== account.primaryContact.email ||
+    member.role !== 'owner'
+  ) {
+    throw new ConvexError('The account contact has changed. Reload the account before continuing.')
+  }
+  return { identity, account, member }
+}
+
+export const cancelAdminInvitation = mutation({
+  args: { accountId: v.id('accounts'), memberId: v.id('accountMembers') },
+  returns: v.null(),
+  handler: async (ctx, { accountId, memberId }) => {
+    const { identity, member } = await requireContactMember(ctx, accountId, memberId)
+    if (member.adminConfirmation === 'cancelled') return null
+    if (member.status !== 'invited' || (member.adminConfirmation && member.adminConfirmation !== 'pending')) {
+      throw new ConvexError('Confirmation has already started. Reload the account and revoke admin access instead.')
+    }
+    const now = Date.now()
+    await ctx.db.patch(memberId, {
+      adminConfirmation: 'cancelled',
+      status: 'suspended',
+      updatedAt: now,
+      updatedBy: identity.tokenIdentifier
+    })
+    await ctx.db.patch(accountId, { updatedAt: now, updatedBy: identity.tokenIdentifier })
+    return null
+  }
+})
+
+/** Block confirmation first; Firebase removal may be retried after a network failure. */
+export const beginAdminRevocation = mutation({
+  args: { accountId: v.id('accounts'), memberId: v.id('accountMembers') },
+  returns: v.null(),
+  handler: async (ctx, { accountId, memberId }) => {
+    const { identity, member, account } = await requireContactMember(ctx, accountId, memberId)
+    if (member.tokenIdentifier === identity.tokenIdentifier) throw new ConvexError('You cannot revoke your own access.')
+    const now = Date.now()
+    await ctx.db.patch(memberId, {
+      adminConfirmation: 'revoking',
+      status: 'suspended',
+      updatedAt: now,
+      updatedBy: identity.tokenIdentifier
+    })
+    await ctx.db.patch(accountId, {
+      status: account.status === 'closed' ? 'closed' : 'suspended',
+      updatedAt: now,
+      updatedBy: identity.tokenIdentifier
+    })
+    return null
+  }
+})
+
+export const completeAdminRevocation = mutation({
+  args: { accountId: v.id('accounts'), memberId: v.id('accountMembers') },
+  returns: v.null(),
+  handler: async (ctx, { accountId, memberId }) => {
+    const { identity, member } = await requireContactMember(ctx, accountId, memberId)
+    if (member.adminConfirmation === 'revoked') return null
+    if (member.adminConfirmation !== 'revoking') throw new ConvexError('No admin revocation is in progress.')
+    await ctx.db.patch(memberId, {
+      adminConfirmation: 'revoked',
+      updatedAt: Date.now(),
+      updatedBy: identity.tokenIdentifier
+    })
     return null
   }
 })

@@ -10,6 +10,7 @@
     "build": "rspack build --mode production",
     "preview": "rspack dev --mode production",
     "typecheck": "tsrx-tsc --noEmit",
+    "test:accounts": "vitest run",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "lint": "biome lint .",
@@ -64,6 +65,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.12",
+    "@edge-runtime/vm": "^5.0.0",
     "@octanejs/rspack-plugin": "0.1.47",
     "@rspack/cli": "^2.2.2",
     "@rspack/core": "^2.2.2",
@@ -71,10 +73,12 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@tsrx/typescript-plugin": "0.3.130",
     "@types/node": "^26.4.1",
+    "convex-test": "^0.0.56",
     "postcss": "^8.5.26",
     "postcss-loader": "^8.2.1",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.9.3",
+    "vitest": "^5.0.0",
     "wrangler": "^4.129.0"
   }
 }

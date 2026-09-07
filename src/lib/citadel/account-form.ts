@@ -6,6 +6,7 @@ import {
   ACCOUNT_NOTES_MAX_LENGTH,
   ACCOUNT_PHONE_MAX_LENGTH,
   ACCOUNT_PLAN_VALUES,
+  normalizeAccountWebsiteUrl,
   type AccountPlan,
   DEFAULT_ACCOUNT_PLAN,
   isAccountEmailAddress,
@@ -120,6 +121,9 @@ export function validateAccountForm(values: AccountFormValues) {
   if (values.contactPhone.trim().length > ACCOUNT_PHONE_MAX_LENGTH)
     fields.contactPhone = `Keep this under ${ACCOUNT_PHONE_MAX_LENGTH} characters.`
 
+  if (values.website.trim().length > 0 && normalizeAccountWebsiteUrl(values.website) === null)
+    fields.website = 'Enter a valid website, such as northwind.com.'
+
   const billingEmail = values.billingEmail.trim()
   if (billingEmail.length > 0 && !isAccountEmailAddress(billingEmail))
     fields.billingEmail = 'Enter a valid email address.'
@@ -144,7 +148,7 @@ export function toCreateAccountInput(values: AccountFormValues): CreateAccountIn
     plan: values.plan,
     organization: {
       legalName: trimmed(values.legalName),
-      website: trimmed(values.website),
+      website: trimmed(values.website) ? (normalizeAccountWebsiteUrl(values.website) ?? undefined) : undefined,
       industry: trimmed(values.industry)
     },
     primaryContact: {

@@ -77,7 +77,7 @@ export const accountPrimaryContactInputSchema = v.object({
 export const createAccountSchema = v.object({
   name: v.string(),
   slug: v.optional(v.string()),
-  status: v.optional(accountStatusSchema),
+  status: v.optional(v.literal('pending')),
   plan: v.optional(accountPlanSchema),
   organization: v.optional(accountOrganizationSchema),
   primaryContact: accountPrimaryContactInputSchema,

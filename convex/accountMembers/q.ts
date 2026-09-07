@@ -1,5 +1,7 @@
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 import { internalQuery, query } from '../_generated/server'
+import { requireGodIdentity } from '../accounts/helpers'
+import { getUserByTokenIdentifier } from '../lib/auth'
 import { accountMemberDocumentSchema, accountMemberStatusSchema } from './d'
 import { requireAccountAccess } from './helpers'
 
@@ -95,7 +97,8 @@ export const listMyInvitations = query({
 
       // An invite whose account has been deleted is not actionable, so it is
       // dropped rather than shown as an unnamed row.
-      if (!account) continue
+      if (!account || account.status === 'closed' || account.status === 'suspended') continue
+      if (invitation.tokenIdentifier && invitation.tokenIdentifier !== identity.tokenIdentifier) continue
 
       named.push({ ...invitation, accountName: account.name, accountSlug: account.slug })
     }
@@ -119,13 +122,14 @@ export const getInviteEmailContextInternal = internalQuery({
       accountName: v.string(),
       email: v.string(),
       name: v.union(v.string(), v.null()),
-      role: v.string()
+      role: v.string(),
+      adminConfirmation: v.boolean()
     }),
     v.null()
   ),
   handler: async (ctx, { memberId }) => {
     const member = await ctx.db.get(memberId)
-    if (!member) return null
+    if (member?.status !== 'invited') return null
 
     const account = await ctx.db.get(member.accountId)
     if (!account) return null
@@ -134,7 +138,31 @@ export const getInviteEmailContextInternal = internalQuery({
       accountName: account.name,
       email: member.email,
       name: member.name,
-      role: member.role
+      role: member.role,
+      adminConfirmation: member.adminConfirmation !== undefined
     }
+  }
+})
+
+/** Resolves the account contact on the server, never from a submitted Firebase UID. */
+export const getContactAdminAccess = query({
+  args: { accountId: v.id('accounts') },
+  returns: v.object({
+    member: v.union(accountMemberDocumentSchema, v.null()),
+    firebaseUid: v.union(v.string(), v.null())
+  }),
+  handler: async (ctx, { accountId }) => {
+    await requireGodIdentity(ctx)
+    const account = await ctx.db.get(accountId)
+    if (!account) throw new ConvexError('Account not found.')
+    const member = await ctx.db
+      .query('accountMembers')
+      .withIndex('by_accountId_and_email', (q) =>
+        q.eq('accountId', accountId).eq('email', account.primaryContact.email)
+      )
+      .unique()
+    if (member?.role !== 'owner') return { member: null, firebaseUid: null }
+    const user = member.tokenIdentifier ? await getUserByTokenIdentifier(ctx.db, member.tokenIdentifier) : null
+    return { member, firebaseUid: user?.firebaseUid ?? null }
   }
 })

@@ -19,6 +19,17 @@ export const accountMemberSchema = v.object({
   title: v.union(v.string(), v.null()),
   role: accountMemberRoleSchema,
   status: accountMemberStatusSchema,
+  // Only account provisioning creates this authorization to grant admin access.
+  adminConfirmation: v.optional(
+    v.union(
+      v.literal('pending'),
+      v.literal('confirmed'),
+      v.literal('complete'),
+      v.literal('cancelled'),
+      v.literal('revoking'),
+      v.literal('revoked')
+    )
+  ),
   invitedAt: v.number(),
   invitedBy: v.string(),
   joinedAt: v.union(v.number(), v.null()),

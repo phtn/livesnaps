@@ -118,7 +118,7 @@ component AccountIdentity
       p(className='truncate font-mono text-xs text-muted-foreground') #{account.slug}
 
 component CreateAccountForm
-  props { onCreated, onCancel }: { onCreated: (accounts: AccountRow[], adminClaim: { granted: boolean; reason: string | null }) => void; onCancel: () => void }
+  props { onCreated, onCancel }: { onCreated: (accounts: AccountRow[]) => void; onCancel: () => void }
   setup
     const [draft, setDraft] = useAccountDraft()
 
@@ -136,7 +136,7 @@ component CreateAccountForm
         const response = await createAccount(input)
         await setDraft(null, IMMEDIATE_URL_UPDATE)
         accountForm.reset(ACCOUNT_FORM_DEFAULTS)
-        onCreated(response.accounts, response.adminClaim)
+        onCreated(response.accounts)
       }
     })
 
@@ -341,7 +341,7 @@ component CreateAccountForm
                   if linkedUser !== null && !linkedUser.admin && !linkedUser.emailVerified
                     span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-amber-500') unverified
                   button(type='button' onClick={unlinkUser} className={actionButtonClassName}) Change
-              p(className='mt-1.5 font-mono text-2xs text-muted-foreground') This user becomes the account owner and is granted admin access.
+              p(className='mt-1.5 font-mono text-2xs text-muted-foreground') This user receives an email to confirm admin access before becoming the account owner.
           else
             div(className={cn('grid gap-2', ENTER_CLASS)})
               Input(
@@ -389,7 +389,7 @@ component CreateAccountForm
         div(className='grid gap-4')
           div(className='grid gap-4 md:grid-cols-2')
             TextField(form={accountForm} name='legalName' label='Legal name' placeholder='Optional')
-            TextField(form={accountForm} name='website' label='Website' type='url' placeholder='https://northwind.com')
+            TextField(form={accountForm} name='website' label='Website' placeholder='northwind.com')
             TextField(form={accountForm} name='industry' label='Industry' placeholder='Optional')
             TextField(
               ~ form={accountForm}
@@ -403,7 +403,7 @@ component CreateAccountForm
 
       Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
         if canSubmit
-          p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Create the account and grant the contact admin access.
+          p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Create the account and email the contact a link to confirm admin access.
         else
           div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
             div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
@@ -474,16 +474,12 @@ setup
     (account) => (filters.status === 'all' || account.status === filters.status) && matchesAccountQuery(account, filters.q)
   )
 
-  const onAccountCreated = (nextAccounts: AccountRow[], adminClaim: { granted: boolean; reason: string | null }) => {
+  const onAccountCreated = (nextAccounts: AccountRow[]) => {
     setAccounts(nextAccounts)
     setRosterStatus('ready')
     setRosterError(null)
     void setFilters({ create: false })
-    setNotice(
-      adminClaim.granted
-        ? 'Account created. The contact was granted admin access.'
-        : `Account created. Admin access was not granted: ${adminClaim.reason ?? 'unknown reason.'}`
-    )
+    setNotice('Account created. An admin confirmation email is queued for the contact. Access is granted after they confirm on their Account page.')
   }
 
 section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
@@ -514,6 +510,15 @@ section(className='p-5 h-[calc(100vh-64px)] overflow-y-auto')
     CreateAccountForm(onCreated={onAccountCreated} onCancel={() => void setFilters({ create: false })})
   else
     fragment
+      div(className='mt-4 flex flex-wrap gap-2' role='group' aria-label='Account status')
+        each status in ACCOUNT_STATUS_FILTERS key status
+          button(
+            ~ type='button'
+            ~ aria-pressed={filters.status === status}
+            ~ onClick={() => void setFilters({ status })}
+            ~ className={cn(chipClassName, filters.status === status ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+            ~ )
+            | #{ACCOUNT_STATUS_FILTER_LABEL[status]} #{counts[status]}
       div(className='relative mt-3')
         Input(
           ~ id='citadel-account-search'

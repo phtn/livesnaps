@@ -22,6 +22,7 @@ export interface AccountInviteEmailInput {
   /** Who sent the invitation, when known. */
   inviterName?: string | null
   /** Where the recipient goes to accept. */
+  adminConfirmation?: boolean
   acceptUrl: string
 }
 
@@ -62,8 +63,16 @@ const inviterLine = (input: AccountInviteEmailInput) => {
 
 export function renderAccountInviteEmail(input: AccountInviteEmailInput): RenderedEmail {
   const greeting = greetingName(input)
-  const intro = inviterLine(input)
-  const subject = `You're invited to ${input.accountName} on LiveSnapsNow`
+  const intro = input.adminConfirmation
+    ? `An account has been created for you at ${input.accountName} on LiveSnapsNow. Confirm admin access on your Account page to manage it as its owner.`
+    : inviterLine(input)
+  const subject = input.adminConfirmation
+    ? `Confirm admin access to ${input.accountName} on LiveSnapsNow`
+    : `You're invited to ${input.accountName} on LiveSnapsNow`
+  const actionLabel = input.adminConfirmation ? 'Confirm admin access' : 'Accept invitation'
+  const recipientLine = input.adminConfirmation
+    ? `This confirmation was sent to ${input.inviteeEmail}. Sign in with that address and confirm to activate your admin access.`
+    : `This invitation was sent to ${input.inviteeEmail}. Sign in with that address to accept it.`
 
   const text = [
     `Hi ${greeting},`,
@@ -71,10 +80,10 @@ export function renderAccountInviteEmail(input: AccountInviteEmailInput): Render
     intro,
     `Role: ${input.role}`,
     '',
-    'Accept your invitation:',
+    `${actionLabel}:`,
     input.acceptUrl,
     '',
-    `This invitation was sent to ${input.inviteeEmail}. Sign in with that address to accept it.`,
+    recipientLine,
     '',
     '— LiveSnapsNow'
   ].join('\n')
@@ -97,7 +106,7 @@ export function renderAccountInviteEmail(input: AccountInviteEmailInput): Render
             <tr>
               <td style="padding:24px 32px 0;">
                 <h1 style="margin:0;font-size:22px;line-height:1.3;font-weight:600;color:${brand.ink};">
-                  Join ${escapeHtml(input.accountName)}
+                  ${input.adminConfirmation ? 'Confirm admin access to' : 'Join'} ${escapeHtml(input.accountName)}
                 </h1>
                 <p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:${brand.muted};">
                   Hi ${escapeHtml(greeting)},
@@ -124,14 +133,14 @@ export function renderAccountInviteEmail(input: AccountInviteEmailInput): Render
             <tr>
               <td style="padding:24px 32px 0;">
                 <a href="${escapeHtml(input.acceptUrl)}" style="display:inline-block;background:${brand.action};color:${brand.actionInk};text-decoration:none;font-size:15px;font-weight:500;padding:12px 22px;border-radius:999px;">
-                  Accept invitation
+                  ${actionLabel}
                 </a>
               </td>
             </tr>
             <tr>
               <td style="padding:20px 32px 28px;">
                 <p style="margin:0;font-size:12px;line-height:1.6;color:${brand.muted};">
-                  This invitation was sent to ${escapeHtml(input.inviteeEmail)}. Sign in with that address to accept it.
+                  ${escapeHtml(recipientLine)}
                   If you were not expecting it, you can ignore this message.
                 </p>
               </td>

@@ -1,4 +1,5 @@
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
+import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
 import { handleAdminSnapDetail, handleAdminSnapList } from './server/admin-snap-routes'
 import {
   handleAdminVerificationEntryAttachmentRemove,
@@ -106,6 +107,10 @@ export default {
     }
 
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
+
+    if (pathname === '/api/account/confirm-admin') {
+      return handleAccountAdminConfirmation(request, { convexUrl })
+    }
 
     if (pathname === RESEND_WEBHOOK_PATH) {
       return handleResendWebhook(request, {
