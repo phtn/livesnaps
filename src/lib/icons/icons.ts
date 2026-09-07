@@ -618,7 +618,7 @@ export const icons = {
   },
   globe: {
     symbol:
-      '<g transform="scale(0.667)"><path d="M11 4a5 5 0 1 1-4.995 5.217L6 9l.005-.217A5 5 0 0 1 11 4" fill="currentColor"/><path d="M14.133 1.502a1 1 0 0 1 1.365-.369A9.015 9.015 0 1 1 5.094 15.755a1 1 0 1 1 1.312-1.51 7.015 7.015 0 1 0 8.096-11.378 1 1 0 0 1-.369-1.365" fill="currentColor"/><path d="M11 16a1 1 0 0 1 .993.883L12 17v4a1 1 0 0 1-1.993.117L10 21v-4a1 1 0 0 1 1-1" fill="currentColor"/><path d="M15 20a1 1 0 0 1 .117 1.993L15 22H7a1 1 0 0 1-.117-1.993L7 20z" fill="currentColor"/></g>',
+      '<path d="M1.716 10.228a6.672 6.672 0 0 0 12.577 0 11.94 11.94 0 0 1-6.289 1.778c-2.306 0-4.46-.651-6.288-1.778m.204-4.955a6.64 6.64 0 0 0-.577 3.064 10.63 10.63 0 0 0 6.661 2.335c2.52 0 4.836-.874 6.662-2.335q.008-.166.008-.333a6.7 6.7 0 0 0-.585-2.73 9.96 9.96 0 0 1-6.085 2.063A9.96 9.96 0 0 1 1.92 5.273m6.084-3.939a6.66 6.66 0 0 0-5.41 2.77 8.63 8.63 0 0 0 5.41 1.899 8.63 8.63 0 0 0 5.41-1.898 6.66 6.66 0 0 0-5.41-2.771" fill="currentColor"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
@@ -769,6 +769,12 @@ export const icons = {
   'add-user': {
     symbol:
       '<g transform="scale(0.667)"><g fill="none"><circle cx="10" cy="8" r="5" fill="currentColor"/><path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M19 10v6m3-3h-6" fill="currentColor"/><path fill="currentColor" d="M17.142 20.383c.462-.105.739-.585.534-1.012-.552-1.15-1.459-2.162-2.634-2.924C13.595 15.509 11.823 15 10 15s-3.595.508-5.042 1.447c-1.175.762-2.082 1.773-2.634 2.924-.205.427.072.907.534 1.012a32.3 32.3 0 0 0 14.284 0"/></g></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  plans: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill-rule="evenodd" d="M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm10 4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" clip-rule="evenodd" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   }

@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'octane'
 import { Icon } from '@/lib/icons'
-import { Badge, Input } from '@/components/ui'
+import { Badge, Button, Input } from '@/components/ui'
 import { Link } from '@octanejs/tanstack-router'
 import { cn } from '@/lib/utils'
 import { debounce, parseAsBoolean, parseAsString, parseAsStringLiteral, throttle, useQueryStates } from '@octanejs/nuqs'
 import { useField, useSelector } from '@octanejs/tanstack-form'
 import { getGodUserLabel, searchUsers, type GodUser } from '@/lib/citadel/gods-users'
-import { ACCOUNT_PLAN_VALUES, toAccountSlug, type AccountStatus } from '@/lib/accounts/accounts'
+import { ACCOUNT_PLAN_VALUES, isAccountEmailAddress, toAccountSlug, type AccountStatus } from '@/lib/accounts/accounts'
+import Step from '@/components/admin/verification-step.btsx'
+import { ENTER_CLASS, errorTextClassName, fieldLabelClassName, type StepState } from '@/lib/verifications/step-flow'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
 import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, useAccountDraft, useAccountForm, validateAccountForm, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
 import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
@@ -34,16 +36,12 @@ module
     create: parseAsBoolean.withDefault(false)
   }
 
-  const fieldLabelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
-
   const chipClassName =
     'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono text-2xs uppercase tracking-wider transition-colors'
 
   const addButtonClassName = 'size-5 aspect-square rounded-full bg-active text-white transition-colors duration-200 ease-out'
   const actionButtonClassName =
     'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-2.5 font-mono text-muted-foreground text-xs uppercase tracking-wide transition-colors'
-
-  const errorTextClassName = 'font-mono text-2xs text-destructive'
 
   interface TextFieldProps {
     form: AccountForm
@@ -87,21 +85,19 @@ component TextField
       p(id={errorId} className={cn('mt-1.5', errorTextClassName)}) #{message}
 
 component PlanField
-  props { form, results=0 }: { form: AccountForm, results?: number }
+  props { form }: { form: AccountForm }
   setup
     const field = useField({ form, name: 'plan' })
 
-  div(className={cn('mt-4 mb-10 flex flex-col gap-1.5', {'mb-16': results > 0})})
-    span(className={fieldLabelClassName}) Plan
-    div(className='mt-3 flex gap-1.5')
-      each option in ACCOUNT_PLAN_VALUES key option
-        button(
-          ~ type='button'
-          ~ onClick={() => field.handleChange(option)}
-          ~ aria-pressed={field.state.value === option}
-          ~ className={cn(chipClassName, field.state.value === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
-          ~ )
-          | #{ACCOUNT_PLAN_LABEL[option]}
+  div(className={cn('flex flex-wrap gap-1.5', ENTER_CLASS)})
+    each option in ACCOUNT_PLAN_VALUES key option
+      button(
+        ~ type='button'
+        ~ onClick={() => field.handleChange(option)}
+        ~ aria-pressed={field.state.value === option}
+        ~ className={cn(chipClassName, field.state.value === option ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+        ~ )
+        | #{ACCOUNT_PLAN_LABEL[option]}
 
 component AccountIdentity
   props { account }: { account: AccountRow }
@@ -221,6 +217,49 @@ component CreateAccountForm
       accountForm.setFieldValue('contactEmail', '')
     }
 
+    const planValue = useSelector(accountForm.store, (state) => state.values.plan)
+    // The organization block is optional, so it is measured rather than
+    // validated: the step reports how much of it has been filled in.
+    const organizationFilled = useSelector(
+      accountForm.store,
+      (state) =>
+        [state.values.legalName, state.values.website, state.values.industry, state.values.billingEmail, state.values.notes].filter(
+          (value) => value.trim().length > 0
+        ).length
+    )
+
+    const isIdentityDone = nameValue.trim().length > 0
+    const isContactDone = contactName.trim().length > 0 && isAccountEmailAddress(contactEmail.trim())
+
+    // A step is `done` once it is settled, `active` while it is the one thing
+    // left to do, and `idle` while an earlier step still blocks it.
+    const identityState: StepState = isIdentityDone ? 'done' : 'active'
+    const contactState: StepState = !isIdentityDone ? 'idle' : isContactDone ? 'done' : 'active'
+    // A plan is always selected, so this step only waits on the ones above it.
+    const planState: StepState = isContactDone ? 'done' : 'idle'
+    const organizationState: StepState = !isContactDone ? 'idle' : organizationFilled > 0 ? 'done' : 'active'
+    const createState: StepState = canSubmit && !isSubmitting ? 'active' : 'idle'
+
+    // The idle Create step shows how far the form has come rather than an inert
+    // bar, so the last step still moves while the earlier ones are settled.
+    const completedSteps = [isIdentityDone, isContactDone, organizationFilled > 0].filter(Boolean).length
+    const progressWidth = `${Math.round((completedSteps / 3) * 100)}%`
+
+    // Reduced to one value rather than an if/elseif chain in the template: a
+    // chain whose last branch is an `elseif` was observed emitting that branch
+    // outside the conditional.
+    const statusLabel = isSubmitting
+      ? 'Creating account…'
+      : !isIdentityDone
+        ? 'Needs an account name'
+        : !isContactDone
+          ? 'Needs a primary contact'
+          : canSubmit
+            ? 'Ready to create'
+            : 'Check the highlighted fields'
+
+    const statusToneClass = isSubmitting ? 'text-active' : canSubmit ? 'text-positive' : 'text-muted-foreground'
+
     const submit = (event: SubmitEvent) => {
       event.preventDefault()
       void accountForm.handleSubmit()
@@ -234,97 +273,142 @@ component CreateAccountForm
       onCancel()
     }
 
-  form(className='mt-4 border-t border-border/50 border-dotted pt-4' onSubmit={submit})
-    p(className='font-sans text-sm text-muted-foreground capitalize') New account
+  form(className='mt-4' onSubmit={submit})
 
-    if submitError
-      p(className='mt-3 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{submitError}
+    div(className='flex items-center justify-between gap-3 pb-3')
+      h3(className='font-poly leading-none opacity-0') Create account
+      span(className='rounded-full inline-flex shrink-0 items-center gap-1.5 bg-border/10 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+        span #{completedSteps}
+        span(className='opacity-50') #{`/`}
+        span settled
 
-    div(className='mt-4 grid gap-4 md:grid-cols-2')
-      TextField(form={accountForm} name='name' label='Account name' required={true} placeholder='Northwind Logistics')
-      TextField(
-        ~ form={accountForm}
-        ~ name='slug'
-        ~ label='Slug'
-        ~ placeholder={toAccountSlug(nameValue) || 'auto-generated from the name'}
+    div(className='')
+
+      Step(
+        ~ icon='workspace'
+        ~ title='Account'
+        ~ state={identityState}
+        ~ index={0}
+        ~ meta={isIdentityDone ? toAccountSlug(nameValue) || undefined : undefined}
         ~ )
+        div(className='grid gap-4 md:grid-cols-2')
+          TextField(form={accountForm} name='name' label='Account name' required={true} placeholder='Northwind Logistics')
+          TextField(
+            ~ form={accountForm}
+            ~ name='slug'
+            ~ label='Slug'
+            ~ placeholder={toAccountSlug(nameValue) || 'auto-generated from the name'}
+            ~ )
 
+      Step(
+        ~ icon='person'
+        ~ title='Primary contact'
+        ~ state={contactState}
+        ~ index={1}
+        ~ meta={isLinked ? 'linked' : undefined}
+        ~ )
+        div(className='grid gap-3')
+          if isLinked
+            div(className={ENTER_CLASS})
+              div(className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-active/30 bg-active/5 px-3 py-2')
+                div(className='min-w-0')
+                  p(className='truncate text-sm text-foreground') #{contactName}
+                  p(className='truncate font-mono text-xs text-muted-foreground') #{contactEmail || contactUid}
+                div(className='flex shrink-0 items-center gap-2')
+                  if linkedUser?.admin
+                    span(className='rounded-xs bg-taupe-500/5 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
+                  if linkedUser !== null && !linkedUser.admin && !linkedUser.emailVerified
+                    span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-amber-500') unverified
+                  button(type='button' onClick={unlinkUser} className={actionButtonClassName}) Change
+              p(className='mt-1.5 font-mono text-2xs text-muted-foreground') This user becomes the account owner and is granted admin access.
+          else
+            div(className={cn('grid gap-2', ENTER_CLASS)})
+              Input(
+                ~ type='search'
+                ~ value={contactQuery}
+                ~ autoComplete='off'
+                ~ className='rounded-xs'
+                ~ placeholder='Search existing users by name or email'
+                ~ onInput={(event: Event) => setContactQuery((event.currentTarget as HTMLInputElement).value)}
+                ~ )
+              div(className={cn('h-5 flex items-center', {hidden: contactResults.length > 0})})
+                if contactSearchHint
+                  p(className={cn('font-mono text-xs', searchError ? 'text-destructive' : 'text-muted-foreground')}) #{contactSearchHint}
+              if contactResults.length > 0
+                ul(className='divide-y divide-border/60 divide-dotted rounded-lg border border-border/60 overflow-hidden')
+                  each user in contactResults key user.uid
+                    li
+                      button(
+                        ~ type='button'
+                        ~ onClick={() => linkUser(user)}
+                        ~ className='flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-accent'
+                        ~ )
+                        div(className='min-w-0')
+                          p(className='truncate text-sm text-foreground') #{getGodUserLabel(user)}
+                          p(className='truncate font-mono text-xs text-muted-foreground') #{user.email ?? user.uid}
+                        if user.admin
+                          span(className='shrink-0 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
 
-    div(className='w-full mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-1.5 md:gap-6')
+          div(className='grid gap-4 md:grid-cols-2')
+            TextField(form={accountForm} name='contactName' label='Contact name' required={true} placeholder='Ada Reyes')
+            TextField(form={accountForm} name='contactEmail' label='Contact email' type='email' required={true} placeholder='ada@northwind.com')
+            TextField(form={accountForm} name='contactPhone' label='Contact phone' type='tel' placeholder='Optional')
+            TextField(form={accountForm} name='contactTitle' label='Contact title' placeholder='Optional')
 
-      div(className='flex flex-col gap-1.5 w-full')
-        p(className='mt-5 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Primary contact
+      Step(icon='plans' title='Plan' state={planState} index={2} meta={ACCOUNT_PLAN_LABEL[planValue]})
+        PlanField(form={accountForm})
 
-        if isLinked
-          div(className='mt-2')
-            div(className='flex flex-wrap items-center justify-between gap-3 rounded-sm border border-active/30 bg-active/5 px-3 py-2')
-              div(className='min-w-0')
-                p(className='truncate text-sm text-foreground') #{contactName}
-                p(className='truncate font-mono text-xs text-muted-foreground') #{contactEmail || contactUid}
-              div(className='flex shrink-0 items-center gap-2')
-                if linkedUser?.admin
-                  span(className='rounded-xs bg-taupe-500/5 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
-                if linkedUser !== null && !linkedUser.admin && !linkedUser.emailVerified
-                  span(className='rounded-xs bg-amber-500/15 px-1.5 py-0.5 font-mono text-2xs uppercase tracking-wider text-amber-500') unverified
-                button(type='button' onClick={unlinkUser} className={actionButtonClassName}) Change
-            p(className='mt-1.5 font-mono text-2xs text-muted-foreground') This user becomes the account owner and is granted admin access.
+      Step(
+        ~ icon='globe'
+        ~ title='Organization'
+        ~ state={organizationState}
+        ~ index={3}
+        ~ meta={`${organizationFilled} of 5 · optional`}
+        ~ )
+        div(className='grid gap-4')
+          div(className='grid gap-4 md:grid-cols-2')
+            TextField(form={accountForm} name='legalName' label='Legal name' placeholder='Optional')
+            TextField(form={accountForm} name='website' label='Website' type='url' placeholder='https://northwind.com')
+            TextField(form={accountForm} name='industry' label='Industry' placeholder='Optional')
+            TextField(form={accountForm} name='billingEmail' label='Billing email' type='email' placeholder='Defaults to the contact email')
+          TextField(form={accountForm} name='notes' label='Notes' placeholder='Optional')
+
+      Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
+        if canSubmit
+          p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Create the account and grant the contact admin access.
         else
-          div(className='mt-2 w-full')
-            Input(
-              ~ type='search'
-              ~ value={contactQuery}
-              ~ autoComplete='off'
-              ~ placeholder='Search existing users by name or email'
-              ~ onInput={(event: Event) => setContactQuery((event.currentTarget as HTMLInputElement).value)}
-              ~ className='w-full'
-              ~ )
-            div(className={cn('mt-1.5 h-7 flex items-center', {hidden: contactResults.length > 0})})
-              if contactSearchHint
-                p(className={cn('font-mono text-xs', searchError ? 'text-destructive' : 'text-muted-foreground')}) #{contactSearchHint}
-            if contactResults.length > 0
-              ul(className='mt-1.5 divide-y divide-border/60 divide-dotted rounded-sm border border-border/60 overflow-hidden')
-                each user in contactResults key user.uid
-                  li
-                    button(
-                      ~ type='button'
-                      ~ onClick={() => linkUser(user)}
-                      ~ className='flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-accent'
-                      ~ )
-                      div(className='min-w-0')
-                        p(className='truncate text-sm text-foreground') #{getGodUserLabel(user)}
-                        p(className='truncate font-mono text-xs text-muted-foreground') #{user.email ?? user.uid}
-                      if user.admin
-                        span(className='shrink-0 font-mono text-2xs uppercase tracking-wider text-taupe-500') admin
-      PlanField(form={accountForm} results={contactResults.length})
+          div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
+            div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
 
+      if submitError
+        p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
 
-    div(className='mt-3 grid gap-4 md:grid-cols-2')
-      TextField(form={accountForm} name='contactName' label='Contact name' required={true} placeholder='Ada Reyes')
-      TextField(form={accountForm} name='contactEmail' label='Contact email' type='email' required={true} placeholder='ada@northwind.com')
-      TextField(form={accountForm} name='contactPhone' label='Contact phone' type='tel' placeholder='Optional')
-      TextField(form={accountForm} name='contactTitle' label='Contact title' placeholder='Optional')
-
-    p(className='mt-5 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Organization
-
-    div(className='mt-2 grid gap-4 md:grid-cols-2')
-      TextField(form={accountForm} name='legalName' label='Legal name' placeholder='Optional')
-      TextField(form={accountForm} name='website' label='Website' type='url' placeholder='https://northwind.com')
-      TextField(form={accountForm} name='industry' label='Industry' placeholder='Optional')
-      TextField(form={accountForm} name='billingEmail' label='Billing email' type='email' placeholder='Defaults to the contact email')
-
-    div(className='mt-4')
-      TextField(form={accountForm} name='notes' label='Notes' placeholder='Optional')
-
-    div(className='mt-5 flex items-center justify-end gap-2')
-      button(type='button' onClick={cancel} disabled={isSubmitting} className={actionButtonClassName}) Cancel
-      button(
-        ~ type='submit'
-        ~ disabled={!canSubmit}
-        ~ aria-busy={isSubmitting}
-        ~ className={cn(actionButtonClassName, 'border-active! text-white! hover:border-active bg-active hover:text-white')}
-        ~ )
-        Icon(name={isSubmitting ? 'spinner-ring' : 'check'} className='size-3')
-        span #{isSubmitting ? 'Creating…' : 'Create account'}
+    div(className='mt-3 flex items-center justify-between gap-3 border-t border-border/50 pt-3')
+      div(className='flex min-w-0 items-center gap-2')
+        span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
+        span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
+      div(className='flex shrink-0 items-center gap-2')
+        Button(
+          ~ type='button'
+          ~ size='sm'
+          ~ variant='secondary'
+          ~ label='Cancel'
+          ~ className='rounded-xs'
+          ~ disabled={isSubmitting}
+          ~ onClick={cancel}
+          ~ )
+        Button(
+          ~ type='submit'
+          ~ size='sm'
+          ~ variant='dark'
+          ~ icon='check'
+          ~ iconPosition='right'
+          ~ label='Create account'
+          ~ className='rounded-xs'
+          ~ pending={isSubmitting}
+          ~ pendingLabel='Creating…'
+          ~ disabled={!canSubmit}
+          ~ )
 
 setup
   const [accounts, setAccounts] = useState<AccountRow[]>([])
