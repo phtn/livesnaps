@@ -95,6 +95,6 @@ nav(
   //   ~ )
   div(
     ~ aria-hidden='true'
-    ~ className='pointer-events-none absolute -bottom-0.75 left-0 z-0 h-0.75 rounded-[1px] -translate-y-1/2 bg-foreground shadow-xs transition-[width,transform] duration-180 ease-out'
+    ~ className='pointer-events-none absolute -bottom-0.75 left-0 z-0 h-0.75 rounded-[1px] -translate-y-1/2 bg-foreground dark:bg-foreground/25 shadow-xs transition-[width,transform] duration-180 ease-out'
     ~ style={{ width: 'var(--active-tab-width, 0px)', transform: 'translateX(var(--active-tab-left, 0px)) translateY(-50%)' }}
     ~ )
