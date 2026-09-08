@@ -1,3 +1,5 @@
+import { normalizeRecipientDefaults } from '../../src/lib/verifications/recipient-defaults'
+import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
 import { ConvexError, v } from 'convex/values'
 import { DEFAULT_ACCOUNT_MEMBER_ROLE } from '../../src/lib/accounts/members'
 import { renderAccountInviteEmail } from '../../src/lib/email/account-invite'
@@ -427,6 +429,20 @@ export const completeAdminRevocation = mutation({
       updatedAt: Date.now(),
       updatedBy: identity.tokenIdentifier
     })
+    return null
+  }
+})
+
+export const setRecipientDefaults = mutation({
+  args: { accountId: v.id('accounts'), scope: v.union(v.literal('account'), v.literal('member')), emails: v.array(v.string()) },
+  returns: v.null(),
+  handler: async (ctx, { accountId, scope, emails }) => {
+    const { account, membership } = await requireSubmissionAccountAccess(ctx, accountId, scope === 'account' ? 'admin' : 'viewer')
+    let normalized: string[]
+    try { normalized = normalizeRecipientDefaults(emails) }
+    catch (error) { throw new ConvexError(error instanceof Error ? error.message : 'Invalid recipient defaults.') }
+    // The personal record is always the authenticated membership, never a supplied user ID.
+    await ctx.db.patch(scope === 'account' ? account._id : membership._id, { verificationRecipientEmails: normalized })
     return null
   }
 })

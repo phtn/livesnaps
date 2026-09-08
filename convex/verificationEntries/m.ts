@@ -22,6 +22,7 @@ type VerificationEntryDoc = Doc<'verificationEntries'>
 type SnapDoc = Doc<'snaps'>
 type SendEmailArgs = {
   id: Id<'verificationEntries'>
+  emailToAddress?: string
   attachments?: string[]
   subject?: string
   body?: string
@@ -421,6 +422,7 @@ export const removeUpload = mutation({
 export const sendEmail = action({
   args: {
     id: v.id('verificationEntries'),
+    emailToAddress: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())),
     subject: v.optional(v.string()),
     body: v.optional(v.string())
@@ -436,6 +438,7 @@ export const sendEmail = action({
       { id: args.id }
     )
     if (!entry) throw new ConvexError('Entry not found.')
+    const recipient = normalizeEmailAddress(args.emailToAddress ?? entry.emailToAddress, 'Recipient email address')
 
     const normalizedAttachments: string[] = args.attachments
       ? args.attachments
@@ -615,7 +618,7 @@ export const sendEmail = action({
       const emailSubject: string = args.subject?.trim() || `Verification – ${entry.plateNumber} – ${entry.applicant}`
       const emailBody: string =
         args.body?.trim() ||
-        `Hi ${entry.applicant},\n\nPlease find attached: ${finalAttachments.join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
+        `Hello,\n\nVerification for ${entry.applicant}.\n\nPlease find attached: ${finalAttachments.join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
 
       const resendApiKey: string = (process.env.RESEND_API_KEY ?? process.env.RESEND ?? '').trim()
       const resendFrom: string = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
@@ -629,8 +632,8 @@ export const sendEmail = action({
 
       const payload: Record<string, unknown> = {
         from: resendFrom,
-        to: [entry.emailToAddress],
-        cc: entry.ccEmailAddress ? [entry.ccEmailAddress] : undefined,
+        to: [recipient],
+        cc: entry.ccEmailAddress && entry.ccEmailAddress !== recipient ? [entry.ccEmailAddress] : undefined,
         subject: emailSubject,
         text: emailBody,
         attachments: emailAttachments.map((attachment: EmailAttachment): ResendAttachmentPayload => ({
@@ -669,7 +672,8 @@ export const sendEmail = action({
         internal.verificationEntries.helpers.markSubmittedInternal,
         {
           id: args.id,
-          attachments: finalAttachments
+          attachments: finalAttachments,
+          emailToAddress: recipient
         }
       )
 

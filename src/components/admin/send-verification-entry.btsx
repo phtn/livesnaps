@@ -1,4 +1,9 @@
-import { useLinkedState, useMemo, useRef, useState, useTransition } from 'octane'
+import { useForm, useSelector } from '@octanejs/tanstack-form'
+import { useWorkspace } from '@/hooks/use-workspace'
+import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
+import { recipientChoices } from '@/lib/verifications/recipient-defaults'
+import RecipientInput from './recipient-input.btsx'
+import { useEffect, useLinkedState, useMemo, useRef, useState } from 'octane'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import AttachmentRow from '@/components/admin/attachment-row.btsx'
@@ -11,7 +16,7 @@ import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { onError, onSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
 import { removeVerificationAttachment, sendVerificationEmail, uploadVerificationAttachment } from '@/lib/verifications/admin-writes'
-import { DEFAULT_VERIFICATION_ATTACHMENTS } from '@/lib/verifications/entries'
+import { DEFAULT_VERIFICATION_ATTACHMENTS, isVerificationEmailAddress } from '@/lib/verifications/entries'
 import { attachmentSize, attachmentTotalLabel, formatBytes, CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, fieldLabelClassName, ghostButtonClassName, readonlyFieldClassName, type StepState } from '@/lib/verifications/step-flow'
 import type { VerificationUpload } from '../../../convex/verificationEntries/d'
 import type { VerificationEntryRow } from './data'
@@ -37,7 +42,7 @@ module
   const defaultSubject = (entry: VerificationEntryRow) => `Verification – ${entry.plateNumber} – ${entry.applicant}`
 
   const defaultBody = (entry: VerificationEntryRow) =>
-    `Hi ${entry.applicant},\n\nPlease find attached: ${defaultAttachments(entry).join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
+    `Hello,\n\nVerification for ${entry.applicant}.\n\nPlease find attached: ${defaultAttachments(entry).join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
 
   const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback)
 
@@ -94,7 +99,35 @@ setup
   const [selectedAttachments, setSelectedAttachments] = useLinkedState(entry?._id ?? '', () =>
     entry ? defaultAttachments(entry) : []
   )
-  const [isPending, startTransition] = useTransition()
+  const account = useWorkspace()
+  const { settings: recipientDefaults } = useRecipientDefaults(account?.id, open)
+  const recipientForm = useForm({
+    defaultValues: { emailToAddress: entry?.emailToAddress ?? '' },
+    validators: { onChange: ({ value }) => isVerificationEmailAddress(value.emailToAddress.trim()) ? undefined : 'Enter a valid recipient email.' },
+    onSubmit: async ({ value, formApi }) => {
+      if (!entry) return
+      try {
+        await sendVerificationEmail({
+          id: entry._id,
+          emailToAddress: value.emailToAddress.trim(),
+          attachments: selectedAttachments,
+          subject: subject.trim() || undefined,
+          body: body.trim() || undefined
+        })
+        onSuccess(`Email sent to ${value.emailToAddress.trim()}.`)
+        onSent?.()
+        onOpenChange(false)
+      } catch (error) {
+        const message = errorMessage(error, 'Unable to send the verification email.')
+        formApi.setErrorMap({ onSubmit: message })
+        onError(message)
+      }
+    }
+  })
+  const emailToAddress = useSelector(recipientForm.store, state => state.values.emailToAddress)
+  const isPending = useSelector(recipientForm.store, state => state.isSubmitting)
+  useEffect(() => { recipientForm.reset({ emailToAddress: entry?.emailToAddress ?? '' }) }, [entry?._id])
+  const isRecipientValid = isVerificationEmailAddress(emailToAddress.trim())
 
   // The entry keeps a copy of the applicant's face, but the snap is what holds
   // the plate, the address and the evidence the attachments are weighed from.
@@ -195,10 +228,10 @@ setup
 
   const hasMessage = subject.trim().length > 0 && body.trim().length > 0
   const hasAttachments = selectedAttachments.length > 0 || uploads.length > 0
-  const canSend = hasAttachments && pendingUploadCount === 0 && !isPending
+  const canSend = isRecipientValid && hasAttachments && pendingUploadCount === 0 && !isPending
 
   const applicantState: StepState = 'done'
-  const recipientState: StepState = 'done'
+  const recipientState: StepState = isRecipientValid ? 'done' : 'active'
   const messageState: StepState = hasMessage ? 'done' : 'active'
   const attachmentState: StepState = hasAttachments ? 'done' : 'active'
   const sendState: StepState = canSend ? 'active' : 'idle'
@@ -213,7 +246,9 @@ setup
     ? 'Sending email…'
     : pendingUploadCount > 0
       ? 'Uploading files…'
-      : !hasAttachments
+      : !isRecipientValid
+        ? 'Needs a recipient'
+        : !hasAttachments
         ? 'Needs an attachment'
         : !hasMessage
           ? 'Subject or message is empty'
@@ -243,21 +278,8 @@ setup
       return
     }
 
-    startTransition(async () => {
-      try {
-        await sendVerificationEmail({
-          id: entry._id,
-          attachments: selectedAttachments,
-          subject: subject.trim() || undefined,
-          body: body.trim() || undefined
-        })
-        onSuccess(`Email sent to ${entry.emailToAddress}.`)
-        onSent?.()
-        onOpenChange(false)
-      } catch (error) {
-        onError(errorMessage(error, 'Unable to send the verification email.'))
-      }
-    })
+    if (!isRecipientValid) { onError('Enter a valid recipient email.'); return }
+    void recipientForm.handleSubmit()
   }
 
 // Nothing to compose against until a row is picked; the dialog owns no state
@@ -323,9 +345,9 @@ if entry
                     span(className={fieldLabelClassName}) From
                     div(id='send-email-from' className={readonlyFieldClassName}) #{entry.emailFromAddress}
                   div(className='grid gap-3 sm:grid-cols-2')
-                    label(className='flex flex-col gap-1.5' htmlFor='send-email-to')
-                      span(className={fieldLabelClassName}) To
-                      div(id='send-email-to' className={readonlyFieldClassName}) #{entry.emailToAddress}
+                    div(className='flex flex-col gap-1.5')
+                      label(className={fieldLabelClassName} htmlFor='send-email-to') To
+                      RecipientInput(id='send-email-to' value={emailToAddress} options={recipientChoices(recipientDefaults)} disabled={isPending} invalid={!isRecipientValid} onChange={(value) => recipientForm.setFieldValue('emailToAddress', value)})
                     label(className='flex flex-col gap-1.5' htmlFor='send-email-cc')
                       span(className={fieldLabelClassName}) CC
                       div(id='send-email-cc' className={readonlyFieldClassName}) #{entry.ccEmailAddress ?? '—'}
@@ -421,7 +443,7 @@ if entry
               Step(icon='send' title='Send' state={sendState} index={4} isLast={true})
                 if canSend
                   p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)})
-                    | Deliver the entry to #{entry.emailToAddress}.
+                    | Deliver the entry to #{emailToAddress}.
                 else
                   div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
                     div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})

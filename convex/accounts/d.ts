@@ -52,6 +52,7 @@ export const accountSchema = v.object({
   createdAt: v.number(),
   createdBy: v.string(),
   updatedAt: v.number(),
+  verificationRecipientEmails: v.optional(v.array(v.string())),
   updatedBy: v.string()
 })
 

@@ -8,6 +8,7 @@ module
   // One entry per child route under `adminSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
     { id: 'staff', href: '/admin-settings', label: 'Staff', shortLabel: 'Staff', icon: 'member' },
+    { id: 'recipients', href: '/admin-settings/recipients', label: 'Email recipients', shortLabel: 'Recipients', icon: 'at' },
     { id: 'invite', href: '/admin-settings/invite', label: 'Invite', shortLabel: 'Invite', icon: 'add-user' },
     { id: 'links', href: '/admin-settings/links', label: 'Submission links', shortLabel: 'Links', icon: 'link' }
   ]

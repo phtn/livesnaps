@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'octane'
 import { Icon } from '@/lib/icons'
 import { Badge, Button, Input } from '@/components/ui'
 import { Link } from '@octanejs/tanstack-router'
-import { cn } from '@/lib/utils'
+import { cn, formatName } from '@/lib/utils'
 import { debounce, parseAsBoolean, parseAsString, parseAsStringLiteral, throttle, useQueryStates } from '@octanejs/nuqs'
 import { useField, useSelector } from '@octanejs/tanstack-form'
 import { getGodUserLabel, searchUsers, type GodUser } from '@/lib/citadel/gods-users'
@@ -111,8 +111,8 @@ component PlanField
 
 component AccountIdentity
   props { account }: { account: AccountRow }
-  div(className='flex min-w-0 items-center gap-3')
-    span(className='grid size-8 shrink-0 place-items-center rounded-full bg-background font-poly text-muted-foreground') #{getAccountInitials(account)}
+  div(className='flex min-w-0 items-center md:gap-3 gap-1.5')
+    span(className='grid size-6 shrink-0 place-items-center font-poly text-muted-foreground text-sm') #{getAccountInitials(account)}
     div(className='min-w-0')
       p(className='truncate text-sm text-foreground') #{account.name}
     div(className='flex items-center gap-0 min-w-0')
@@ -509,7 +509,7 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
           ~ )
           Icon(name='add' className={cn('size-3.75 transition-transform duration-200 ease-out', {'rotate-68': filters.create})})
     fragment
-      div(className='flex items-center w-full' role='group' aria-label='Account status')
+      div(className='hidden _flex items-center w-full' role='group' aria-label='Account status')
         each status in ACCOUNT_STATUS_FILTERS key status
           button(
             ~ type='button'
@@ -562,14 +562,14 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
                 Link(
                   ~ to='/citadel/accounts/$accountSlug'
                   ~ params={{ accountSlug: account.slug }}
-                  ~ className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5 transition-colors bg-table-head/50 hover:bg-accent'
+                  ~ className='flex flex-wrap items-center justify-between gap-3 md:px-3 px-1.5 py-4 transition-colors bg-table-head/50 hover:bg-accent'
                   ~ )
                   AccountIdentity(account={account})
                   div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
                     div(className='min-w-0 md:block')
-                      p(className='truncate text-sm text-foreground/80') #{account.primaryContact.name}
+                      p(className='truncate text-sm text-foreground/80 capitalize') #{formatName(account.primaryContact.name)}
                     span(className='hidden truncate font-mono text-xs text-muted-foreground') #{account.primaryContact.email}
                     span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{ACCOUNT_PLAN_LABEL[account.plan]}
-                    span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatAccountDate(account.createdAt)}
+                    // span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatAccountDate(account.createdAt)}
                     StatusBadge(status={account.status})
                     Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')

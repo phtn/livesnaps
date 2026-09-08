@@ -23,6 +23,7 @@ export interface RemoveVerificationAttachmentInput {
 
 export interface SendVerificationEmailInput {
   id: string
+  emailToAddress?: string
   attachments?: string[]
   subject?: string
   body?: string

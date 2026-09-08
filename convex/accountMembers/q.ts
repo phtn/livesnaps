@@ -1,3 +1,4 @@
+import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
 import { ConvexError, v } from 'convex/values'
 import { internalQuery, query } from '../_generated/server'
 import { requireGodIdentity } from '../accounts/helpers'
@@ -164,5 +165,14 @@ export const getContactAdminAccess = query({
     if (member?.role !== 'owner') return { member: null, firebaseUid: null }
     const user = member.tokenIdentifier ? await getUserByTokenIdentifier(ctx.db, member.tokenIdentifier) : null
     return { member, firebaseUid: user?.firebaseUid ?? null }
+  }
+})
+
+export const getRecipientDefaults = query({
+  args: { accountId: v.id('accounts') },
+  returns: v.object({ accountEmails: v.array(v.string()), memberEmails: v.array(v.string()), canManageAccount: v.boolean() }),
+  handler: async (ctx, { accountId }) => {
+    const { account, membership, canManage } = await requireSubmissionAccountAccess(ctx, accountId)
+    return { accountEmails: account.verificationRecipientEmails ?? [], memberEmails: membership.verificationRecipientEmails ?? [], canManageAccount: canManage }
   }
 })

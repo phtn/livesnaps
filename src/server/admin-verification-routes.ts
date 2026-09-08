@@ -220,6 +220,7 @@ export function handleAdminVerificationEntrySend(
 
       return client.action(api.verificationEntries.m.sendEmail, {
         id: id as Id<'verificationEntries'>,
+        emailToAddress: typeof body.emailToAddress === 'string' ? body.emailToAddress.trim() : undefined,
         attachments: readStringArray(body.attachments),
         subject: readString(body.subject),
         body: readString(body.body)

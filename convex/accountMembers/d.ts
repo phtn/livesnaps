@@ -34,6 +34,7 @@ export const accountMemberSchema = v.object({
   invitedBy: v.string(),
   joinedAt: v.union(v.number(), v.null()),
   updatedAt: v.number(),
+  verificationRecipientEmails: v.optional(v.array(v.string())),
   updatedBy: v.string()
 })
 

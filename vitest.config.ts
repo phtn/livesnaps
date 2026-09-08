@@ -9,7 +9,7 @@ export default defineConfig({
     transform(source, id) {
       const filename = id.split('?')[0]
       if (filename.endsWith('.tsrx')) return compile(source, filename, { dev: process.env.OCTANE_TEST_PRODUCTION !== '1' }).code
-      if (/\/src\/hooks\/use-(convex-query|convex-auth|capture-settings|admin-pages|workspace)\.ts$/.test(filename)) return compile(source, filename, { dev: process.env.OCTANE_TEST_PRODUCTION !== '1' }).code
+      if (/\/src\/hooks\/use-(recipient-defaults|convex-query|convex-auth|capture-settings|admin-pages|workspace)\.ts$/.test(filename)) return compile(source, filename, { dev: process.env.OCTANE_TEST_PRODUCTION !== '1' }).code
       if (filename.endsWith('.btsx')) {
         return compile(compileBeast(source, { filename }), filename.replace(/\.btsx$/, '.tsrx'), { dev: process.env.OCTANE_TEST_PRODUCTION !== '1' }).code
       }

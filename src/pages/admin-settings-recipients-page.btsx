@@ -1,0 +1,70 @@
+import { useForm, useSelector } from '@octanejs/tanstack-form'
+import { useWorkspace, accountEndpoint } from '@/hooks/use-workspace'
+import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
+import { writeWorkspaceJson } from '@/lib/accounts/link-client'
+import { parseRecipientDefaults } from '@/lib/verifications/recipient-defaults'
+import { onSuccess } from '@/lib/toast'
+
+component RecipientDefaultsForm
+  props { accountId, scope, emails, onSaved }: { accountId: string; scope: 'account' | 'member'; emails: string[]; onSaved: () => void }
+  setup
+    const form = useForm({
+      defaultValues: { emails: emails.join('\n') },
+      validators: { onChange: ({ value }) => {
+        try { parseRecipientDefaults(value.emails); return undefined }
+        catch (error) { return error instanceof Error ? error.message : 'Invalid addresses.' }
+      } },
+      onSubmit: async ({ value, formApi }) => {
+        try {
+          await writeWorkspaceJson(accountEndpoint('/api/admin/recipient-defaults', accountId), { scope, emails: parseRecipientDefaults(value.emails) })
+          onSuccess('Recipient defaults saved.')
+          onSaved()
+        } catch (error) {
+          formApi.setErrorMap({ onSubmit: error instanceof Error ? error.message : 'Could not save recipient defaults.' })
+        }
+      }
+    })
+    const value = useSelector(form.store, state => state.values.emails)
+    const pending = useSelector(form.store, state => state.isSubmitting)
+    const errors = useSelector(form.store, state => state.errors)
+    const canSubmit = useSelector(form.store, state => state.canSubmit)
+  form(className='mt-4 grid gap-3' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
+    label(htmlFor={`${scope}-recipients`} className='text-sm font-medium') Saved recipients
+    textarea(id={`${scope}-recipients`} value={value} disabled={pending} onInput={(event: Event) => form.setFieldValue('emails', (event.currentTarget as HTMLTextAreaElement).value)} aria-describedby={`${scope}-help`} placeholder='reports@example.com' className='min-h-36 w-full rounded-sm border border-border bg-background p-3 font-mono text-sm')
+    p(id={`${scope}-help`} className='text-xs text-muted-foreground') One email address per line, up to 50. The first address is the default. Leave empty to #{scope === 'member' ? 'use account defaults' : 'start with an empty recipient'}.
+    if errors.length
+      p(className='text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}
+    button(type='submit' disabled={pending || !canSubmit} className='justify-self-start rounded-sm bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50') #{pending ? 'Saving…' : 'Save defaults'}
+
+setup
+  const account = useWorkspace()
+  const { settings, error, refresh } = useRecipientDefaults(account?.id)
+
+section(className='p-5')
+  h2(className='font-poly text-2xl font-medium') Email recipients
+  p(className='mt-2 text-sm text-muted-foreground') Set recipient choices for #{account?.name ?? 'your account'}. Personal defaults take precedence over shared account defaults. You can always type another address when creating or sending a verification.
+  if !account
+    p(className='mt-6 text-sm text-muted-foreground') Select an account to configure recipients.
+  elseif error
+    div(className='mt-6' role='alert')
+      p(className='text-sm text-destructive') #{error}
+      button(type='button' onClick={refresh} className='mt-2 text-sm underline') Retry
+  elseif !settings
+    p(className='mt-6 text-sm text-muted-foreground') Loading recipient defaults…
+  else
+    div(className='mt-6 grid gap-6 lg:grid-cols-2')
+      section(className='rounded-sm border border-border p-4')
+        h3(className='font-medium') Account defaults
+        p(className='mt-1 text-xs text-muted-foreground') Shared with all members of this account.
+        if settings.canManageAccount
+          RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
+        else
+          p(className='mt-3 text-xs text-muted-foreground') An account owner or administrator can update this list.
+          each email in settings.accountEmails key email
+            p(className='mt-2 font-mono text-sm') #{email}
+          empty
+            p(className='mt-3 text-sm text-muted-foreground') No account defaults configured.
+      section(className='rounded-sm border border-border p-4')
+        h3(className='font-medium') My defaults
+        p(className='mt-1 text-xs text-muted-foreground') Your saved recipients for this account. Other members keep their own defaults.
+        RecipientDefaultsForm(accountId={account.id} scope='member' emails={settings.memberEmails} onSaved={refresh})

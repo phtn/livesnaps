@@ -1,4 +1,8 @@
-import { useMemo, useState } from 'octane'
+import { useWorkspace } from '@/hooks/use-workspace'
+import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
+import { recipientChoices } from '@/lib/verifications/recipient-defaults'
+import RecipientInput from './recipient-input.btsx'
+import { useEffect, useMemo, useState } from 'octane'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import { useField, useSelector } from '@octanejs/tanstack-form'
@@ -41,29 +45,32 @@ module
 // One email control bound to one form field. Value, blur, and the error message
 // all come from the field's own state rather than from a second copy kept here.
 component EmailField
-  props { form, name, label, placeholder, required = false }: { form: VerificationEntryForm; name: VerificationEntryEmailField; label: string; placeholder?: string; required?: boolean }
+  props { form, name, label, placeholder, required = false, options = [] }: { form: VerificationEntryForm; name: VerificationEntryEmailField; label: string; placeholder?: string; required?: boolean; options?: readonly string[] }
   setup
     const field = useField({ form, name })
     const controlId = `verification-${name}`
     const errorId = `${controlId}-error`
     const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
 
-  label(className='flex flex-col gap-1.5' htmlFor={controlId})
-    span(className={fieldLabelClassName}) #{label}
-    Input(
-      ~ id={controlId}
-      ~ type='email'
-      ~ autoComplete='email'
-      ~ className='rounded-xs'
-      ~ maxLength={VERIFICATION_EMAIL_MAX_LENGTH}
-      ~ placeholder={placeholder}
-      ~ required={required}
-      ~ value={field.state.value}
-      ~ aria-invalid={message !== null}
-      ~ aria-describedby={message === null ? undefined : errorId}
-      ~ onBlur={field.handleBlur}
-      ~ onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)}
-      ~ )
+  div(className='flex flex-col gap-1.5')
+    label(className={fieldLabelClassName} htmlFor={controlId}) #{label}
+    if name === 'emailToAddress'
+      RecipientInput(id={controlId} value={field.state.value} options={options} onChange={field.handleChange} onBlur={field.handleBlur} invalid={message !== null} describedBy={message === null ? undefined : errorId})
+    else
+      Input(
+        ~ id={controlId}
+        ~ type='email'
+        ~ autoComplete='email'
+        ~ className='rounded-xs'
+        ~ maxLength={VERIFICATION_EMAIL_MAX_LENGTH}
+        ~ placeholder={placeholder}
+        ~ required={required}
+        ~ value={field.state.value}
+        ~ aria-invalid={message !== null}
+        ~ aria-describedby={message === null ? undefined : errorId}
+        ~ onBlur={field.handleBlur}
+        ~ onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)}
+        ~ )
     if message
       p(id={errorId} className={errorTextClassName}) #{message}
 
@@ -72,6 +79,9 @@ props { emailFromAddress, isLoadingSnaps = false, onCreated, snaps }: CreateVeri
 setup
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const account = useWorkspace()
+  const { settings: recipientDefaults, error: recipientDefaultsError } = useRecipientDefaults(account?.id, isOpen)
+  const options = recipientChoices(recipientDefaults)
 
   // Bottom on a phone, right on a desktop. Vaul reads the direction from its
   // own context, so flipping it on resize is enough to move the panel.
@@ -94,6 +104,16 @@ setup
     },
     onFailure: onError
   })
+
+  useEffect(() => {
+    if (isOpen && options.length && !entryForm.state.values.emailToAddress && !entryForm.getFieldMeta('emailToAddress')?.isDirty)
+      entryForm.setFieldValue('emailToAddress', options[0])
+  }, [isOpen, recipientDefaults])
+
+  useEffect(() => {
+    setIsOpen(false)
+    entryForm.reset(verificationEntryFormDefaults())
+  }, [account?.id])
 
   const selectedSnapId = useSelector(entryForm.store, (state) => state.values.snapId)
   const emailToAddress = useSelector(entryForm.store, (state) => state.values.emailToAddress)
@@ -180,10 +200,6 @@ setup
 
   const selectSnap = (snap: AdminSnapListItem) => {
     entryForm.setFieldValue('snapId', snap._id)
-    // The applicant's own address is the usual recipient, so it seeds the field
-    // — but only while nothing has been typed, which keeps an edit authoritative.
-    if (entryForm.state.values.emailToAddress.trim().length === 0 && snap.email)
-      entryForm.setFieldValue('emailToAddress', snap.email)
     setSearchQuery('')
   }
 
@@ -328,8 +344,10 @@ fragment
                     span(className={fieldLabelClassName}) From
                     div(id='verification-email-from' className={readonlyFieldClassName}) #{emailFromAddress || 'Signing in…'}
                   div(className='grid gap-3 sm:grid-cols-2')
-                    EmailField(form={entryForm} name='emailToAddress' label='To' placeholder='applicant@example.com' required={true})
+                    EmailField(form={entryForm} name='emailToAddress' label='To' placeholder='recipient@example.com' required={true} options={options})
                     EmailField(form={entryForm} name='ccEmailAddress' label='CC' placeholder='Optional')
+                  if recipientDefaultsError
+                    p(className='text-xs text-destructive' role='alert') Saved recipients could not be loaded. You can still type an address.
 
               Step(
                 ~ icon='attachment'

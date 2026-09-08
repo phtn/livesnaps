@@ -1,3 +1,4 @@
+import { handleRecipientDefaults } from './server/recipient-defaults-routes'
 import { handleReportSettings } from './server/report-settings-routes'
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
@@ -74,6 +75,8 @@ export default {
   async fetch(request: Request, env: WorkerEnvironment): Promise<Response> {
     const pathname = new URL(request.url).pathname
     const photoRouteMatch = SNAP_SUBMISSION_PHOTO_PATH.exec(pathname)
+
+    if (pathname === '/api/admin/recipient-defaults') return handleRecipientDefaults(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
 
     if (pathname === '/api/gods/report-settings') return handleReportSettings(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
 

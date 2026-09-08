@@ -1,0 +1,11 @@
+import { Input } from '@/components/ui'
+import { VERIFICATION_EMAIL_MAX_LENGTH } from '@/lib/verifications/entries'
+
+props { id, value, options, onChange, onBlur, disabled = false, invalid = false, describedBy }: { id: string; value: string; options: readonly string[]; onChange: (value: string) => void; onBlur?: () => void; disabled?: boolean; invalid?: boolean; describedBy?: string }
+
+div(className='grid gap-1.5')
+  select(id={`${id}-saved`} aria-label='Saved recipients' value={options.includes(value) ? value : ''} disabled={disabled || options.length === 0} onChange={(event: Event) => onChange((event.currentTarget as HTMLSelectElement).value)} className='h-9 w-full min-w-0 rounded-xs border border-sidebar-border bg-sidebar/50 px-2 text-sm disabled:opacity-50')
+    option(value='') #{options.length ? 'Choose a saved recipient or type below' : 'No saved recipients — type below'}
+    each email in options key email
+      option(value={email}) #{email}
+  Input(id={id} type='email' value={value} required={true} disabled={disabled} maxLength={VERIFICATION_EMAIL_MAX_LENGTH} autoComplete='off' placeholder='recipient@example.com' aria-invalid={invalid} aria-describedby={describedBy} onBlur={onBlur} onInput={(event: Event) => onChange((event.currentTarget as HTMLInputElement).value)})
