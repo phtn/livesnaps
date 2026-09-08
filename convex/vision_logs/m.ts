@@ -1,5 +1,5 @@
 import { v } from 'convex/values'
-import { internalMutation, mutation } from '../_generated/server'
+import { internalMutation } from '../_generated/server'
 import { snapCaptureIntegritySchema, snapVehicleDetailsSchema } from '../snaps/d'
 import { visionLogKindSchema, visionLogStatusSchema } from './d'
 
@@ -33,11 +33,11 @@ export const log = internalMutation({
   }
 })
 
-export const logPublic = mutation({
+export const logPublic = internalMutation({
   args: visionLogArgs,
   returns: v.id('vision_logs'),
   handler: async (ctx, args) => {
-    // allow client to log debug vision even without auth — proof upload_id is scoped
+    // Debug logs are server-only; an upload ID never authorizes a public write.
     return await ctx.db.insert('vision_logs', {
       ...args,
       createdAt: Date.now()

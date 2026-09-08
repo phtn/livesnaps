@@ -1,5 +1,5 @@
 import { AdminIdTokenError, mintAdminIdToken } from '@/lib/firebase-admin/admin-id-token'
-import { getVerifiedAdminSession } from '@/lib/firebase-admin/server-auth'
+import { getVerifiedWorkspaceSession } from '@/lib/firebase-admin/server-auth'
 import { createConvexClient } from './convex'
 
 export interface AdminConvexEnvironment {
@@ -26,11 +26,11 @@ const json = (body: unknown, status = 200) =>
     headers: { 'cache-control': 'no-store' }
   })
 
-async function getAdminConvexClient(
+export async function getAdminConvexClient(
   request: Request,
   environment: AdminConvexEnvironment
 ): Promise<AdminConvexClient | null> {
-  const session = await getVerifiedAdminSession(request)
+  const session = await getVerifiedWorkspaceSession(request)
 
   if (!session) return null
 

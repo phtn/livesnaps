@@ -30,7 +30,7 @@ module
   }
 
 
-props {}: {}
+props { destination }: { destination?: { accountSlug: string; linkSlug?: string; accountName: string; label: string } }
 setup
   const { isLoading: isUserLoading, user } = useFirebaseUser()
   const locationWatchRef = useRef<DeviceLocationWatch | null>(null)
@@ -179,6 +179,9 @@ setup
     sessionCompletedRef.current = false
 
     try {
+      if (!destination && !runtimeMode.debug) {
+        throw new Error('Open the submission link shared by your organization to get started.')
+      }
       if (!user) {
         throw new Error(
           isUserLoading ? 'Checking your signed-in account.' : 'Sign in before starting a proof submission.'
@@ -211,7 +214,10 @@ setup
       locationWatchRef.current = locationWatch
       latestLocationRef.current = locationWatch.initialLocation
       sessionUploadIdRef.current = uploadId
-      await createSnapSession(uploadId, locationWatch.initialLocation, idToken)
+      await createSnapSession(uploadId, locationWatch.initialLocation, idToken, {
+        accountSlug: destination!.accountSlug,
+        ...(destination!.linkSlug ? { linkSlug: destination!.linkSlug } : {})
+      })
 
       if (
         locationWatchRef.current !== locationWatch ||
@@ -253,7 +259,7 @@ setup
       startInvalidationReasonRef.current = null
       setIsStarting(false)
     }
-  }, [handleFatalLocationError, handleLocation, isUserLoading, setIsExpanded, user])
+  }, [destination, handleFatalLocationError, handleLocation, isUserLoading, setIsExpanded, user])
 
   useEffect(() => {
     const handlePageHide = () => {
@@ -306,6 +312,15 @@ div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen 
     LazyTop
   ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
     div(className='flex flex-col')
+      div(className='mx-auto w-full max-w-3xl px-5 pt-5 text-center')
+        if destination
+          p(className='rounded-lg border border-border/60 bg-accent/40 px-4 py-3 text-sm')
+            span(className='text-muted-foreground') Submitting to 
+            strong #{destination.accountName}
+            if destination.linkSlug
+              span(className='text-muted-foreground') #{` · ${destination.label}`}
+        elseif !runtimeMode.debug
+          p(className='text-sm text-muted-foreground') Use the submission link shared by your organization to start a snap.
       div(className={cn(viewportStyles.pageContent, 'relative z-0', isExpanded && 'pointer-events-none')} inert={isExpanded})
         Suspense(fallback={Fallback})
           LazyHero(authenticatedUserId={user?.uid ?? null} error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})

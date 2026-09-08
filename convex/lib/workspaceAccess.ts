@@ -1,18 +1,17 @@
 import { ConvexError } from 'convex/values'
+import type { Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
+import { requireSubmissionAccountAccess } from './submissionAccess'
 
-// Match the account selected by accounts.q.listMine({ limit: 1 }). The
-// console's `admin` claim alone must never override an account member's role.
-export async function workspaceAccess(ctx: QueryCtx | MutationCtx) {
+export async function workspaceAccess(ctx: QueryCtx | MutationCtx, accountId?: Id<'accounts'>) {
+  if (accountId) return await requireSubmissionAccountAccess(ctx, accountId)
   const identity = await ctx.auth.getUserIdentity()
-  if (identity?.admin !== true) throw new ConvexError('Unauthorized.')
-  const membership = await ctx.db.query('accountMembers')
+  if (!identity) throw new ConvexError('Unauthorized.')
+  const memberships = await ctx.db.query('accountMembers')
     .withIndex('by_tokenIdentifier_and_status', q =>
       q.eq('tokenIdentifier', identity.tokenIdentifier).eq('status', 'active'))
-    .first()
-  return {
-    identity,
-    membership,
-    canManage: membership?.role === 'admin' || membership?.role === 'owner'
-  }
+    .take(2)
+  if (memberships.length === 0) throw new ConvexError('Unauthorized.')
+  if (memberships.length !== 1) throw new ConvexError('Select an Account to continue.')
+  return await requireSubmissionAccountAccess(ctx, memberships[0].accountId)
 }

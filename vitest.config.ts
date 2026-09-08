@@ -16,7 +16,7 @@ export default defineConfig({
   }],
   resolve: { alias: { '@': new URL('./src', import.meta.url).pathname } },
   test: {
-    include: ['tests/**/*.vitest.ts'],
+    include: ['tests/**/*.vitest.ts', 'convex/**/*.vitest.ts'],
     environment: 'edge-runtime',
     server: { deps: { inline: ['convex-test'] } }
   }

@@ -1,4 +1,5 @@
 import { ConvexError, v } from 'convex/values'
+import { canUseAccount } from '../../src/lib/accounts/accounts'
 import {
   type DeviceLocation,
   isSnapLocationCurrentAndAccurate,
@@ -25,7 +26,13 @@ import {
   normalizeDetectedVehicleDetails,
   normalizePlateNumber
 } from '../../src/lib/snaps/vehicle-details'
+import type { Doc } from '../_generated/dataModel'
 import { internalMutation, type MutationCtx, mutation } from '../_generated/server'
+import {
+  ensureDefaultSubmissionLink,
+  recordSubmissionEvent,
+  resolveSubmissionDestination
+} from '../submissionLinks/helpers'
 import {
   type SnapApplicantDetails,
   type SnapCaptureIntegrity,
@@ -43,7 +50,6 @@ import {
   snapVehicleDetailsSchema
 } from './d'
 
-const SNAP_SESSION_REUSE_WINDOW_MS = 60 * 60 * 1000
 const SNAP_SESSION_ABANDON_AFTER_MS = 60 * 60 * 1000
 const SNAP_SESSION_ABANDON_BATCH_SIZE = 500
 
@@ -170,58 +176,70 @@ const normalizeConfirmedPlateNumber = (value: string) => {
   return normalized
 }
 
+/** Authenticated submitters can change only their own Account-bound capture. */
+const requireOwnedSubmission = async (ctx: MutationCtx, snap: Doc<'snaps'>, allowUnavailable = false) => {
+  const identity = await ctx.auth.getUserIdentity()
+  if (!identity || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
+    throw new ConvexError('Unauthorized.')
+  }
+  if (!snap.accountId || !snap.submissionLinkId) {
+    throw new ConvexError('This legacy session is not associated with an Account. Start from an Account link.')
+  }
+  const account = await ctx.db.get(snap.accountId)
+  const link = await ctx.db.get(snap.submissionLinkId)
+  if (!account || !link || link.accountId !== account._id) {
+    throw new ConvexError('Submission destination not found.')
+  }
+  if (!allowUnavailable && !canUseAccount(account.status)) {
+    throw new ConvexError('This Account is not accepting submissions.')
+  }
+  return identity
+}
+
 export const startSession = mutation({
   args: {
+    accountSlug: v.string(),
+    linkSlug: v.optional(v.string()),
     address: snapAddressSchema,
     initial_location: snapDeviceLocationSchema,
     ipinfo: snapIpinfoSchema,
     upload_id: v.string()
   },
   returns: v.id('snaps'),
-  handler: async (ctx, { address, initial_location, ipinfo, upload_id }) => {
+  handler: async (ctx, { accountSlug, linkSlug, address, initial_location, ipinfo, upload_id }) => {
     const applicant = await requireSnapApplicant(ctx)
-
-    if (!isSnapUploadId(upload_id)) {
-      throw new ConvexError('Invalid proof upload ID.')
+    if (!isSnapUploadId(upload_id)) throw new ConvexError('Invalid proof upload ID.')
+    const destination = await resolveSubmissionDestination(ctx, accountSlug, linkSlug)
+    if (!destination || !canUseAccount(destination.account.status)) {
+      throw new ConvexError('This Account link is not accepting submissions.')
     }
-
+    const snapWithUploadId = await ctx.db
+      .query('snaps')
+      .withIndex('by_metadata_upload_id', (query) => query.eq('metadata.upload_id', upload_id))
+      .unique()
+    if (snapWithUploadId) {
+      if (
+        snapWithUploadId.metadata.applicant_token_identifier !== applicant.tokenIdentifier ||
+        snapWithUploadId.accountId !== destination.account._id ||
+        !destination.link ||
+        snapWithUploadId.submissionLinkId !== destination.link._id
+      ) {
+        throw new ConvexError(
+          'This proof verification session already exists for a different destination or applicant.'
+        )
+      }
+      return snapWithUploadId._id
+    }
+    if (!destination.available) throw new ConvexError('This submission link is disabled.')
     const initialLocation = normalizeDeviceLocation(initial_location)
-
     if (!isSnapLocationCurrentAndAccurate(initialLocation)) {
       throw new ConvexError(
         `Location accuracy must be ${MAX_SNAP_LOCATION_ACCURACY_METERS} meters or better when verification starts.`
       )
     }
-
-    const snapWithUploadId = await ctx.db
-      .query('snaps')
-      .withIndex('by_metadata_upload_id', (query) => query.eq('metadata.upload_id', upload_id))
-      .unique()
-
-    if (snapWithUploadId) {
-      const belongsToApplicant = snapWithUploadId.metadata.applicant_token_identifier === applicant.tokenIdentifier
-
-      if (!belongsToApplicant) {
-        throw new ConvexError('This proof verification session already exists.')
-      }
-
-      if (!snapWithUploadId.firebase_uid) {
-        await ctx.db.patch('snaps', snapWithUploadId._id, { firebase_uid: applicant.firebaseUid })
-      }
-
-      return snapWithUploadId._id
-    }
-
+    const link =
+      destination.link ?? (await ensureDefaultSubmissionLink(ctx, destination.account._id, applicant.tokenIdentifier))
     const startedAt = Date.now()
-    const recentSnap = await ctx.db
-      .query('snaps')
-      .withIndex('by_applicant_token_identifier_and_session_started_at', (query) =>
-        query
-          .eq('metadata.applicant_token_identifier', applicant.tokenIdentifier)
-          .gte('location_session.started_at', startedAt - SNAP_SESSION_REUSE_WINDOW_MS)
-      )
-      .order('desc')
-      .first()
     const addressCountryCode = address.country_code?.trim().toUpperCase()
     const locationSession = {
       address,
@@ -235,6 +253,8 @@ export const startSession = mutation({
       status: 'active' as const
     }
     const sessionSnap = {
+      accountId: destination.account._id,
+      submissionLinkId: link._id,
       email: applicant.email,
       firebase_uid: applicant.firebaseUid,
       full_name: applicant.fullName,
@@ -242,7 +262,6 @@ export const startSession = mutation({
       location: prepareSnapLocation(locationSession),
       location_session: locationSession,
       metadata: {
-        ...(recentSnap?.metadata.attributes ? { attributes: recentSnap.metadata.attributes } : {}),
         applicant_token_identifier: applicant.tokenIdentifier,
         photos: [],
         storage_prefix: SNAP_STORAGE_PREFIX,
@@ -250,22 +269,9 @@ export const startSession = mutation({
       },
       updated_at: startedAt
     }
-
-    if (recentSnap) {
-      await ctx.db.patch('snaps', recentSnap._id, {
-        ...sessionSnap,
-        make: undefined,
-        mileage: undefined,
-        model: undefined,
-        phone: undefined,
-        plate_number: undefined,
-        video: undefined,
-        year: undefined
-      })
-      return recentSnap._id
-    }
-
-    return await ctx.db.insert('snaps', sessionSnap)
+    const snapId = await ctx.db.insert('snaps', sessionSnap)
+    await recordSubmissionEvent(ctx, sessionSnap, 'started')
+    return snapId
   }
 })
 
@@ -318,6 +324,8 @@ const savePhotoHandler = async (
   if (!existingProof?.location_session) {
     throw new ConvexError('Start a location-verified proof session before capturing photos.')
   }
+
+  await requireOwnedSubmission(ctx, existingProof)
 
   if (existingProof.location_session.status !== 'active') {
     throw new ConvexError('This proof verification session is no longer active.')
@@ -393,7 +401,7 @@ export const savePhotoWithCaptureIntegrity = mutation({
   handler: savePhotoHandler
 })
 
-export const patchCapturedPhotoVision = mutation({
+export const patchCapturedPhotoVision = internalMutation({
   args: {
     capture_id: v.string(),
     capture_integrity: snapCaptureIntegritySchema,
@@ -420,6 +428,11 @@ export const patchCapturedPhotoVision = mutation({
 
     if (!snap) {
       throw new ConvexError('Proof verification session not found.')
+    }
+
+    const account = snap.accountId ? await ctx.db.get(snap.accountId) : null
+    if (!account || !canUseAccount(account.status) || snap.location_session?.status !== 'active') {
+      throw new ConvexError('This proof verification session is no longer active.')
     }
 
     const photoIndex = snap.metadata.photos.findIndex((photo) => photo.capture_id === capture_id)
@@ -489,7 +502,12 @@ export const endSession = mutation({
       throw new ConvexError('snap verification session not found.')
     }
 
+    await requireOwnedSubmission(ctx, snap, status !== 'completed')
+
     if (snap.location_session.status !== 'active') {
+      if (snap.location_session.status !== status) {
+        throw new ConvexError('This proof verification session has already ended.')
+      }
       return snap._id
     }
 
@@ -527,6 +545,7 @@ export const endSession = mutation({
       location_session: locationSession,
       updated_at: endedAt
     })
+    await recordSubmissionEvent(ctx, snap, status)
 
     return snap._id
   }
@@ -565,6 +584,7 @@ export const abandonExpiredSessions = internalMutation({
         },
         updated_at: now
       })
+      await recordSubmissionEvent(ctx, proof, 'abandoned')
       abandoned += 1
     }
 
@@ -586,11 +606,9 @@ export const updateDetails = mutation({
       throw new ConvexError('snap not found.')
     }
 
-    if (snap.metadata.applicant_token_identifier !== applicant.tokenIdentifier) {
-      throw new ConvexError('Unauthorized.')
-    }
+    await requireOwnedSubmission(ctx, snap)
 
-    if (snap.location_session && snap.location_session.status !== 'active') {
+    if (snap.location_session?.status !== 'active') {
       throw new ConvexError('Cannot edit a completed snap — only active sessions can be overwritten.')
     }
 

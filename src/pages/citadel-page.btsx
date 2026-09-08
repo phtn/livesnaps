@@ -11,6 +11,7 @@ import { Group, Panel, Separator } from '@octanejs/resizable-panels'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import ThemeToggle from '@/components/theme-toggle.btsx'
+import Container from "../components/admin/container.btsx";
 
 module
   type NavItem = {
@@ -48,7 +49,7 @@ component Navigation
             ~ activeOptions={{ exact: item.exact ?? false, includeSearch: false }}
             ~ className={cn(navLinkClassName, compact ? 'justify-center px-0' : 'gap-3 px-6')}
             ~ )
-            Icon(name={item.icon} className='size-5')
+            Icon(name={item.icon} className='size-6 md:size-5')
             if !compact
               span(className='font-sans') #{item.label}
 
@@ -138,7 +139,7 @@ setup
 if isMobile
   div(className='min-h-screen bg-background')
     Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
-      div(className='w-full fixed top-0 z-35 flex items-center justify-between h-12 border-b border-border/70 px-2.5 text-white bg-black')
+      div(className='w-full fixed top-0 z-35 flex items-center justify-between h-12 px-2.5 text-white bg-black')
         Drawer.Trigger(type='button' aria-label='Open citadel navigation' className='gap-2.5 inline-flex items-center justify-center')
           Icon(name='sidebar' className='size-6 text-white/70')
           h1(className='inline-flex items-center gap-0 font-poly text-white/90')
@@ -167,12 +168,12 @@ if isMobile
               ~ )
     main(className='min-h-screen bg-background pt-11')
       if status === 'loading'
-        div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
+        div(className='grid min-h-[calc(90vh)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your administrator session…
       elseif status === 'ready'
         Outlet
       elseif status === 'unauthorized'
-        div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
+        div(className='grid min-h-[calc(90vh)] place-items-center px-6 text-center')
           div(className='max-w-md')
             p(className='text-sm text-muted-foreground') You do not have an active administrator session.
             a(href='https://livesnapsnow.com/' className='mt-6 inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background') Return to Live Snaps Now
@@ -182,8 +183,8 @@ if isMobile
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col bg-background border-r border-border/70')
-        div(className={cn('flex h-16 items-center border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+      aside(className='flex h-full min-w-0 w-full flex-col bg-sunken')
+        div(className={cn('flex h-16 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
           Link(className='inline-flex items-center gap-2 text-[clamp(1rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
             if isNavigationCompact
@@ -209,13 +210,13 @@ else
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
       span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
     Panel(id='content' minSize='40%')
-      main(className='min-h-screen bg-background')
+      main(className='min-h-screen bg-sunken')
         if status === 'loading'
-          div(className='flex items-center justify-center gap-2 min-h-screen')
-            Icon(name='spinner-ferris')
-            p(className='text-sm md:text-base text-muted-foreground') Verifying your administrator session
+          div(className='flex items-center justify-center gap-2 h-[calc(90vh)]')
+            Icon(name='spinner-ferris' className='size-8 opacity-60')
         elseif status === 'ready'
-          Outlet
+          Container
+            Outlet
         elseif status === 'unauthorized'
           div(className='grid min-h-screen place-items-center px-6 text-center')
             div(className='max-w-md')

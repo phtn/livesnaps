@@ -1,3 +1,7 @@
+import { useConvexAuth } from '@/hooks/use-convex'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { api } from '../../convex/_generated/api'
+import { canUseAccount } from '@/lib/accounts/accounts'
 import { Icon, type IconName } from '@/lib/icons'
 import { resolveAccountProfileImageUrl } from '@/lib/r2/prefixes'
 import { buildAdminHandoffUrl } from '@/lib/routing/admin-subdomain'
@@ -43,6 +47,9 @@ component Item
 props { user, hasAdminClaim, hasGodAccess }: UserMenuProps
 
 setup
+  const convexAuth = useConvexAuth()
+  const accounts = useConvexQuery(api.accounts.q.listMine, convexAuth.isAuthenticated ? { limit: 250 } : 'skip', convexAuth.userId ?? '')
+  const hasWorkspace = accounts?.some(account => canUseAccount(account.status)) ?? false
   const [isNavigatingToAdmin, setIsNavigatingToAdmin] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -92,8 +99,8 @@ div(ref={menuRef} className='relative z-100!')
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
-      if hasAdminClaim
-        Item(role='menuitem' label='admin' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+      if hasWorkspace
+        Item(role='menuitem' label='workspace' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
       if hasGodAccess
         RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       div(className='-mx-1 my-1 h-px bg-input' role='separator')

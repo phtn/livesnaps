@@ -7,7 +7,6 @@ import {
 } from '../../src/lib/accounts/members'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
-import { isPlatformStaff } from '../lib/auth'
 import { trimOrNull } from '../utils'
 
 type Ctx = QueryCtx | MutationCtx
@@ -37,8 +36,8 @@ export const countOwners = async (ctx: Ctx, accountId: Id<'accounts'>) => {
 
 /**
  * Access to an account is a membership, not a claim on the identity token, so
- * it is always read from `accountMembers`. Platform admins bypass membership —
- * they operate every account — and are reported as `{ membership: null }` so
+ * it is always read from `accountMembers`. Gods can manage Account provisioning without membership; account admins
+ * must hold the required role — and are reported as `{ membership: null }` so
  * callers can tell a staff action apart from a customer's own.
  */
 export const requireAccountAccess = async (
@@ -52,7 +51,7 @@ export const requireAccountAccess = async (
     throw new ConvexError('Unauthenticated.')
   }
 
-  if (isPlatformStaff(identity)) {
+  if (identity.god === true) {
     return { tokenIdentifier: identity.tokenIdentifier, isPlatformAdmin: true, membership: null }
   }
 

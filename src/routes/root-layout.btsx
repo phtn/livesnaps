@@ -15,8 +15,9 @@ module
 setup
   const isAdminHost = typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname)
   const isUngatedPath = typeof window !== 'undefined' && UNGATED_ADMIN_PATHS.includes(window.location.pathname)
+  const isWorkspacePath = typeof window !== 'undefined' && window.location.pathname.startsWith('/admin-')
 
-if isAdminHost && !isUngatedPath
+if (isAdminHost || isWorkspacePath) && !isUngatedPath
   Suspense(fallback={Pending})
     LazyAdminPage
 else

@@ -1,6 +1,7 @@
 import { ACCOUNT_MEMBER_ROLE_VALUES, type AccountMemberRole } from '@/lib/accounts/members'
 import { api } from '../../convex/_generated/api'
 import { type AdminConvexClient, type AdminConvexEnvironment, AdminRequestError, withAdminConvex, withAdminConvexWrite } from './admin-convex'
+import { resolveWorkspaceAccount } from './workspace-routes'
 
 export type AdminMemberRouteEnvironment = AdminConvexEnvironment
 
@@ -15,16 +16,13 @@ const MEMBER_LIST_LIMIT = 250
  * two memberships lands on their newest one; the response names the account so
  * the page can say which workspace it is showing.
  */
-async function readWorkspace(client: AdminConvexClient) {
-  const accounts = await client.query(api.accounts.q.listMine, { limit: 1 })
-  const account = accounts[0]
-
-  if (!account) return { account: null, members: [] }
+async function readWorkspace(client: AdminConvexClient, request: Request) {
+  const account = await resolveWorkspaceAccount(client, request)
 
   return {
-    account: { id: account._id, name: account.name, slug: account.slug, plan: account.plan, status: account.status },
+    account,
     members: await client.query(api.accountMembers.q.listForAccount, {
-      accountId: account._id,
+      accountId: account.id,
       limit: MEMBER_LIST_LIMIT
     })
   }
@@ -34,7 +32,7 @@ export type AdminAccountMemberListResponse = Awaited<ReturnType<typeof readWorks
 
 /** `GET /api/admin/account-members` — the workspace and everyone on it. */
 export function handleAdminAccountMemberList(request: Request, environment: AdminMemberRouteEnvironment = {}) {
-  return withAdminConvex(request, environment, readWorkspace, 'Unable to load the account members.')
+  return withAdminConvex(request, environment, client => readWorkspace(client, request), 'Unable to load the account members.')
 }
 
 const readString = (value: unknown): string | undefined => {
@@ -72,13 +70,11 @@ export function handleAdminAccountMemberInvite(request: Request, environment: Ad
 
       if (!email) throw new AdminRequestError('A member email address is required.')
 
-      const accounts = await client.query(api.accounts.q.listMine, { limit: 1 })
-      const account = accounts[0]
-
-      if (!account) throw new AdminRequestError('Your administrator identity is not a member of any account.')
+      const account = await resolveWorkspaceAccount(client, request)
+      if (account.role !== 'admin' && account.role !== 'owner') throw new AdminRequestError('Account administrator access is required.')
 
       await client.mutation(api.accountMembers.m.invite, {
-        accountId: account._id,
+        accountId: account.id,
         email,
         name: readString(payload.name) ?? null,
         title: readString(payload.title) ?? null,
@@ -87,7 +83,7 @@ export function handleAdminAccountMemberInvite(request: Request, environment: Ad
 
       // The fresh roster comes back with the write, so the members tab does not
       // have to round-trip again to show the invitation that was just sent.
-      return await readWorkspace(client)
+      return await readWorkspace(client, request)
     },
     'Unable to invite this member.'
   )

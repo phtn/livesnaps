@@ -2,6 +2,7 @@ import { DEFAULT_VERIFICATION_ATTACHMENTS } from '@/lib/verifications/entries'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { type AdminConvexEnvironment, AdminRequestError, withAdminConvex, withAdminConvexWrite } from './admin-convex'
+import { requestedAccountId } from './workspace-routes'
 
 export type AdminVerificationRouteEnvironment = AdminConvexEnvironment
 
@@ -11,13 +12,24 @@ export function handleAdminVerificationEntryList(
   request: Request,
   environment: AdminVerificationRouteEnvironment = {}
 ) {
-  const limit = Number(new URL(request.url).searchParams.get('limit'))
+  const params = new URL(request.url).searchParams
+  const limit = Number(params.get('limit'))
+  if (params.get('page') === '1') {
+    return withAdminConvex(request, environment, client => {
+      const accountId = requestedAccountId(request)
+      if (!accountId) throw new AdminRequestError('Select an Account to continue.')
+      return client.query(api.verificationEntries.q.listForAccountPage, {
+        accountId, paginationOpts: { numItems: 50, cursor: params.get('cursor') || null }
+      })
+    }, 'Unable to load verification entries.')
+  }
 
   return withAdminConvex(
     request,
     environment,
     (client) =>
       client.query(api.verificationEntries.q.listAllForAdmin, {
+        accountId: requestedAccountId(request),
         limit: Number.isSafeInteger(limit) && limit > 0 ? limit : VERIFICATION_ENTRY_LIST_LIMIT
       }),
     'Unable to load verification entries.'
@@ -135,7 +147,7 @@ export function handleAdminVerificationEntryAttachmentUpload(
       }
 
       const contentType = file.type.trim() || 'application/octet-stream'
-      const uploadUrl: string = await client.mutation(api.verificationEntries.m.generateAttachmentUploadUrl, {})
+      const uploadUrl: string = await client.mutation(api.verificationEntries.m.generateAttachmentUploadUrl, { id: id as Id<'verificationEntries'> })
 
       const stored = await fetch(uploadUrl, {
         method: 'POST',

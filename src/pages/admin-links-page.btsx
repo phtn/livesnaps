@@ -1,0 +1,207 @@
+// import { useEffect, useState } from 'octane'
+// import { useField, useForm, useSelector } from '@octanejs/tanstack-form'
+// import type { FunctionReturnType } from 'convex/server'
+// import { api } from '../../convex/_generated/api'
+// import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+// import { submissionShareUrl, workspaceJson, writeWorkspaceJson } from '@/lib/accounts/link-client'
+// import { isSubmissionLinkSlug, submissionLinkPath } from '@/lib/accounts/submission-links'
+
+// module
+//   type LinkList = FunctionReturnType<typeof api.submissionLinks.q.list>
+//   type Analytics = FunctionReturnType<typeof api.submissionLinks.q.analytics>
+//   type LinkRecord = LinkList['links'][number]
+//   const inputClass = 'w-full rounded-md border border-border bg-background px-3 py-2 text-sm'
+//   const buttonClass = 'rounded-md border border-border px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50'
+//   const utcDay = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10)
+//   const percentage = (completed: number, started: number) => started ? `${Math.round(completed / started * 100)}%` : '—'
+
+// component LinkControls
+//   props { link, accountSlug, endpoint, canManage, onChanged }: { link: LinkRecord; accountSlug: string; endpoint: string; canManage: boolean; onChanged: () => void }
+//   setup
+//     const [notice, setNotice] = useState('')
+//     const [busy, setBusy] = useState(false)
+//     const f = useForm({
+//       defaultValues: { label: link.label },
+//       onSubmit: async ({ value }) => {
+//         setBusy(true)
+//         try {
+//           await writeWorkspaceJson(endpoint, { action: 'update', linkId: link._id, label: value.label })
+//           setNotice('Label saved.')
+//           onChanged()
+//         } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to save label.') }
+//         finally { setBusy(false) }
+//       }
+//     })
+//     const label = useField({ form: f, name: 'label' })
+//     const copy = async () => {
+//       try { await navigator.clipboard.writeText(submissionShareUrl(accountSlug, link.slug)); setNotice('Link copied.') }
+//       catch { setNotice('Copy the link address shown above.') }
+//     }
+//     const toggle = async () => {
+//       setBusy(true)
+//       try {
+//         await writeWorkspaceJson(endpoint, { action: 'update', linkId: link._id, enabled: !link.enabled })
+//         setNotice(link.enabled ? 'Link disabled. Existing submissions are preserved.' : 'Link enabled.')
+//         onChanged()
+//       } catch (error) { setNotice(error instanceof Error ? error.message : 'Unable to update link.') }
+//       finally { setBusy(false) }
+//     }
+//     const handleSubmit = (event: SubmitEvent) => {
+//       event.preventDefault()
+//       void f.handleSubmit()
+//     }
+
+//   div(className='space-y-3')
+//     a(href={submissionShareUrl(accountSlug, link.slug)} target='_blank' rel='noopener noreferrer' className='break-all font-mono text-xs text-beach underline underline-offset-4') #{submissionShareUrl(accountSlug, link.slug)}
+//     div(className='flex flex-wrap items-center gap-2')
+//       button(type='button' className={buttonClass} onClick={copy}) Copy link
+//       if canManage
+//         button(type='button' className={buttonClass} onClick={toggle} disabled={busy}) #{link.enabled ? 'Disable' : 'Enable'}
+//         form(className='flex flex-wrap gap-2' onSubmit={handleSubmit})
+//           input(aria-label={`Display label for ${link.slug || 'default link'}`} value={label.state.value} onInput={(event: Event) => label.handleChange((event.currentTarget as HTMLInputElement).value)} onBlur={label.handleBlur} required maxLength={100} className='w-44 rounded-md border border-border bg-background px-3 py-2 text-sm')
+//           button(type='submit' className={buttonClass} disabled={busy || !label.state.value.trim()}) Save label
+//     if notice
+//       p(role='status' className='text-xs text-muted-foreground') #{notice}
+
+// component CreateLink
+//   props { accountSlug, endpoint, onCreated }: { accountSlug: string; endpoint: string; onCreated: () => void }
+//   setup
+//     const [error, setError] = useState('')
+//     const onSubmit = async ({ value, formApi }) => {
+//       setError('')
+//       try {
+//         await writeWorkspaceJson(endpoint, { action: 'create', slug: value.slug, label: value.label })
+//         formApi.reset()
+//         onCreated()
+//       } catch (error) { setError(error instanceof Error ? error.message : 'Unable to create link.') }
+//     }
+//     const f = useForm({
+//       defaultValues: { slug: '', label: '' },
+//       onSubmit
+//     })
+//     const slug = useField({ form:f, name: 'slug' })
+//     const label = useField({ form: f, name: 'label' })
+//     const busy = useSelector(f.store, state => state.isSubmitting)
+//     const valid = isSubmissionLinkSlug(slug.state.value) && label.state.value.trim().length > 0
+//     const onDisplayLabelInput = (event: Event) => label.handleChange((event.currentTarget as HTMLInputElement).value)
+//     const onInputLinkSlug = (event: Event) => slug.handleChange((event.currentTarget as HTMLInputElement).value.toLowerCase())
+
+//   form(className='space-y-4 rounded-xl border border-border/70 bg-accent/20 p-5')
+//     h2(className='text-lg font-medium') Create a submission link
+//     div(className='grid gap-4 md:grid-cols-2')
+//       label(className='space-y-2 text-sm')
+//         span Display label
+//         input(value={label.state.value} onInput={onDisplayLabelInput} onBlur={label.handleBlur} required maxLength={100} placeholder='Team A' className={inputClass})
+//       label(className='space-y-2 text-sm')
+//         span Link slug
+//         input(value={slug.state.value} onInput={onInputLinkSlug} onBlur={slug.handleBlur} required maxLength={63} pattern='[a-z0-9]+(-[a-z0-9]+)*' placeholder='team-a' className={inputClass})
+//     p(className='break-all font-mono text-xs text-muted-foreground') #{submissionShareUrl(accountSlug, slug.state.value || 'team-a')}
+//     p(className='text-xs text-muted-foreground') The slug is permanent. You can change its display label or disable the link later.
+//     if error
+//       p(role='alert' className='text-sm text-destructive') #{error}
+//     button(type='submit' className='rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50' disabled={!valid || busy}) #{busy ? 'Creating…' : 'Create link'})
+
+// setup
+//   const account = useWorkspace()
+//   const [links, setLinks] = useState<LinkList | null>(null)
+//   const [analytics, setAnalytics] = useState<Analytics | null>(null)
+//   const [error, setError] = useState('')
+//   const [loading, setLoading] = useState(true)
+//   const [reload, setReload] = useState(0)
+//   const [range, setRange] = useState({ fromDay: utcDay(Date.now() - 29 * 86_400_000), toDay: utcDay(Date.now()) })
+//   const endpoint = accountEndpoint('/api/admin/submission-links', account?.id ?? '')
+//   const refresh = () => setReload(value => value + 1)
+//   const dateForm = useForm({
+//     defaultValues: range,
+//     onSubmit: async ({ value }) => {
+//       const days = (Date.parse(value.toDay) - Date.parse(value.fromDay)) / 86_400_000 + 1
+//       if (!Number.isFinite(days) || days < 1 || days > 90) { setError('Choose a date range of 1–90 days.'); return }
+//       setRange({ ...value })
+//     }
+//   })
+//   const fromDay = useField({ form: dateForm, name: 'fromDay' })
+//   const toDay = useField({ form: dateForm, name: 'toDay' })
+//   useEffect(() => {
+//     if (!account) return
+//     const controller = new AbortController()
+//     void (async () => {
+//       setLoading(true)
+//       try {
+//         await writeWorkspaceJson(endpoint, { action: 'ensure-default' })
+//         if (controller.signal.aborted) return
+//         const statsUrl = accountEndpoint(`/api/admin/submission-analytics?fromDay=${range.fromDay}&toDay=${range.toDay}`, account.id)
+//         const [nextLinks, nextStats] = await Promise.all([
+//           workspaceJson<LinkList>(endpoint, { signal: controller.signal }),
+//           workspaceJson<Analytics>(statsUrl, { signal: controller.signal })
+//         ])
+//         if (controller.signal.aborted) return
+//         setLinks(nextLinks)
+//         setAnalytics(nextStats)
+//         setError('')
+//       } catch (error) {
+//         if (!controller.signal.aborted) {
+//           setLinks(null)
+//           setAnalytics(null)
+//           setError(error instanceof Error ? error.message : 'Unable to load submission links.')
+//         }
+//       } finally { if (!controller.signal.aborted) setLoading(false) }
+//     })()
+//     return () => controller.abort()
+//   }, [account?.id, endpoint, range.fromDay, range.toDay, reload])
+//   const peak = Math.max(1, ...(analytics?.days.map(day => day.started) ?? []))
+//   const linkRows = (links?.links ?? []).map(link => ({ ...link, counts: analytics?.links.find(row => row.linkId === link._id) }))
+//   const onSubmit = (event: SubmitEvent) => {
+//     event.preventDefault()
+//     void dateForm.handleSubmit()
+//   }
+//   const onInputFrom = (event: Event) => fromDay.handleChange((event.currentTarget as HTMLInputElement).value)
+//   const onInputThrough = (event: Event) => toDay.handleChange((event.currentTarget as HTMLInputElement).value)
+
+// section(className='mx-auto max-w-6xl space-y-7 p-4 md:p-7')
+//   div(className='flex flex-wrap items-start justify-between gap-4')
+//     div(className='space-y-2')
+//       h1(className='font-poly text-3xl tracking-tight') Submission links
+//       p(className='max-w-2xl text-sm text-muted-foreground') Share links for #{account?.name}. Every active Account member can view submissions from every link.
+//     button(type='button' className={buttonClass} onClick={refresh} disabled={loading}) #{loading ? 'Loading…' : 'Refresh'}
+
+//     p(role='alert' className='rounded-md border border-destructive/40 p-4 text-sm text-destructive') #{error}
+//   if links?.canManage && account
+//     CreateLink(accountSlug={account.slug} endpoint={endpoint} onCreated={refresh})
+//   form(className='flex flex-wrap items-end gap-3' onSubmit={onSubmit})
+//     label(className='space-y-2 text-sm')
+//       span From (UTC)
+//       input(type='date' required value={fromDay.state.value} onInput={onInputFrom} className={inputClass})
+//     label(className='space-y-2 text-sm')
+//       span Through (UTC)
+//       input(type='date' required value={toDay.state.value} onInput={onInputThrough} className={inputClass})
+//     button(type='submit' className={buttonClass} disabled={loading}) Apply dates
+//   if analytics
+//     div(className='grid grid-cols-2 gap-4 md:grid-cols-4')
+//       each metric in [{ label: 'Started', value: analytics.totals.started }, { label: 'Completed', value: analytics.totals.completed }, { label: 'Abandoned', value: analytics.totals.abandoned }, { label: 'Completion rate', value: percentage(analytics.totals.completed, analytics.totals.started) }] key metric.label
+//         div(className='rounded-xl border border-border/70 p-5')
+//           p(className='text-xs text-muted-foreground') #{metric.label}
+//           p(className='mt-3 font-mono text-3xl') #{metric.value}
+//     div(className='rounded-xl border border-border/70 p-5')
+//       h2(className='text-sm font-medium') Sessions started per day
+//       div(role='img' aria-label={`Daily session starts from ${analytics.fromDay} through ${analytics.toDay} UTC. ${analytics.totals.started} total.`} className='mt-5 flex h-28 items-end gap-1')
+//         each day in analytics.days key day.day
+//           div(title={`${day.day} UTC: ${day.started} started, ${day.completed} completed`} className='flex h-full flex-1 items-end')
+//             div(className='w-full rounded-t bg-beach dark:bg-lime-200' style={{ height: `${day.started / peak * 100}%`, minHeight: day.started ? '2px' : '0' }})
+//       p(className='mt-4 text-xs text-muted-foreground')
+//         span Counts are grouped by the UTC date a session started. Completion rate includes sessions still in progress. Cancelled:
+//         span #{analytics.totals.cancelled}. Invalidated:
+//         span #{analytics.totals.invalidated}.
+//   if links && account
+//     div(className='space-y-4')
+//       each link in linkRows key link._id
+//         article(className='space-y-4 rounded-xl border border-border/70 p-5')
+//           div(className='flex flex-wrap items-center justify-between gap-3')
+//             h2(className='text-lg font-medium') #{link.label}
+//             span(className='rounded-full bg-accent px-3 py-1 text-xs') #{link.enabled ? 'Enabled' : 'Disabled'}
+//           LinkControls(link={link} accountSlug={account.slug} endpoint={endpoint} canManage={links.canManage} onChanged={refresh})
+//           div(className='flex flex-wrap gap-x-6 gap-y-2 border-t border-border/60 pt-4 text-sm')
+//             span Started: #{link.counts?.started ?? 0}
+//             span Completed: #{link.counts?.completed ?? 0}
+//             span Abandoned: #{link.counts?.abandoned ?? 0}
+//             span Completion: #{percentage(link.counts?.completed ?? 0, link.counts?.started ?? 0)}
+//             a(href={`/admin-snaps?sourceLinkId=${encodeURIComponent(link._id)}`} className='underline underline-offset-4') View submissions

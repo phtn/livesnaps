@@ -83,18 +83,18 @@ nav(
       ~ href={item.href}
       ~ id={`route-${item.id}`}
       ~ aria-current={activeId === item.id ? 'page' : undefined}
-      ~ className={`relative z-10 flex items-center justify-center gap-1 cursor-pointer font-sans hover:text-foreground -tracking-[0.01em] px-3.5 py-2.5 max-[680px]:min-w-0 max-[680px]:flex-1 max-[680px]:px-4 ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
+      ~ className={`relative z-10 flex items-center justify-center gap-1 cursor-pointer font-sans hover:text-foreground -tracking-[0.01em] ps-3 pe-5 py-2.5 ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
       ~ onClick={(event) => handleNavigate(event, item.href)}
       ~ )
-      Icon(name={item.icon} size={20})
-      span(className='max-[680px]:hidden text-sm font-medium') #{item.label}
-      span(className='hidden max-[680px]:inline text-sm font-medium') #{item.shortLabel}
+      Icon(name={item.icon} size={18})
+      span(className='max-[680px]:hidden font-sans font-medium text-sm -tracking-[0.01em]') #{item.label}
+      span(className='hidden max-[680px]:inline font-sans font-medium text-sm -tracking-[0.01em]') #{item.shortLabel}
   // div(
   //   ~ aria-hidden='true'
   //   ~ className='pointer-events-none absolute -bottom-0.25 left-0 z-0 h-0.5 rounded-e-full -translate-y-1/2 bg-border/40 w-full'
   //   ~ )
   div(
     ~ aria-hidden='true'
-    ~ className='pointer-events-none absolute -bottom-0.75 left-0 z-0 h-0.75 rounded-[1px] -translate-y-1/2 bg-foreground dark:bg-foreground/25 shadow-xs transition-[width,transform] duration-180 ease-out'
+    ~ className='pointer-events-none absolute -bottom-1.25 left-0 z-0 h-0.75 rounded-full -translate-y-1/2 bg-foreground dark:bg-foreground/25 shadow-xs transition-[width,transform] duration-180 ease-out'
     ~ style={{ width: 'var(--active-tab-width, 0px)', transform: 'translateX(var(--active-tab-left, 0px)) translateY(-50%)' }}
     ~ )

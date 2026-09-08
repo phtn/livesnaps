@@ -1,7 +1,11 @@
+import { paginationOptsValidator, paginationResultValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
-import { getSnapSlot, isSnapUploadId } from '../../src/lib/r2/snap-images'
+import { getSnapSlot, isSnapObjectKey, isSnapUploadId, SNAP_STORAGE_PREFIX } from '../../src/lib/r2/snap-images'
 import { prepareSnapLocation } from '../../src/lib/snaps/snap-location'
 import { type QueryCtx, query } from '../_generated/server'
+import type { Doc, Id } from '../_generated/dataModel'
+import { workspaceAccess } from '../lib/workspaceAccess'
+import { isDraftSnap, requireOwnDraftSnap, requireSnapAccess } from '../lib/submissionAccess'
 import {
   snapDocumentSchema,
   snapHandlerSchema,
@@ -151,14 +155,6 @@ const applicantProfileSchema = v.object({
 
 type ApplicantSnapSummary = typeof applicantSnapSummarySchema.type
 
-const requireAdmin = async (ctx: QueryCtx) => {
-  const identity = await ctx.auth.getUserIdentity()
-
-  if (identity?.admin !== true) {
-    throw new ConvexError('Unauthorized.')
-  }
-}
-
 const normalizeListLimit = (limit: number | undefined) => {
   if (limit === undefined || !Number.isFinite(limit)) {
     return DEFAULT_LIST_LIMIT
@@ -185,15 +181,15 @@ export const listMine = query({
       .order('desc')
       .take(LATEST_SNAP_SUBMISSION_LIMIT)
 
-    return snaps.map((snap) => ({
+    return snaps.filter(snap => !!snap.accountId).map((snap) => ({
       _id: snap._id,
-      make: snap.make ?? '',
-      model: snap.model ?? '',
+      make: isDraftSnap(snap) ? snap.make ?? '' : '',
+      model: isDraftSnap(snap) ? snap.model ?? '' : '',
       photoCount: snap.metadata.photos.length,
-      plateNumber: snap.plate_number ?? '',
+      plateNumber: isDraftSnap(snap) ? snap.plate_number ?? '' : '',
       startedAt: snap.location_session?.started_at ?? snap._creationTime,
       status: snap.location_session?.status ?? ('pending' as const),
-      year: snap.year ?? null
+      year: isDraftSnap(snap) ? snap.year ?? null : null
     }))
   }
 })
@@ -218,12 +214,13 @@ export const getMineByRouteId = query({
 
     const snap = await ctx.db.get('snaps', normalizedSnapId)
 
-    if (!snap || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
+    if (!snap?.accountId || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
       return null
     }
 
-    const session = snap.location_session
-    const location = snap.location
+    const draft = isDraftSnap(snap)
+    const session = draft ? snap.location_session : undefined
+    const location = draft ? snap.location : undefined
 
     return {
       _id: snap._id,
@@ -231,24 +228,24 @@ export const getMineByRouteId = query({
       bestAccuracyMeters: session?.best_accuracy_meters ?? location?.best_accuracy_meters ?? null,
       countryCodeMatchesIpinfo: session?.country_code_matches_ipinfo ?? location?.country_code_matches_ipinfo ?? null,
       createdAt: snap._creationTime,
-      endedAt: session?.ended_at ?? null,
+      endedAt: snap.location_session?.ended_at ?? null,
       invalidationReason: session?.invalidation_reason ?? '',
-      make: snap.make ?? '',
-      mileage: snap.mileage ?? null,
-      model: snap.model ?? '',
+      make: draft ? snap.make ?? '' : '',
+      mileage: draft ? snap.mileage ?? null : null,
+      model: draft ? snap.model ?? '' : '',
       photoCount: snap.metadata.photos.length,
-      photos: snap.metadata.photos.map((photo) => ({
+      photos: (draft ? snap.metadata.photos : []).map((photo) => ({
         capturedAt: photo.captured_at,
         label: photo.label,
         size: photo.size,
         slot: photo.slot
       })),
-      plateNumber: snap.plate_number ?? '',
+      plateNumber: draft ? snap.plate_number ?? '' : '',
       startedAt: session?.started_at ?? snap._creationTime,
-      status: session?.status ?? ('pending' as const),
+      status: snap.location_session?.status ?? ('pending' as const),
       updatedAt: snap.updated_at,
       uploadId: snap.metadata.upload_id,
-      year: snap.year ?? null
+      year: draft ? snap.year ?? null : null
     }
   }
 })
@@ -275,10 +272,11 @@ export const getMinePhotoObjectKey = query({
 
     const snap = await ctx.db.get('snaps', normalizedSnapId)
 
-    if (!snap || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
+    if (!snap?.accountId || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
       return null
     }
 
+    await requireOwnDraftSnap(ctx, snap)
     return snap.metadata.photos.find((photo) => photo.slot === normalizedSlot.index)?.r2_key ?? null
   }
 })
@@ -289,9 +287,10 @@ export const getForAdmin = query({
   },
   returns: v.union(snapDocumentSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireAdmin(ctx)
-
-    return await ctx.db.get('snaps', snapId)
+    const snap = await ctx.db.get('snaps', snapId)
+    if (!snap) return null
+    await requireSnapAccess(ctx, snap)
+    return snap
   }
 })
 
@@ -301,10 +300,11 @@ export const getForAdminByRouteId = query({
   },
   returns: v.union(snapDocumentSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireAdmin(ctx)
-
     const normalizedSnapId = ctx.db.normalizeId('snaps', snapId)
-    return normalizedSnapId ? await ctx.db.get('snaps', normalizedSnapId) : null
+    const snap = normalizedSnapId ? await ctx.db.get('snaps', normalizedSnapId) : null
+    if (!snap) return null
+    await requireSnapAccess(ctx, snap)
+    return snap
   }
 })
 
@@ -314,37 +314,26 @@ export const getApplicantProfileForAdminBySnapId = query({
   },
   returns: v.union(applicantProfileSchema, v.null()),
   handler: async (ctx, { snapId }) => {
-    await requireAdmin(ctx)
-
     const normalizedSnapId = ctx.db.normalizeId('snaps', snapId)
     if (!normalizedSnapId) return null
 
     const anchorSnap = await ctx.db.get('snaps', normalizedSnapId)
     if (!anchorSnap) return null
+    const { account: owningAccount } = await requireSnapAccess(ctx, anchorSnap)
 
     const applicantTokenIdentifier = anchorSnap.metadata.applicant_token_identifier
-    const [snapResults, account, firstSnap] = applicantTokenIdentifier
+    const [snapResults, firstSnap] = applicantTokenIdentifier
       ? await Promise.all([
-          ctx.db
-            .query('snaps')
-            .withIndex('by_applicant_token_identifier_and_session_started_at', (query) =>
-              query.eq('metadata.applicant_token_identifier', applicantTokenIdentifier)
-            )
-            .order('desc')
-            .take(APPLICANT_PROFILE_SNAP_LIMIT + 1),
-          ctx.db
-            .query('users')
-            .withIndex('by_tokenIdentifier', (query) => query.eq('tokenIdentifier', applicantTokenIdentifier))
-            .unique(),
-          ctx.db
-            .query('snaps')
-            .withIndex('by_applicant_token_identifier_and_session_started_at', (query) =>
-              query.eq('metadata.applicant_token_identifier', applicantTokenIdentifier)
-            )
-            .order('asc')
-            .first()
+          ctx.db.query('snaps')
+            .withIndex('by_accountId_applicant_token_identifier_session_started_at', q =>
+              q.eq('accountId', owningAccount._id).eq('metadata.applicant_token_identifier', applicantTokenIdentifier))
+            .order('desc').take(APPLICANT_PROFILE_SNAP_LIMIT + 1),
+          ctx.db.query('snaps')
+            .withIndex('by_accountId_applicant_token_identifier_session_started_at', q =>
+              q.eq('accountId', owningAccount._id).eq('metadata.applicant_token_identifier', applicantTokenIdentifier))
+            .order('asc').first()
         ])
-      : ([[anchorSnap], null, anchorSnap] as const)
+      : [[anchorSnap], anchorSnap] as const
     const hasMoreSnaps = snapResults.length > APPLICANT_PROFILE_SNAP_LIMIT
     const applicantSnaps = snapResults.slice(0, APPLICANT_PROFILE_SNAP_LIMIT)
     const latestSnap = applicantSnaps[0] ?? anchorSnap
@@ -382,50 +371,24 @@ export const getApplicantProfileForAdminBySnapId = query({
     const activityTimestamps = applicantSnaps.flatMap((snap) => [snap._creationTime, snap.updated_at])
 
     return {
-      account: account
-        ? {
-            _creationTime: account._creationTime,
-            _id: account._id,
-            createdAt: account.createdAt,
-            email: account.email ?? null,
-            emailVerified: account.emailVerified,
-            issuer: account.issuer,
-            name: account.name ?? null,
-            nickname: account.nickname,
-            phone: account.phone,
-            pictureUrl: account.imageUrl ?? null,
-            preferredUsername: account.preferredUsername,
-            profileUrl: account.profileUrl,
-            subject: account.subject,
-            updatedAt: account.updatedAt
-          }
-        : null,
-      email: latestSnap.email?.trim() || account?.email?.trim() || '',
+      account: null,
+      email: latestSnap.email?.trim() || '',
       firebaseUid: latestSnap.firebase_uid?.trim() || anchorSnap.firebase_uid?.trim() || '',
       firstSeenAt: firstSnap?._creationTime ?? anchorSnap._creationTime,
-      fullName: latestSnap.full_name?.trim() || account?.name?.trim() || '',
+      fullName: latestSnap.full_name?.trim() || '',
       hasMoreSnaps,
       knownEmails: knownValues((snap) => snap.email),
       knownFirebaseUids: knownValues((snap) => snap.firebase_uid),
       knownNames: knownValues((snap) => snap.full_name),
       knownPhones: knownValues((snap) => snap.phone),
       lastActivityAt: Math.max(...activityTimestamps),
-      phone: latestSnap.phone?.trim() || account?.phone?.trim() || '',
+      phone: latestSnap.phone?.trim() || '',
       snaps: summaries
     }
   }
 })
 
-export const listForAdmin = query({
-  args: {
-    limit: v.optional(v.number())
-  },
-  returns: v.array(snapListItemSchema),
-  handler: async (ctx, { limit }) => {
-    await requireAdmin(ctx)
-
-    const snaps = await ctx.db.query('snaps').withIndex('by_updated_at').order('desc').take(normalizeListLimit(limit))
-
+async function mapSnapList(ctx: QueryCtx, snaps: Doc<'snaps'>[]): Promise<SnapListItem[]> {
     const firebaseUids = [...new Set(snaps.map((snap) => snap.firebase_uid).filter((uid): uid is string => !!uid))]
     const imageUrlByFirebaseUid = new Map<string, string | undefined>(
       await Promise.all(
@@ -498,6 +461,32 @@ export const listForAdmin = query({
         year: snap.year ?? null
       }
     })
+}
+
+function accountSnaps(ctx: QueryCtx, accountId: Id<'accounts'>, sourceLinkId?: Id<'submissionLinks'>) {
+  return sourceLinkId
+    ? ctx.db.query('snaps').withIndex('by_accountId_and_submissionLinkId_and_updated_at', q =>
+        q.eq('accountId', accountId).eq('submissionLinkId', sourceLinkId))
+    : ctx.db.query('snaps').withIndex('by_accountId_and_updated_at', q => q.eq('accountId', accountId))
+}
+
+export const listForAdmin = query({
+  args: { accountId: v.optional(v.id('accounts')), sourceLinkId: v.optional(v.id('submissionLinks')), limit: v.optional(v.number()) },
+  returns: v.array(snapListItemSchema),
+  handler: async (ctx, { accountId, sourceLinkId, limit }) => {
+    const { account } = await workspaceAccess(ctx, accountId)
+    const snaps = await accountSnaps(ctx, account._id, sourceLinkId).order('desc').take(normalizeListLimit(limit))
+    return await mapSnapList(ctx, snaps)
+  }
+})
+
+export const listForAccountPage = query({
+  args: { accountId: v.id('accounts'), sourceLinkId: v.optional(v.id('submissionLinks')), paginationOpts: paginationOptsValidator },
+  returns: paginationResultValidator(snapListItemSchema),
+  handler: async (ctx, { accountId, sourceLinkId, paginationOpts }) => {
+    await workspaceAccess(ctx, accountId)
+    const result = await accountSnaps(ctx, accountId, sourceLinkId).order('desc').paginate(paginationOpts)
+    return { ...result, page: await mapSnapList(ctx, result.page) }
   }
 })
 
@@ -518,6 +507,8 @@ export const getCaptureAnalysisState = query({
       .withIndex('by_metadata_upload_id', (query) => query.eq('metadata.upload_id', upload_id))
       .unique()
 
+    if (!snap) throw new ConvexError('Snap not found.')
+    await requireOwnDraftSnap(ctx, snap)
     return {
       vehicle: {
         plate_number: snap?.plate_number ?? '',
@@ -532,7 +523,7 @@ export const getByUploadId = query({
   args: {
     upload_id: v.string()
   },
-  returns: v.union(snapDocumentSchema, v.null()),
+  returns: v.union(snapVehicleDetailsSchema.extend({ mileage: v.union(v.number(), v.null()) }), v.null()),
   handler: async (ctx, { upload_id }) => {
     if (!isSnapUploadId(upload_id)) {
       throw new ConvexError('Invalid snap upload ID.')
@@ -543,6 +534,33 @@ export const getByUploadId = query({
       .withIndex('by_metadata_upload_id', (query) => query.eq('metadata.upload_id', upload_id))
       .unique()
 
-    return snap
+    if (!snap) return null
+    await requireOwnDraftSnap(ctx, snap)
+    return { plate_number: snap.plate_number ?? '', make: snap.make ?? '', model: snap.model ?? '', mileage: snap.mileage ?? null }
+  }
+})
+
+export const getForAccountPhotoObjectKey = query({
+  args: { snapId: v.id('snaps'), slot: v.number() },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, { snapId, slot }) => {
+    const snap = await ctx.db.get('snaps', snapId)
+    if (!snap) return null
+    await requireSnapAccess(ctx, snap)
+    return snap.metadata.photos.find(photo => photo.slot === slot)?.r2_key ?? null
+  }
+})
+
+export const getAuthorizedPhotoObjectKey = query({
+  args: { objectKey: v.string() },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, { objectKey }) => {
+    if (!isSnapObjectKey(objectKey)) return null
+    const uploadId = objectKey.slice(SNAP_STORAGE_PREFIX.length).split('/')[0]
+    const snap = await ctx.db.query('snaps')
+      .withIndex('by_metadata_upload_id', q => q.eq('metadata.upload_id', uploadId)).unique()
+    if (!snap) return null
+    await requireSnapAccess(ctx, snap)
+    return snap.metadata.photos.some(photo => photo.r2_key === objectKey) ? objectKey : null
   }
 })

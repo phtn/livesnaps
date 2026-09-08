@@ -1,4 +1,6 @@
 import { isLegalDocumentSlug } from '@/lib/legal/documents'
+import { isPublicAccountSlug, isSubmissionLinkSlug } from '@/lib/accounts/submission-links'
+import { isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
 import NotFound from '@/routes/not-found.btsx'
 import Pending from '@/routes/pending.btsx'
 import RootLayout from '@/routes/root-layout.btsx'
@@ -155,6 +157,30 @@ const legalRoute = createRoute({
   notFoundComponent: NotFound
 })
 
+const accountSubmissionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$accountSlug',
+  beforeLoad: ({ params }) => {
+    if (!isPublicAccountSlug(params.accountSlug) || (typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname))) throw notFound()
+  },
+  component: lazyRoute(() => import('./pages/account-submission-page.btsx'))
+})
+
+const namedSubmissionRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '$accountSlug/$linkSlug',
+  beforeLoad: ({ params }) => {
+    if (!isPublicAccountSlug(params.accountSlug) || !isSubmissionLinkSlug(params.linkSlug) || (typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname))) throw notFound()
+  },
+  component: lazyRoute(() => import('./pages/account-submission-page.btsx'))
+})
+
+const adminLinksRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: 'links',
+  component: lazyRoute(() => import('./pages/admin-links-page.btsx'))
+})
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   adminHandoffRoute,
@@ -162,7 +188,7 @@ const routeTree = rootRoute.addChildren([
   adminSnapsRoute,
   adminSnapsLabRoute,
   adminWorkspaceRoute,
-  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsInviteRoute]),
+  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsInviteRoute, adminLinksRoute]),
   citadelRoute.addChildren([
     citadelIndexRoute,
     citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),
@@ -171,7 +197,9 @@ const routeTree = rootRoute.addChildren([
   snapsRoute,
   snapRoute,
   accountRoute,
-  legalRoute
+  legalRoute,
+  accountSubmissionRoute,
+  namedSubmissionRoute
 ])
 
 export const router = createRouter({

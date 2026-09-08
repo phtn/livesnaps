@@ -10,13 +10,14 @@ import { useMobile } from '@/hooks/use-mobile'
 import { useFirebaseUser } from '@/lib/firebase/auth'
 import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
 import UserMenu from '../components/admin/user-menu.btsx'
+import WorkspaceProvider from '@/components/admin/workspace-provider.btsx'
 import ThemeToggle from '@/components/theme-toggle.btsx'
 
 module
   type NavItem = {
     icon: string
     label: string
-    path: '/' | '/admin-snaps' | '/admin-snaps-lab' | '/admin-workspace' | '/admin-settings'
+    path: '/' | '/admin-overview' | '/admin-snaps' | '/admin-snaps-lab' | '/admin-workspace' | '/admin-settings'
     /**
      * Index routes match by prefix like every other link, so `/` would stay lit
      * on every page in the app. Only those need an exact match.
@@ -24,7 +25,7 @@ module
     exact?: boolean
   }
   const navs: NavItem[] = [
-    { icon: 'overview', label: 'Overview', path: '/', exact: true },
+    { icon: 'overview', label: 'Overview', path: '/admin-overview', exact: true },
     { icon: 'snap', label: 'Snaps', path: '/admin-snaps' },
     { icon: 'timeline', label: 'Workspace', path: '/admin-workspace' },
     { icon: 'settings', label: 'Settings', path: '/admin-settings' },
@@ -57,6 +58,7 @@ component AdminNavigation
 setup
   const { hasGodAccess, user } = useFirebaseUser()
   const [email, setEmail] = useState<string | null>(null)
+  const [sessionUid, setSessionUid] = useState('')
   const [isNavigationCompact, setIsNavigationCompact] = useState(false)
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
@@ -86,6 +88,7 @@ setup
 
         if (!cancelled) {
           setEmail(nextEmail)
+          setSessionUid(typeof payload === 'object' && payload !== null && typeof (payload as { uid?: unknown }).uid === 'string' ? (payload as { uid: string }).uid : '')
           setStatus('ready')
         }
       } catch {
@@ -134,17 +137,17 @@ if isMobile
     main(className='min-h-screen bg-sunken pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
-          p(className='text-sm text-muted-foreground') Verifying your administrator session…
+          p(className='text-sm text-muted-foreground') Verifying your Account session…
       elseif status === 'ready'
-        Outlet
+        WorkspaceProvider(key={sessionUid} uid={sessionUid})
       elseif status === 'unauthorized'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
           div(className='max-w-md')
-            p(className='text-sm text-muted-foreground') You do not have an active administrator session.
+            p(className='text-sm text-muted-foreground') You do not have an active Account session.
             a(href='https://livesnapsnow.com/' className='mt-6 inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background') Return to Live Snaps Now
       else
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
-          p(className='text-sm text-destructive') We could not verify your administrator session. Please try again.
+          p(className='text-sm text-destructive') We could not verify your Account session. Please try again.
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
@@ -184,14 +187,14 @@ else
         if status === 'loading'
           div(className='flex items-center justify-center gap-2 min-h-screen')
             Icon(name='spinner-ferris')
-            p(className='text-sm md:text-base text-muted-foreground') Verifying your administrator session
+            p(className='text-sm md:text-base text-muted-foreground') Verifying your Account session
         elseif status === 'ready'
-          Outlet
+          WorkspaceProvider(key={sessionUid} uid={sessionUid})
         elseif status === 'unauthorized'
           div(className='grid min-h-screen place-items-center px-6 text-center')
             div(className='max-w-md')
-              p(className='text-sm text-muted-foreground') You do not have an active administrator session.
+              p(className='text-sm text-muted-foreground') You do not have an active Account session.
               a(href='https://livesnapsnow.com/' className='mt-6 inline-flex h-10 items-center rounded-full bg-foreground px-5 text-sm font-medium text-background') Return to Live Snaps Now
         else
           div(className='grid min-h-screen place-items-center px-6 text-center')
-            p(className='text-sm text-destructive') We could not verify your administrator session. Please try again.
+            p(className='text-sm text-destructive') We could not verify your Account session. Please try again.

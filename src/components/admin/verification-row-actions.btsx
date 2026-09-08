@@ -3,6 +3,7 @@ import type { OctaneNode } from 'octane'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import type { VerificationEntryRow } from './data'
+import { useWorkspace } from '@/hooks/use-workspace'
 
 module
   export type OpenVerificationSendDialog = (entry: VerificationEntryRow) => void
@@ -34,6 +35,7 @@ component VerificationSendProvider
 
 props { entry }: { entry: VerificationEntryRow }
 setup
+  const account = useWorkspace()
   const openSendDialog = use(VerificationSendContext)
 
   if (!openSendDialog) {
@@ -46,6 +48,7 @@ setup
   const hasBeenSent = entry.status === 'submitted'
 
 button(
+  ~ disabled={account?.role === 'viewer'}
   ~ type='button'
   ~ title={hasBeenSent ? 'Compose and send again' : 'Compose the verification email'}
   ~ aria-label={`${hasBeenSent ? 'Resend' : 'Send'} verification for ${entry.plateNumber}`}

@@ -7,6 +7,7 @@ import {
 import { internal } from '../_generated/api'
 import { internalMutation, mutation } from '../_generated/server'
 import { requireAccountAccess } from '../accountMembers/helpers'
+import { ensureDefaultSubmissionLink } from '../submissionLinks/helpers'
 import { trimOrNull } from '../utils'
 import { accountDocumentSchema, createAccountSchema, updateAccountSchema } from './d'
 import {
@@ -31,7 +32,11 @@ export const create = mutation({
     const name = normalizeAccountName(args.name)
     const slug = normalizeAccountSlug(args.slug, name)
 
-    if (await getAccountBySlug(ctx, slug)) {
+    const reservation = await ctx.db
+      .query('accountSlugReservations')
+      .withIndex('by_slug', (q) => q.eq('slug', slug))
+      .unique()
+    if (reservation || (await getAccountBySlug(ctx, slug))) {
       throw new ConvexError(`An account with the slug "${slug}" already exists.`)
     }
 
@@ -56,6 +61,9 @@ export const create = mutation({
       updatedAt: now,
       updatedBy: identity.tokenIdentifier
     })
+
+    await ctx.db.insert('accountSlugReservations', { slug, accountId })
+    await ensureDefaultSubmissionLink(ctx, accountId, identity.tokenIdentifier)
 
     // Every contact must confirm admin access, including an existing user.
     const ownerMemberId = await ctx.db.insert('accountMembers', {
@@ -113,13 +121,9 @@ export const update = mutation({
 
     if (args.slug !== undefined) {
       const slug = normalizeAccountSlug(args.slug, name)
-      const conflict = await getAccountBySlug(ctx, slug)
-
-      if (conflict && conflict._id !== id) {
-        throw new ConvexError(`An account with the slug "${slug}" already exists.`)
+      if (slug !== existing.slug) {
+        throw new ConvexError('Account slugs are permanent because clients may have saved the shared link.')
       }
-
-      patch.slug = slug
     }
 
     if (args.status !== undefined) patch.status = args.status
@@ -234,8 +238,8 @@ export const reopen = mutation({
 })
 
 /**
- * Permanent deletion. Unlike `close`, nothing survives: the account row goes
- * and its memberships follow. Reserved for `topg`.
+ * Permanent Account deletion is reserved for `topg`. Memberships are removed
+ * and the public slug stays reserved; orphaned submission records remain inaccessible.
  */
 export const remove = mutation({
   args: { id: v.id('accounts') },
@@ -249,6 +253,12 @@ export const remove = mutation({
       throw new ConvexError('Account not found.')
     }
 
+    // Keep the published path reserved even after a top-god deletes its Account.
+    const reservation = await ctx.db
+      .query('accountSlugReservations')
+      .withIndex('by_slug', (q) => q.eq('slug', existing.slug))
+      .unique()
+    if (!reservation) await ctx.db.insert('accountSlugReservations', { slug: existing.slug, accountId: id })
     await ctx.db.delete(id)
     await ctx.scheduler.runAfter(0, internal.accounts.m.purgeMembers, { accountId: id })
 

@@ -11,6 +11,7 @@ async function fixture() {
     name: 'Workspace', primaryContact: { name: 'Owner', email: 'owner@example.com' }
   })
   const ids = await t.run(async ctx => {
+    await ctx.db.patch(accountId, {status: 'active'})
     const members = []
     for (const role of ['admin', 'owner', 'member', 'viewer'] as const) {
       members.push(await ctx.db.insert('accountMembers', {
@@ -20,11 +21,13 @@ async function fixture() {
       }))
     }
     const snapId = await ctx.db.insert('snaps', {
+      accountId,
       metadata: { photos: [], storage_prefix: 'snaps/', upload_id: 'snap-1' }, updated_at: 1,
       verification_status: 'draft'
     })
     for (const sender of ['member', 'other']) {
       await ctx.db.insert('verificationEntries', {
+        accountId,
         applicant: 'Applicant', createdAt: sender === 'other' ? 2 : 1, emailFromAddress: `${sender}@example.com`,
         emailToAddress: 'recipient@example.com', plateNumber: 'ABC123', senderName: sender,
         senderTokenIdentifier: `issuer|${sender}`, senderUid: sender, status: 'draft', updatedAt: 1, uploadId: 'snap-1'
@@ -36,12 +39,15 @@ async function fixture() {
   return { t, as, ...ids }
 }
 
-test('admin and owner see every entry; member sees only their own even with the admin claim', async () => {
+test('every active Account member reads the entire queue, with or without the admin claim', async () => {
   const { as, t } = await fixture()
-  for (const role of ['admin', 'owner']) expect(await as(role).query(api.verificationEntries.q.listAllForAdmin, {})).toHaveLength(2)
-  const entries = await as('member').query(api.verificationEntries.q.listAllForAdmin, { limit: 1 })
-  expect(entries.map(entry => entry.senderUid)).toEqual(['member'])
-  expect(await as('viewer').query(api.verificationEntries.q.listAllForAdmin, {})).toEqual([])
+  for (const role of ['admin', 'owner', 'member', 'viewer']) {
+    expect(await as(role).query(api.verificationEntries.q.listAllForAdmin, {})).toHaveLength(2)
+    const ordinaryMember = t.withIdentity({ subject: role, tokenIdentifier: `issuer|${role}` })
+    expect(await ordinaryMember.query(api.verificationEntries.q.listAllForAdmin, {})).toHaveLength(2)
+    expect(await ordinaryMember.query(api.snaps.q.listForAdmin, {})).toHaveLength(1)
+  }
+  expect((await as('member').query(api.verificationEntries.q.listAllForAdmin, { limit: 1 }))[0].senderUid).toBe('other')
   await expect(t.query(api.verificationEntries.q.listAllForAdmin, {})).rejects.toThrow('Unauthorized')
 })
 

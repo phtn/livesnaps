@@ -81,6 +81,11 @@ export async function getVerifiedAdminSession(request: Request): Promise<Verifie
   return session?.customClaims.admin === true ? session : null
 }
 
+/** A workspace session identifies a person; Convex checks their Account membership. */
+export async function getVerifiedWorkspaceSession(request: Request): Promise<VerifiedSession | null> {
+  return getVerifiedSession(request, firebaseAdminSessionCookieName)
+}
+
 export async function getVerifiedGodSession(request: Request): Promise<VerifiedSession | null> {
   const session = await getVerifiedSession(request, firebaseGodsSessionCookieName)
 

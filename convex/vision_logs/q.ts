@@ -1,8 +1,8 @@
 import { ConvexError, v } from 'convex/values'
-import { query } from '../_generated/server'
+import { internalQuery } from '../_generated/server'
 import { visionLogDocumentSchema } from './d'
 
-export const listByUploadId = query({
+export const listByUploadId = internalQuery({
   args: { upload_id: v.string() },
   returns: v.array(visionLogDocumentSchema),
   handler: async (ctx, { upload_id }) => {
@@ -10,11 +10,11 @@ export const listByUploadId = query({
       .query('vision_logs')
       .withIndex('by_upload_id', (q) => q.eq('upload_id', upload_id))
       .order('desc')
-      .collect()
+      .take(250)
   }
 })
 
-export const listAll = query({
+export const listAll = internalQuery({
   args: { limit: v.optional(v.number()) },
   returns: v.array(visionLogDocumentSchema),
   handler: async (ctx, { limit }) => {
@@ -31,15 +31,15 @@ export const listAll = query({
       return await baseQuery.take(take)
     }
 
-    return await baseQuery.collect()
+    return await baseQuery.take(250)
   }
 })
 
-export const listRecent = query({
+export const listRecent = internalQuery({
   args: { limit: v.optional(v.number()) },
   returns: v.array(visionLogDocumentSchema),
   handler: async (ctx, { limit }) => {
-    const take = Math.min(limit ?? 50, 100)
+    const take = Math.min(Math.max(Math.floor(limit ?? 50), 1), 100)
     return await ctx.db.query('vision_logs').withIndex('by_createdAt').order('desc').take(take)
   }
 })

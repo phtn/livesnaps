@@ -5,8 +5,9 @@ import { adminSchema } from './admin/d'
 import { resendWebhookEventSchema } from './resendWebhooks/d'
 import { snapSettingsSchema } from './snapSettings/d'
 import { snapValidator } from './snaps/d'
+import { accountSlugReservationSchema, submissionLinkDailyStatsSchema, submissionLinkSchema } from './submissionLinks/d'
 import { userValidator } from './users/v'
-import { verificationEntrySchema } from './verificationEntries/d'
+import { verificationEntrySchema, verificationUploadIntentSchema } from './verificationEntries/d'
 import { visionLogSchema } from './vision_logs/d'
 
 export default defineSchema({
@@ -17,6 +18,11 @@ export default defineSchema({
     .index('by_ownerTokenIdentifier_and_createdAt', ['ownerTokenIdentifier', 'createdAt'])
     .index('by_primaryContact_tokenIdentifier', ['primaryContact.tokenIdentifier'])
     .index('by_primaryContact_email', ['primaryContact.email']),
+  accountSlugReservations: defineTable(accountSlugReservationSchema).index('by_slug', ['slug']),
+  submissionLinks: defineTable(submissionLinkSchema).index('by_accountId_and_slug', ['accountId', 'slug']),
+  submissionLinkDailyStats: defineTable(submissionLinkDailyStatsSchema)
+    .index('by_accountId_and_submissionLinkId_and_day', ['accountId', 'submissionLinkId', 'day'])
+    .index('by_accountId_and_day', ['accountId', 'day']),
   accountMembers: defineTable(accountMemberSchema)
     .index('by_accountId_and_status', ['accountId', 'status'])
     .index('by_accountId_and_role', ['accountId', 'role'])
@@ -30,6 +36,13 @@ export default defineSchema({
     .index('by_firebaseUid', ['firebaseUid'])
     .index('by_email', ['email']),
   snaps: defineTable(snapValidator)
+    .index('by_accountId_and_updated_at', ['accountId', 'updated_at'])
+    .index('by_accountId_and_submissionLinkId_and_updated_at', ['accountId', 'submissionLinkId', 'updated_at'])
+    .index('by_accountId_applicant_token_identifier_session_started_at', [
+      'accountId',
+      'metadata.applicant_token_identifier',
+      'location_session.started_at'
+    ])
     .index('by_applicant_token_identifier_and_session_started_at', [
       'metadata.applicant_token_identifier',
       'location_session.started_at'
@@ -39,10 +52,16 @@ export default defineSchema({
     .index('by_updated_at', ['updated_at']),
   snapSettings: defineTable(snapSettingsSchema).index('by_key', ['key']),
   verificationEntries: defineTable(verificationEntrySchema)
+    .index('by_accountId_and_createdAt', ['accountId', 'createdAt'])
+    .index('by_accountId_and_status_and_createdAt', ['accountId', 'status', 'createdAt'])
     .index('by_createdAt', ['createdAt'])
     .index('by_status_and_createdAt', ['status', 'createdAt'])
     .index('by_senderTokenIdentifier_and_createdAt', ['senderTokenIdentifier', 'createdAt'])
     .index('by_uploadId', ['uploadId']),
+  verificationUploadIntents: defineTable(verificationUploadIntentSchema)
+    .index('by_token', ['token'])
+    .index('by_storageId', ['storageId'])
+    .index('by_expiresAt', ['expiresAt']),
   vision_logs: defineTable(visionLogSchema).index('by_upload_id', ['upload_id']).index('by_createdAt', ['createdAt']),
   resendWebhooks: defineTable(resendWebhookEventSchema)
     .index('by_webhookId', ['webhookId'])

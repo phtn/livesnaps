@@ -194,9 +194,6 @@ export function useFirebaseUser() {
       setHasAdminClaim(nextCustomClaims.admin === true)
       setHasGodAccess(hasFirebaseGodAccess(nextCustomClaims))
 
-      if (nextCustomClaims.admin !== true) {
-        setAuthError('Admin claim still missing after refresh. Please re-authenticate.')
-      }
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Failed to refresh session.')
     } finally {
@@ -209,17 +206,6 @@ export function useFirebaseUser() {
     // Always try a forced refresh first; caller can fall back to signInWithGoogle if claim still missing
     await refreshClaims()
   }, [refreshClaims])
-
-  // Auto background force-refresh when we have a user but no admin claim (stale token case common on mobile)
-  useEffect(() => {
-    if (!user || hasAdminClaim || isLoading || isRefreshing || authError) return
-
-    const timer = setTimeout(() => {
-      void refreshClaims()
-    }, 1500)
-
-    return () => clearTimeout(timer)
-  }, [user, hasAdminClaim, isLoading, isRefreshing, authError, refreshClaims])
 
   return {
     customClaims,

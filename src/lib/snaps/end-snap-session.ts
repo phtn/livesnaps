@@ -1,4 +1,5 @@
 import type { DeviceLocation } from '@/lib/location/type'
+import { auth } from '@/lib/firebase'
 export type SnapSessionEndStatus = 'completed' | 'cancelled' | 'invalidated'
 
 type EndSnapSessionProps = {
@@ -10,17 +11,21 @@ type EndSnapSessionProps = {
   uploadId: string
 }
 
-export const endSnapSession = ({
+export const endSnapSession = async ({
   keepalive = false,
   lastLocation,
   plateNumber,
   reason,
   status,
   uploadId
-}: EndSnapSessionProps) =>
-  fetch('/api/snaps/session', {
+}: EndSnapSessionProps) => {
+  const user = auth?.currentUser
+  if (!user) throw new Error('Sign in before updating this submission.')
+  const idToken = await user.getIdToken()
+  return fetch('/api/snaps/session', {
     method: 'PATCH',
     headers: {
+      Authorization: `Bearer ${idToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
@@ -32,3 +37,4 @@ export const endSnapSession = ({
     }),
     keepalive
   })
+}

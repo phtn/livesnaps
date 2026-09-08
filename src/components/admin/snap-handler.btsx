@@ -1,6 +1,7 @@
 import { createContext, use, useEffect, useState } from 'octane'
 import type { OctaneNode } from 'octane'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
+import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
 
 module
   interface HandlerOptions {
@@ -13,14 +14,15 @@ module
 component SnapHandlerProvider
   props { children, refresh }: { children?: OctaneNode; refresh: () => void }
   setup
+    const account = useWorkspace()
     const [options, setOptions] = useState<HandlerOptions>({ canManage: false, members: [] })
     useEffect(() => {
       const controller = new AbortController()
-      void fetch('/api/admin/snap-handlers', { credentials: 'same-origin', signal: controller.signal })
+      void fetch(accountEndpoint('/api/admin/snap-handlers', account?.id ?? ''), { credentials: 'same-origin', signal: controller.signal })
         .then(async response => { if (response.ok) setOptions(await response.json() as HandlerOptions) })
         .catch(() => {})
       return () => controller.abort()
-    }, [])
+    }, [account?.id])
 
   HandlerContext.Provider(value={{ options, refresh }})
     fragment #{children}

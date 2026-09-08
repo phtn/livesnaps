@@ -1,5 +1,5 @@
 import { api } from '../../convex/_generated/api'
-import { getVerifiedAdminSession } from '../lib/firebase-admin/server-auth'
+import { getAdminConvexClient } from './admin-convex'
 import { parseDeviceLocation } from '../lib/location/type'
 import { deleteR2Object, getR2Object, putR2Object, type R2Config } from '../lib/r2/server'
 import {
@@ -104,6 +104,11 @@ async function saveSnapPhoto(request: Request, environment: SnapPhotoRouteEnviro
     throw new RequestError(415, 'Proof photos must be WebP images.')
   }
 
+  // Check capture ownership before uploading any bytes to R2. The mutation
+  // checks again after upload so revocation or completion cannot race the save.
+  const capture = await client.query(api.snaps.q.getByUploadId, { upload_id: uploadId })
+  if (!capture) throw new RequestError(403, 'This capture session is not available to you.')
+
   const objectKey = buildSnapObjectKey(uploadId, slot.index as SnapSlotIndex, captureId)
   const r2 = getR2Environment(environment)
   const uploadResponse = await putR2Object({
@@ -170,7 +175,7 @@ export async function handleSnapSubmissionPhotoPreviewRequest(
 
     return new Response(photoResponse.body, {
       headers: {
-        'cache-control': 'private, max-age=86400',
+        'cache-control': 'private, no-store',
         'content-type': contentType,
         ...(contentLength ? { 'content-length': contentLength } : {}),
         ...(etag ? { etag } : {})
@@ -189,9 +194,7 @@ export async function handleSnapSubmissionPhotoPreviewRequest(
 /**
  * Serves an admin-viewed snap photo directly by its R2 object key.
  *
- * The admin snap list/detail queries are already admin-gated, so any r2_key
- * they hand back is fair game here — this route just needs the admin session
- * cookie, not a fresh Convex round trip.
+ * Every request resolves the key through its snap and checks Account membership.
  */
 export async function handleAdminSnapPhotoRequest(
   request: Request,
@@ -201,12 +204,15 @@ export async function handleAdminSnapPhotoRequest(
   try {
     if (request.method !== 'GET') return json({ error: 'Method not allowed.' }, 405)
 
-    const session = await getVerifiedAdminSession(request)
-    if (!session) return json({ error: 'Administrator access is required.' }, 401)
+    const client = await getAdminConvexClient(request, environment)
+    if (!client) return json({ error: 'An Account session is required.' }, 401)
 
     if (!isSnapObjectKey(objectKey)) {
       return json({ error: 'Photo not found.' }, 404)
     }
+
+    const authorizedKey = await client.query(api.snaps.q.getAuthorizedPhotoObjectKey, { objectKey })
+    if (!authorizedKey) return json({ error: 'Photo not found.' }, 404)
 
     const photoResponse = await getR2Object(objectKey, getR2Environment(environment))
 
@@ -221,7 +227,7 @@ export async function handleAdminSnapPhotoRequest(
 
     return new Response(photoResponse.body, {
       headers: {
-        'cache-control': 'private, max-age=86400',
+        'cache-control': 'private, no-store',
         'content-type': contentType,
         ...(contentLength ? { 'content-length': contentLength } : {}),
         ...(etag ? { etag } : {})

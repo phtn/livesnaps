@@ -1,12 +1,13 @@
 import { getFirebaseAdminAuth } from '@/lib/firebase-admin/admin'
-import { getFirebaseCustomClaimsFromDecodedToken } from '@/lib/firebase-admin/custom-claims'
-import { getVerifiedAdminSession } from '@/lib/firebase-admin/server-auth'
+import { getVerifiedWorkspaceSession } from '@/lib/firebase-admin/server-auth'
+import { createConvexClient } from './convex'
+import { api } from '../../convex/_generated/api'
+import { canUseAccount } from '@/lib/accounts/accounts'
 import {
   firebaseAdminSessionCookieName,
   firebaseSessionCookieMaxAgeMs,
   firebaseSessionCookieMaxAgeSeconds
 } from '@/lib/firebase-admin/session'
-import { getHostnameFromHostHeader, isAdminSubdomainHostname } from '@/lib/routing/admin-subdomain'
 
 function json(body: unknown, status = 200, headers?: HeadersInit) {
   return Response.json(body, {
@@ -16,14 +17,6 @@ function json(body: unknown, status = 200, headers?: HeadersInit) {
       ...headers
     }
   })
-}
-
-function isAdminRequest(request: Request) {
-  const hostname =
-    getHostnameFromHostHeader(request.headers.get('x-forwarded-host') ?? request.headers.get('host')) ??
-    new URL(request.url).hostname
-
-  return isAdminSubdomainHostname(hostname)
 }
 
 function isSameOriginRequest(request: Request) {
@@ -47,13 +40,12 @@ function serializeAdminSessionCookie(value: string, request: Request, maxAge: nu
   return attributes.join('; ')
 }
 
-export async function handleAdminSession(request: Request): Promise<Response> {
-  if (!isAdminRequest(request)) return json({ error: 'Not found.' }, 404)
+export async function handleAdminSession(request: Request, environment: { convexUrl?: string } = {}): Promise<Response> {
 
   if (request.method === 'GET') {
-    const session = await getVerifiedAdminSession(request)
+    const session = await getVerifiedWorkspaceSession(request)
 
-    if (!session) return json({ error: 'Administrator access is required.' }, 401)
+    if (!session) return json({ error: 'An Account session is required.' }, 401)
 
     return json({
       email: typeof session.decodedToken.email === 'string' ? session.decodedToken.email : null,
@@ -87,11 +79,11 @@ export async function handleAdminSession(request: Request): Promise<Response> {
   if (!auth) return json({ error: 'Firebase Admin credentials are not configured.' }, 503)
 
   try {
-    const decodedToken = await auth.verifyIdToken(idToken, true)
-    const customClaims = getFirebaseCustomClaimsFromDecodedToken(decodedToken)
+    await auth.verifyIdToken(idToken, true)
 
-    if (customClaims.admin !== true) {
-      return json({ error: 'Administrator access is required.' }, 403)
+    const accounts = await createConvexClient(idToken, environment.convexUrl).query(api.accounts.q.listMine, { limit: 250 })
+    if (!accounts.some(account => canUseAccount(account.status))) {
+      return json({ error: 'An active Account membership is required.' }, 403)
     }
 
     const sessionCookie = await auth.createSessionCookie(idToken, {
@@ -118,12 +110,11 @@ export async function handleAdminSession(request: Request): Promise<Response> {
  * carries that user's own claims.
  */
 export async function handleAdminSessionToken(request: Request): Promise<Response> {
-  if (!isAdminRequest(request)) return json({ error: 'Not found.' }, 404)
   if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405)
   if (!isSameOriginRequest(request)) return json({ error: 'Invalid request origin.' }, 403)
 
-  const session = await getVerifiedAdminSession(request)
-  if (!session) return json({ error: 'Administrator access is required.' }, 401)
+  const session = await getVerifiedWorkspaceSession(request)
+  if (!session) return json({ error: 'An Account session is required.' }, 401)
 
   const auth = getFirebaseAdminAuth()
   if (!auth) return json({ error: 'Firebase Admin credentials are not configured.' }, 503)

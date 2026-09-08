@@ -190,6 +190,9 @@ export const snapHandlerSchema = v.object({
 export const snapVerificationStatusSchema = v.union(v.literal('draft'), v.literal('submitted'))
 
 export const snapValidator = snapDetailsSchema.partial().extend({
+  // Optional only for legacy snaps whose Account ownership cannot be inferred safely.
+  accountId: v.optional(v.id('accounts')),
+  submissionLinkId: v.optional(v.id('submissionLinks')),
   firebase_uid: v.optional(v.string()),
   handler: v.optional(snapHandlerSchema),
   ipinfo: v.optional(snapIpinfoSchema),

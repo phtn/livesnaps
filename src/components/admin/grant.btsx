@@ -1,0 +1,35 @@
+
+import { useState } from 'octane'
+import {Icon} from '@/lib/icons'
+
+props {}: {}
+setup
+  const [hasAccess, setHasAccess] = useState(false)
+
+article(className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] border border-border/70 bg-card shadow-[0_18px_60px_-28px_color-mix(in_oklab,var(--foreground)_22%,transparent)]")
+  div(className="relative min-h-80 overflow-hidden bg-muted/55 px-8 py-9 sm:min-h-96 sm:px-12 sm:py-12")
+    div(className="absolute -right-16 -top-20 size-56 rotate-12 rounded-[4rem] border border-border/70 bg-card shadow-2xl sm:-right-20 sm:-top-24 sm:size-64 md:size-72")
+    div(className="absolute -bottom-24 -left-16 size-56 -rotate-12 rounded-[4rem] border border-border/70 bg-card shadow-xl sm:-bottom-32 sm:-left-24 sm:size-64 md:size-72")
+    div(className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-foreground/4 to-transparent")
+
+    div(className="relative z-10 flex flex-col w-full max-w-sm gap-5")
+    div(className="flex items-center justify-center size-16 rounded-2xl bg-foreground text-background shadow-lg sm:size-20")
+      Icon(name='key' className="size-8 sm:size-10 text-background" strokeWidth={1.7} aria-hidden="true")
+
+    div(className="absolute bottom-8 right-8 z-10 rotate-[-8deg] border-2 border-sidebar-border rounded-sm px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.22em] text-accent-foreground sm:right-12")
+      span Key required
+
+  div( className="border-t border-border/70 px-6 py-9 sm:px-10 sm:py-11")
+    div( className="flex items-start gap-4")
+      Icon(name='key' className="mt-1 size-7 shrink-0 text-muted-foreground" strokeWidth={1.6} aria-hidden="true")
+      div
+        h1(className="text-xl font-sans font-medium tracking-[0.01em] text-foreground sm:text-3xl") Admin Access Role
+        p(className="mt-1 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-[1.35rem]") Kim Tablizo email@gmail.com.ph.com
+  div(className="flex flex-col gap-5 border-t border-border/70 px-8 py-7 sm:px-12")
+    button(type="button" onClick={() => setHasAccess((current) => !current)} aria-pressed={hasAccess} className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-foreground px-7 text-lg font-medium text-background shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2")
+      if hasAccess
+        fragment
+          Icon(name='key' className="size-5" aria-hidden="true")
+          span Access granted
+      else
+        span Grant access

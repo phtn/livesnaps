@@ -1,5 +1,9 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
-import { useCallback, useMemo, useState } from 'octane'
+import { useCallback, useEffect, useMemo, useState } from 'octane'
+import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+import { useAdminPages } from '@/hooks/use-admin-pages'
+import { workspaceJson } from '@/lib/accounts/link-client'
+import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
 import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
@@ -19,7 +23,17 @@ setup
   // Reads go through the Worker, which is protected by the admin session
   // cookie and re-mints an ID token for Convex server-side. The browser on the
   // admin origin has no Firebase client identity, so it cannot query Convex.
-  const { error, isLoading, lastUpdatedAt, refresh, snaps } = useAdminSnaps(SNAP_LIST_LIMIT)
+  const account = useWorkspace()
+  const [sourceLinkId, setSourceLinkId] = useState(() => new URLSearchParams(window.location.search).get('sourceLinkId') ?? '')
+  const [sourceLinks, setSourceLinks] = useState<{ _id: string; label: string }[]>([])
+  useEffect(() => {
+    const controller = new AbortController()
+    void workspaceJson<{ links: { _id: string; label: string }[] }>(accountEndpoint('/api/admin/submission-links', account?.id ?? ''), { signal: controller.signal })
+      .then(result => { if (!controller.signal.aborted) setSourceLinks(result.links) }).catch(() => {})
+    return () => controller.abort()
+  }, [account?.id])
+  const path = accountEndpoint(`/api/admin/snaps${sourceLinkId ? `?sourceLinkId=${encodeURIComponent(sourceLinkId)}` : ''}`, account?.id ?? '')
+  const { error, isLoading, lastUpdatedAt, refresh, items: snaps, loadMore, hasMore } = useAdminPages<AdminSnapListItem>(path)
   const rows = snaps ?? EMPTY_SNAPS
   // A poll failure keeps the last good rows, so the table stays up and the
   // error reads as "stale" rather than replacing everything.
@@ -40,6 +54,12 @@ setup
   }, [])
 
 Container(className='md:py-0')
+  label(className='flex flex-wrap items-center gap-3 px-4 py-3 text-sm')
+    span Source link
+    select(value={sourceLinkId} onChange={(event: Event) => { const id = (event.currentTarget as HTMLSelectElement).value; setSourceLinkId(id); const url = new URL(window.location.href); if (id) url.searchParams.set('sourceLinkId', id); else url.searchParams.delete('sourceLinkId'); window.history.replaceState(null, '', url) }} className='rounded-md border border-border bg-background px-3 py-2' aria-label='Filter submissions by source link')
+      option(value='') All links
+      each link in sourceLinks key link._id
+        option(value={link._id}) #{link.label}
   if isLoading && !hasRows
     Loading
   elseif error && !hasRows
@@ -73,6 +93,8 @@ Container(className='md:py-0')
                   span(className='font-mono') #{freshnessLabel}
               button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
                 Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+              if hasMore
+                button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
   if gallery
     PhotoViewer(
       ~ open={true}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'octane'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
+import type {ClassValue} from '@octanejs/jsx-runtime'
 import { Icon } from '@/lib/icons'
 import { Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { ACCOUNT_MEMBER_STATUS_TONE, ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, changeContactAdminAccess, deleteAccount, fetchAccount, formatAccountDate, type AccountDetail, type AccountMemberRow, type ContactAdminAction } from '@/lib/citadel/accounts'
+import Grant from "../admin/grant.btsx";
 
 module
   type DetailStatus = 'loading' | 'ready' | 'error'
@@ -38,6 +40,10 @@ component MemberRow
     div(className='flex shrink-0 items-center gap-2')
       span(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{member.role}
       Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{member.status}
+
+component SectionTitle
+  props {title, className}: {title: string, className?: ClassValue}
+  p(className={cn('pb-1 font-sans text-xs uppercase tracking-[0.15em] text-muted-foreground', className)}) #{title}
 
 props { slug }: { slug: string }
 
@@ -125,7 +131,7 @@ section(className='p-5')
       header(className='mt-4 flex flex-wrap items-start justify-between gap-3')
         div(className='min-w-0')
           h2(className='font-poly text-2xl font-medium') #{detail.account.name}
-          p(className='mt-1 font-mono text-xs text-muted-foreground') #{detail.account.slug}
+          p(className='mt-1 font-mono text-xs text-muted-foreground') #{'/'+detail.account.slug}
         div(className='flex shrink-0 items-center gap-2')
           span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_PLAN_LABEL[detail.account.plan]}
           Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[detail.account.status])}) #{ACCOUNT_STATUS_LABEL[detail.account.status]}
@@ -135,13 +141,13 @@ section(className='p-5')
 
       div(className='mt-6 grid gap-x-8 md:grid-cols-2')
         div
-          p(className='pb-1 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Primary contact
+          SectionTitle(title='Primary contact')
           DetailRow(label='Name' value={detail.account.primaryContact.name})
           DetailRow(label='Email' value={detail.account.primaryContact.email})
           DetailRow(label='Phone' value={detail.account.primaryContact.phone})
           DetailRow(label='Title' value={detail.account.primaryContact.title})
         div
-          p(className='pb-1 font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Organization
+          SectionTitle(title='Organization' className='mt-6 md:mt-0')
           DetailRow(label='Legal name' value={detail.account.organization.legalName ?? null})
           DetailRow(label='Website' value={detail.account.organization.website ?? null})
           DetailRow(label='Industry' value={detail.account.organization.industry ?? null})
@@ -152,9 +158,11 @@ section(className='p-5')
         DetailRow(label='Last updated' value={formatAccountDate(detail.account.updatedAt)})
 
       if detail.account.notes
-        div(className='mt-6')
+        div(className='my-6')
           p(className={labelClassName}) Notes
           p(className='mt-1 text-sm text-foreground') #{detail.account.notes}
+
+      Grant
 
       div(className='mt-8 rounded-sm border border-border/60 p-4')
         div(className='flex flex-wrap items-center justify-between gap-3')

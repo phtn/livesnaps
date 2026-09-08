@@ -2,6 +2,7 @@ import { ACCOUNT_MEMBER_ROLE_VALUES, type AccountMemberRole, type AccountMemberS
 // Type-only import: the Convex and Firebase Admin modules behind this response
 // never reach the client bundle.
 import type { AdminAccountMemberListResponse } from '@/server/admin-member-routes'
+import { accountEndpoint } from '@/hooks/use-workspace'
 
 export type MemberWorkspace = AdminAccountMemberListResponse
 export type MemberRow = AdminAccountMemberListResponse['members'][number]
@@ -31,14 +32,14 @@ async function requestJson<T>(input: string, init: RequestInit, fallback: string
   return (await response.json()) as T
 }
 
-export function fetchAccountMembers(signal?: AbortSignal) {
-  return requestJson<MemberWorkspace>(ACCOUNT_MEMBERS_ENDPOINT, { signal }, 'Could not load the account members.')
+export function fetchAccountMembers(signal?: AbortSignal, accountId = '') {
+  return requestJson<MemberWorkspace>(accountEndpoint(ACCOUNT_MEMBERS_ENDPOINT, accountId), { signal }, 'Could not load the account members.')
 }
 
 /** Resolves with the roster the invitation was added to, already refreshed. */
-export function inviteAccountMember(input: InviteMemberInput) {
+export function inviteAccountMember(input: InviteMemberInput, accountId = '') {
   return requestJson<MemberWorkspace>(
-    ACCOUNT_MEMBERS_ENDPOINT,
+    accountEndpoint(ACCOUNT_MEMBERS_ENDPOINT, accountId),
     {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

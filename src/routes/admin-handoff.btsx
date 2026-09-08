@@ -13,7 +13,7 @@ setup
       const redirectTo = parameters.get('redirectTo')
 
       if (!idToken) {
-        if (!cancelled) setError('Your administrator sign-in link is incomplete.')
+        if (!cancelled) setError('Your Account sign-in link is incomplete.')
         return
       }
 
@@ -30,16 +30,16 @@ setup
           const message =
             typeof payload === 'object' && payload !== null && typeof (payload as { error?: unknown }).error === 'string'
               ? (payload as { error: string }).error
-              : 'Your account does not have administrator access.'
+              : 'Your account does not have Account access.'
 
           if (!cancelled) setError(message)
           return
         }
 
         window.history.replaceState(null, '', window.location.pathname)
-        window.location.replace(redirectTo?.startsWith('/') ? redirectTo : '/')
+        window.location.replace(redirectTo?.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.includes('\\') ? redirectTo : '/admin-overview')
       } catch {
-        if (!cancelled) setError('We could not verify your administrator session. Please try again.')
+        if (!cancelled) setError('We could not verify your Account session. Please try again.')
       }
     }
 

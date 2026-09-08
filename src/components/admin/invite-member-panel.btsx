@@ -1,3 +1,4 @@
+import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
 import { useNavigate } from '@octanejs/tanstack-router'
 import { useField, useSelector } from '@octanejs/tanstack-form'
@@ -70,6 +71,7 @@ component RoleField
     p(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[field.state.value]}
 
 setup
+  const account = useWorkspace()
   const navigate = useNavigate()
 
   // The workspace is read for its name only — the Worker derives the account
@@ -81,7 +83,7 @@ setup
   useEffect(() => {
     const controller = new AbortController()
 
-    fetchAccountMembers(controller.signal)
+    fetchAccountMembers(controller.signal, account?.id)
       .then((response) => {
         setWorkspace(response)
         setWorkspaceError(null)
@@ -92,11 +94,11 @@ setup
       })
 
     return () => controller.abort()
-  }, [])
+  }, [account?.id])
 
   const memberForm = useMemberForm({
     onSubmit: async (input) => {
-      await inviteAccountMember(input)
+      await inviteAccountMember(input, account?.id)
       memberForm.reset()
       onSuccess(`Invitation sent to ${input.email}.`)
       void navigate({ to: '/admin-settings' })
@@ -122,7 +124,7 @@ setup
   const isEmailValid = isAccountEmailAddress(emailValue.trim())
   // Name and title are optional, so this step is measured rather than validated.
   const hasDetails = nameValue.trim().length > 0 || titleValue.trim().length > 0
-  const canSubmit = isFormValid && hasWorkspace && !isSubmitting
+  const canSubmit = isFormValid && hasWorkspace && !isSubmitting && (account?.role === 'admin' || account?.role === 'owner')
 
   // A step is `done` once it is settled, `active` while it is the one thing left
   // to do, and `idle` while an earlier step still blocks it.

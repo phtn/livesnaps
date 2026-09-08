@@ -9,9 +9,11 @@ import {
 import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
-import { action, mutation } from '../_generated/server'
-import { getR2ObjectBytes, isR2Configured, toBase64 as bytesToBase64 } from '../lib/r2'
+import { action, env, mutation } from '../_generated/server'
+import { toBase64 as bytesToBase64, getR2ObjectBytes, isR2Configured } from '../lib/r2'
+import { requireSnapAccess, requireVerificationEntryAccess } from '../lib/submissionAccess'
 import { createVerificationEntrySchema, verificationEntryDocumentSchema, type VerificationUpload } from './d'
+import { ATTACHMENT_UPLOAD_TTL_MS } from './uploads'
 
 const FIREBASE_UID_MAX_LENGTH = 128
 
@@ -62,18 +64,12 @@ const MAX_UPLOAD_NAME_LENGTH = 160
 
 /** Falls back to a stable name: a filename is what the recipient sees. */
 const normalizeUploadName = (value: string): string => {
-  const name = value.trim().replace(/[\r\n\t]+/g, ' ').replace(/[/\\]+/g, '-').slice(0, MAX_UPLOAD_NAME_LENGTH)
+  const name = value
+    .trim()
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/[/\\]+/g, '-')
+    .slice(0, MAX_UPLOAD_NAME_LENGTH)
   return name || 'attachment'
-}
-
-const requireAdmin = async (ctx: MutationCtx) => {
-  const identity = await ctx.auth.getUserIdentity()
-
-  if (identity?.admin !== true) {
-    throw new ConvexError('Unauthorized.')
-  }
-
-  return identity
 }
 
 const normalizeApplicant = (value: string): string => {
@@ -133,7 +129,7 @@ export const create = mutation({
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (identity?.admin !== true) {
+    if (!identity) {
       throw new ConvexError('Unauthorized.')
     }
 
@@ -172,15 +168,6 @@ export const create = mutation({
       throw new ConvexError('Upload ID must be a valid UUID.')
     }
 
-    const existingEntry: VerificationEntryDoc | null = await ctx.db
-      .query('verificationEntries')
-      .withIndex('by_uploadId', (q) => q.eq('uploadId', uploadId))
-      .unique()
-
-    if (existingEntry) {
-      throw new ConvexError('A verification entry already uses this upload ID.')
-    }
-
     const snapForCreate: SnapDoc | null = await ctx.db
       .query('snaps')
       .withIndex('by_metadata_upload_id', (q) => q.eq('metadata.upload_id', uploadId))
@@ -189,6 +176,17 @@ export const create = mutation({
 
     if (!snapForCreate) {
       throw new ConvexError('Snap not found for upload ID.')
+    }
+
+    await requireSnapAccess(ctx, snapForCreate, 'member')
+
+    const existingEntry: VerificationEntryDoc | null = await ctx.db
+      .query('verificationEntries')
+      .withIndex('by_uploadId', (q) => q.eq('uploadId', uploadId))
+      .unique()
+
+    if (existingEntry) {
+      throw new ConvexError('A verification entry already uses this upload ID.')
     }
 
     if (snapForCreate.handler || snapForCreate.verification_status) {
@@ -213,6 +211,7 @@ export const create = mutation({
 
     const createdAt: number = Date.now()
     const entryId: Id<'verificationEntries'> = await ctx.db.insert('verificationEntries', {
+      accountId: snapForCreate.accountId,
       applicant,
       ...(applicantImageUrl ? { applicantImageUrl } : {}),
       attachments,
@@ -257,11 +256,13 @@ export const updateAttachments = mutation({
     args: { id: Id<'verificationEntries'>; attachments: string[] }
   ): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (identity?.admin !== true) {
+    if (!identity) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
     if (!entry) throw new ConvexError('Entry not found.')
+    await requireVerificationEntryAccess(ctx, entry, 'member')
+    if (entry.status === 'submitted') throw new ConvexError('This entry has already been sent.')
     const normalized: string[] = args.attachments
       .map((item: string): string => item.trim().toLowerCase())
       .filter((item: string): boolean => item.length > 0)
@@ -280,12 +281,25 @@ export const updateAttachments = mutation({
  * mints the identity, takes the upload URL, and streams the bytes through.
  */
 export const generateAttachmentUploadUrl = mutation({
-  args: {},
+  args: { id: v.id('verificationEntries') },
   returns: v.string(),
-  handler: async (ctx: MutationCtx): Promise<string> => {
-    await requireAdmin(ctx)
-
-    return await ctx.storage.generateUploadUrl()
+  handler: async (ctx, { id }): Promise<string> => {
+    const entry = await ctx.db.get('verificationEntries', id)
+    if (!entry) throw new ConvexError('Entry not found.')
+    const { identity, account } = await requireVerificationEntryAccess(ctx, entry, 'member')
+    if (entry.status === 'submitted') throw new ConvexError('This entry has already been sent.')
+    const token = crypto.randomUUID()
+    const intentId = await ctx.db.insert('verificationUploadIntents', {
+      accountId: account._id,
+      entryId: id,
+      tokenIdentifier: identity.tokenIdentifier,
+      token,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + ATTACHMENT_UPLOAD_TTL_MS,
+      state: 'pending'
+    })
+    await ctx.scheduler.runAfter(ATTACHMENT_UPLOAD_TTL_MS, internal.verificationEntries.uploads.cleanup, { intentId })
+    return `${env.CONVEX_SITE_URL}/verification-attachments?token=${encodeURIComponent(token)}`
   }
 })
 
@@ -309,15 +323,28 @@ export const attachUpload = mutation({
       storageId: Id<'_storage'>
     }
   ): Promise<VerificationEntryDoc> => {
-    await requireAdmin(ctx)
-
     const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
     if (!entry) throw new ConvexError('Entry not found.')
+    const { identity, account } = await requireVerificationEntryAccess(ctx, entry, 'member')
 
     if (entry.status === 'submitted') {
       throw new ConvexError('This entry has already been sent.')
     }
 
+    const intent = await ctx.db
+      .query('verificationUploadIntents')
+      .withIndex('by_storageId', (q) => q.eq('storageId', args.storageId))
+      .unique()
+    if (
+      intent?.state !== 'uploaded' ||
+      intent.expiresAt <= Date.now() ||
+      intent.entryId !== entry._id ||
+      intent.accountId !== account._id ||
+      intent.tokenIdentifier !== identity.tokenIdentifier
+    ) {
+      throw new ConvexError('Upload does not belong to this entry. Upload the file again.')
+    }
+    if (args.size !== intent.size) throw new ConvexError('Attachment size does not match the uploaded file.')
     const uploads: VerificationUpload[] = entry.uploads ?? []
 
     if (uploads.length >= MAX_UPLOAD_COUNT) {
@@ -340,7 +367,7 @@ export const attachUpload = mutation({
     }
 
     const upload: VerificationUpload = {
-      contentType: args.contentType?.trim() || 'application/octet-stream',
+      contentType: intent.contentType ?? 'application/octet-stream',
       name: normalizeUploadName(args.name),
       size: args.size,
       storageId: args.storageId,
@@ -348,6 +375,7 @@ export const attachUpload = mutation({
     }
 
     await ctx.db.patch(args.id, { uploads: [...uploads, upload], updatedAt: Date.now() })
+    await ctx.db.patch(intent._id, { state: 'attached' })
 
     const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
     if (!updated) throw new ConvexError('Unable to read the updated entry.')
@@ -367,11 +395,11 @@ export const removeUpload = mutation({
     ctx: MutationCtx,
     args: { id: Id<'verificationEntries'>; storageId: Id<'_storage'> }
   ): Promise<VerificationEntryDoc> => {
-    await requireAdmin(ctx)
-
     const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
     if (!entry) throw new ConvexError('Entry not found.')
+    await requireVerificationEntryAccess(ctx, entry, 'member')
 
+    if (entry.status === 'submitted') throw new ConvexError('This entry has already been sent.')
     const uploads: VerificationUpload[] = entry.uploads ?? []
     const remaining: VerificationUpload[] = uploads.filter((upload) => upload.storageId !== args.storageId)
 
@@ -399,7 +427,7 @@ export const sendEmail = action({
   returns: verificationEntryDocumentSchema,
   handler: async (ctx: ActionCtx, args: SendEmailArgs): Promise<VerificationEntryDoc> => {
     const identity = await ctx.auth.getUserIdentity()
-    if (identity?.admin !== true) {
+    if (!identity) {
       throw new ConvexError('Unauthorized.')
     }
     const entry: VerificationEntryDoc | null = await ctx.runQuery(
@@ -407,6 +435,7 @@ export const sendEmail = action({
       { id: args.id }
     )
     if (!entry) throw new ConvexError('Entry not found.')
+    if (entry.status === 'submitted') throw new ConvexError('This entry has already been sent.')
 
     const normalizedAttachments: string[] = args.attachments
       ? args.attachments
@@ -606,15 +635,15 @@ export const sendEmail = action({
         cc: entry.ccEmailAddress ? [entry.ccEmailAddress] : undefined,
         subject: emailSubject,
         text: emailBody,
-        attachments: emailAttachments.map(
-          (attachment: EmailAttachment): ResendAttachmentPayload => ({
-            filename: attachment.filename,
-            content: attachment.content,
-            content_type: attachment.contentType
-          })
-        )
+        attachments: emailAttachments.map((attachment: EmailAttachment): ResendAttachmentPayload => ({
+          filename: attachment.filename,
+          content: attachment.content,
+          content_type: attachment.contentType
+        }))
       }
 
+      // Revalidate after attachment preparation; membership can be revoked during external IO.
+      await ctx.runQuery(internal.verificationEntries.helpers.getEntryInternal, { id: entry._id })
       const response: Response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {

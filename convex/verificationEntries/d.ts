@@ -15,6 +15,7 @@ export const verificationUploadSchema = v.object({
 })
 
 export const verificationEntrySchema = v.object({
+  accountId: v.optional(v.id('accounts')),
   applicant: v.string(),
   /**
    * The applicant's and the sender's avatars as they stood when the entry was
@@ -60,3 +61,17 @@ export const createVerificationEntrySchema = verificationEntrySchema.pick(
 export type VerificationEntry = typeof verificationEntrySchema.type
 export type VerificationUpload = typeof verificationUploadSchema.type
 export type VerificationEntryStatus = typeof verificationEntryStatusSchema.type
+
+/** A one-use capability to store an attachment for one entry, never to read a file. */
+export const verificationUploadIntentSchema = v.object({
+  accountId: v.id('accounts'),
+  entryId: v.id('verificationEntries'),
+  tokenIdentifier: v.string(),
+  token: v.string(),
+  createdAt: v.number(),
+  expiresAt: v.number(),
+  state: v.union(v.literal('pending'), v.literal('uploading'), v.literal('uploaded'), v.literal('attached'), v.literal('expired')),
+  storageId: v.optional(v.id('_storage')),
+  size: v.optional(v.number()),
+  contentType: v.optional(v.string())
+})

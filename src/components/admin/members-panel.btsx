@@ -1,3 +1,4 @@
+import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
 import { Link } from '@octanejs/tanstack-router'
 import { Badge, Input } from '@/components/ui'
@@ -24,6 +25,7 @@ component MemberIdentity
       p(className='truncate font-mono text-xs text-muted-foreground') #{member.email}
 
 setup
+  const account = useWorkspace()
   const [workspace, setWorkspace] = useState<MemberWorkspace | null>(null)
   const [rosterStatus, setRosterStatus] = useState<RosterStatus>('loading')
   const [rosterError, setRosterError] = useState<string | null>(null)
@@ -35,7 +37,7 @@ setup
     const controller = new AbortController()
 
     setRosterStatus('loading')
-    fetchAccountMembers(controller.signal)
+    fetchAccountMembers(controller.signal, account?.id)
       .then((response) => {
         setWorkspace(response)
         setRosterError(null)
@@ -48,7 +50,7 @@ setup
       })
 
     return () => controller.abort()
-  }, [reloadToken])
+  }, [account?.id, reloadToken])
 
   const members = workspace?.members ?? []
   const counts = countMembersByStatus(members)

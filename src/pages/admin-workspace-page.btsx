@@ -2,6 +2,8 @@ import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
 import { createElement, useCallback, useEffect, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
+import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+import { useAdminPages } from '@/hooks/use-admin-pages'
 import { DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_VERIFICATION_ENTRIES, PAGE_SIZES, VERIFICATION_ENTRY_LIST_LIMIT, verificationEntryColumns, type VerificationEntryRow } from '@/components/admin/verification-entry-columns'
 import { SNAP_LIST_LIMIT } from '@/components/admin/snap-columns'
 import CreateVerificationEntryDialog from '@/components/admin/new-verification-entry.btsx'
@@ -20,7 +22,9 @@ setup
   // Reads go through the Worker, which is protected by the admin session
   // cookie and re-mints an ID token for Convex server-side. The browser on the
   // admin origin has no Firebase client identity, so it cannot query Convex.
-  const { entries, error, isLoading, lastUpdatedAt, refresh } = useAdminVerificationEntries(VERIFICATION_ENTRY_LIST_LIMIT)
+  const account = useWorkspace()
+  const canWrite = account?.role !== 'viewer'
+  const { items: entries, error, isLoading, lastUpdatedAt, refresh, loadMore, hasMore } = useAdminPages<VerificationEntryRow>(accountEndpoint('/api/admin/verification-entries', account?.id ?? ''))
   const rows = entries ?? EMPTY_VERIFICATION_ENTRIES
   // A poll failure keeps the last good rows, so the table stays up and the
   // error reads as "stale" rather than replacing everything.
@@ -75,12 +79,12 @@ setup
 
   // Sits in the table's toolbar row beside the filter control rather than in
   // the header, so creating an entry reads as one of the table's own controls.
-  const createEntryButton = createElement(CreateVerificationEntryDialog, {
+  const createEntryButton = canWrite ? createElement(CreateVerificationEntryDialog, {
     emailFromAddress: sessionEmail,
     isLoadingSnaps,
     onCreated: handleWritten,
     snaps: snaps ?? []
-  })
+  }) : null
 
 Container(className='md:py-0')
   if isLoading && !hasRows
@@ -114,6 +118,8 @@ Container(className='md:py-0')
                   span(className='font-mono') #{freshnessLabel}
               button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border transition-colors duration-200 ease-out' onClick={refresh})
                 Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+              if hasMore
+                button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
 
   SendVerificationEntryDialog(
     ~ entry={sendEntry}

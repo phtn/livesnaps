@@ -182,7 +182,7 @@ export function buildAdminHandoffUrl(currentUrl: URL, idToken: string) {
   handoffUrl.search = ''
   handoffUrl.hash = new URLSearchParams({
     idToken,
-    redirectTo: useAdminSubdomain ? '/' : adminRoutePrefix
+    redirectTo: '/admin-overview'
   }).toString()
 
   return handoffUrl

@@ -4,10 +4,10 @@ import {
   ACCOUNT_NOTES_MAX_LENGTH,
   ACCOUNT_PHONE_MAX_LENGTH,
   isAccountEmailAddress,
-  isAccountSlug,
   normalizeAccountWebsiteUrl,
   toAccountSlug
 } from '../../src/lib/accounts/accounts'
+import { isPublicAccountSlug } from '../../src/lib/accounts/submission-links'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { isPlatformStaff } from '../lib/auth'
 import { trimOrNull } from '../utils'
@@ -75,8 +75,10 @@ export const normalizeAccountName = (name: string) => {
 export const normalizeAccountSlug = (slug: string | undefined, fallbackName: string) => {
   const candidate = trimOrNull(slug)?.toLowerCase() ?? toAccountSlug(fallbackName)
 
-  if (!isAccountSlug(candidate)) {
-    throw new ConvexError('Account slug must be lowercase letters, numbers, and single hyphens.')
+  if (!isPublicAccountSlug(candidate)) {
+    throw new ConvexError(
+      'Account slug must use lowercase letters, numbers, and single hyphens, and cannot be a reserved application path.'
+    )
   }
 
   return candidate

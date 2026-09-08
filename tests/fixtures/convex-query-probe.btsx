@@ -1,4 +1,4 @@
-import { useConvexQuery } from '../../src/hooks/use-convex-query'
+import { useConvexQuery } from '../../src/hooks/use-convex-query.ts'
 import type { FunctionReference } from 'convex/server'
 
 module

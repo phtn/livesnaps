@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
 import { internalMutation, internalQuery } from '../_generated/server'
+import { requireSnapAccess, requireVerificationEntryAccess } from '../lib/submissionAccess'
 import { snapDocumentSchema } from '../snaps/d'
 import { verificationEntryDocumentSchema } from './d'
 
@@ -7,7 +8,10 @@ export const getEntryInternal = internalQuery({
   args: { id: v.id('verificationEntries') },
   returns: v.union(verificationEntryDocumentSchema, v.null()),
   handler: async (ctx, { id }) => {
-    return await ctx.db.get('verificationEntries', id)
+    const entry = await ctx.db.get('verificationEntries', id)
+    if (!entry) return null
+    await requireVerificationEntryAccess(ctx, entry, 'member')
+    return entry
   }
 })
 
@@ -20,6 +24,7 @@ export const getSnapByUploadIdInternal = internalQuery({
         .query('snaps')
         .withIndex('by_metadata_upload_id', (q) => q.eq('metadata.upload_id', uploadId))
         .unique()
+      if (proof) await requireSnapAccess(ctx, proof, 'member')
       return proof
     } catch {
       return null
@@ -34,6 +39,9 @@ export const markSubmittedInternal = internalMutation({
   },
   returns: verificationEntryDocumentSchema,
   handler: async (ctx, { id, attachments }) => {
+    const entry = await ctx.db.get('verificationEntries', id)
+    if (!entry) throw new ConvexError('Entry not found.')
+    await requireVerificationEntryAccess(ctx, entry, 'member')
     await ctx.db.patch(id, {
       attachments,
       status: 'submitted' as const,
@@ -50,6 +58,9 @@ export const markFailedInternal = internalMutation({
   returns: v.null(),
   handler: async (ctx, { id }) => {
     try {
+      const entry = await ctx.db.get('verificationEntries', id)
+      if (!entry) return null
+      await requireVerificationEntryAccess(ctx, entry, 'member')
       await ctx.db.patch(id, {
         status: 'failed' as const,
         updatedAt: Date.now()
@@ -74,6 +85,7 @@ export const setSnapVerificationStatusInternal = internalMutation({
     if (!snap) {
       return null
     }
+    await requireSnapAccess(ctx, snap, 'member')
     await ctx.db.patch(snap._id, {
       verification_status,
       updated_at: Date.now()
@@ -102,6 +114,7 @@ export const setSnapHandlerAndStatusInternal = internalMutation({
     if (snap.handler || snap.verification_status) {
       throw new ConvexError('snap already used for verification.')
     }
+    await requireSnapAccess(ctx, snap, 'member')
     await ctx.db.patch(snap._id, {
       handler,
       verification_status,

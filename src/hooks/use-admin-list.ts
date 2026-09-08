@@ -61,7 +61,7 @@ export function useAdminList<T>({ fallbackErrorMessage, limit, path }: AdminList
     let consecutiveErrors = 0
     let hasLoadedOnce = false
 
-    const url = limit ? `${path}?limit=${limit}` : path
+    const url = limit ? `${path}${path.includes('?') ? '&' : '?'}limit=${limit}` : path
     const isHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden'
 
     const nextDelay = () =>
@@ -97,6 +97,7 @@ export function useAdminList<T>({ fallbackErrorMessage, limit, path }: AdminList
 
         if (!response.ok) {
           consecutiveErrors += 1
+          if (response.status === 401 || response.status === 403) setItems(undefined)
           // Keep the last good rows on a failed refresh — only the very first
           // load has nothing to fall back to.
           setError(await readErrorMessage(response, fallbackErrorMessage))

@@ -1,0 +1,31 @@
+import { useParams } from '@octanejs/tanstack-router'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { api } from '../../convex/_generated/api'
+import App from '../App.btsx'
+
+component AccountSubmission
+  setup
+    const params = useParams({ strict: false }) as { accountSlug: string; linkSlug?: string }
+    const destination = useConvexQuery(api.submissionLinks.q.resolvePublic, {
+      accountSlug: params.accountSlug, ...(params.linkSlug ? { linkSlug: params.linkSlug } : {})
+    })
+
+  if destination === undefined
+    main(className='grid min-h-screen place-items-center bg-background text-muted-foreground')
+      p Opening submission link…
+  elseif destination?.available
+    App(key={`${params.accountSlug}/${params.linkSlug ?? ''}`} destination={{ accountSlug: params.accountSlug, linkSlug: params.linkSlug, accountName: destination.accountName, label: destination.label }})
+  else
+    main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
+      div(className='max-w-md space-y-4')
+        h1(className='font-poly text-3xl') #{destination ? 'Submissions are unavailable' : 'Link not found'}
+        p(className='text-sm text-muted-foreground') #{destination ? 'This Account or submission link is not accepting new submissions. Contact the organization for help.' : 'Check the link with the organization that sent it to you.'}
+        a(href='/' className='inline-block rounded-full bg-foreground px-5 py-3 text-sm text-background') Live Snaps Now
+
+try
+  AccountSubmission
+catch error, reset
+  main(className='grid min-h-screen place-items-center bg-background px-6 text-center')
+    div(className='space-y-4')
+      p We could not open this submission link.
+      button(type='button' onClick={reset} className='rounded-full bg-foreground px-5 py-3 text-background') Try again
