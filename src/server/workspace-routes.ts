@@ -1,6 +1,7 @@
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { canUseAccount } from '../lib/accounts/accounts'
+import { isSubmissionLinkColor } from '../lib/accounts/submission-links'
 import { AdminRequestError, withAdminConvex, withAdminConvexWrite, type AdminConvexClient, type AdminConvexEnvironment } from './admin-convex'
 
 export function requestedAccountId(request: Request) {
@@ -43,16 +44,24 @@ export function handleSubmissionLinks(request: Request, environment: AdminConvex
     const input = body as Record<string, unknown>
     if (input.action === 'ensure-default') return client.mutation(api.submissionLinks.m.ensureDefault, { accountId: account.id })
     if (input.action === 'create' && typeof input.slug === 'string' && typeof input.label === 'string') {
-      return client.mutation(api.submissionLinks.m.create, { accountId: account.id, slug: input.slug, label: input.label })
+      if (input.color !== undefined && !isSubmissionLinkColor(input.color)) throw new AdminRequestError('Choose a valid link color.')
+      return client.mutation(api.submissionLinks.m.create, {
+        accountId: account.id,
+        slug: input.slug,
+        label: input.label,
+        ...(isSubmissionLinkColor(input.color) ? { color: input.color } : {})
+      })
     }
     if (input.action === 'update' && typeof input.linkId === 'string') {
       const links = await client.query(api.submissionLinks.q.list, { accountId: account.id })
       if (!links.links.some(link => link._id === input.linkId)) throw new AdminRequestError('Link not found in this Account.')
       if (input.label !== undefined && typeof input.label !== 'string') throw new AdminRequestError('The label is invalid.')
+      if (input.color !== undefined && !isSubmissionLinkColor(input.color)) throw new AdminRequestError('Choose a valid link color.')
       if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new AdminRequestError('The link status is invalid.')
       return client.mutation(api.submissionLinks.m.update, {
         linkId: input.linkId as Id<'submissionLinks'>,
         ...(typeof input.label === 'string' ? { label: input.label } : {}),
+        ...(isSubmissionLinkColor(input.color) ? { color: input.color } : {}),
         ...(typeof input.enabled === 'boolean' ? { enabled: input.enabled } : {})
       })
     }
@@ -68,4 +77,25 @@ export function handleSubmissionAnalytics(request: Request, environment: AdminCo
       accountId: account.id, fromDay: params.get('fromDay') ?? '', toDay: params.get('toDay') ?? ''
     })
   }, 'Unable to load link analytics. Choose a date range of up to 90 days.')
+}
+
+export function handleSubmissionLinkEmail(request: Request, environment: AdminConvexEnvironment = {}) {
+  return withAdminConvexWrite(request, environment, async client => {
+    const account = await resolveWorkspaceAccount(client, request)
+    const body: unknown = await request.json().catch(() => null)
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AdminRequestError('A valid email request is required.')
+    const input = body as Record<string, unknown>
+    if (typeof input.linkId !== 'string') throw new AdminRequestError('Choose a submission link to email.')
+    if (!Array.isArray(input.recipients) || !input.recipients.every(value => typeof value === 'string')) {
+      throw new AdminRequestError('Enter valid recipient email addresses.')
+    }
+    if (typeof input.message !== 'string') throw new AdminRequestError('Enter a message for the recipient.')
+
+    return client.action(api.submissionLinks.email.send, {
+      accountId: account.id,
+      linkId: input.linkId as Id<'submissionLinks'>,
+      recipients: input.recipients,
+      message: input.message
+    })
+  }, 'Unable to send the submission link email.')
 }

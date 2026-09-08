@@ -351,6 +351,25 @@ describe('Account submission links and immutable ownership', () => {
     await expect(t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1))).rejects.toThrow(/disabled/)
   })
 
+  test('stores color tags, returns a default for older links, and lets admins update them', async () => {
+    const defaultId = await t.withIdentity(owner).mutation(api.submissionLinks.m.ensureDefault, { accountId: org1 })
+    const teamId = await t.withIdentity(owner).mutation(api.submissionLinks.m.create, {
+      accountId: org1,
+      slug: 'team-color',
+      label: 'Color team',
+      color: 'emerald'
+    })
+    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links)
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ _id: defaultId, color: 'blue' }),
+        expect.objectContaining({ _id: teamId, color: 'emerald' })
+      ]))
+
+    await t.withIdentity(owner).mutation(api.submissionLinks.m.update, { linkId: teamId, color: 'violet' })
+    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ _id: teamId, color: 'violet' })]))
+  })
+
   test('rejects unsafe link slugs and invalid or excessive analytics windows', async () => {
     for (const slug of ['', '../team', 'team/a', 'team--a', 'a'.repeat(64)]) {
       await expect(createLink(slug)).rejects.toThrow(/slug/)
@@ -369,6 +388,29 @@ describe('Account submission links and immutable ownership', () => {
 
   test('account slugs remain permanent and reserved application paths cannot be provisioned', async () => {
     await expect(
+      t.withIdentity(outsider).query(api.accounts.q.checkSlugAvailability, { slug: 'open-name' })
+    ).rejects.toThrow(/Creating an account requires a god account/)
+    expect(await t.withIdentity(god).query(api.accounts.q.checkSlugAvailability, { slug: 'open-name' })).toEqual({
+      slug: 'open-name',
+      available: true,
+      reason: 'available'
+    })
+    expect(await t.withIdentity(god).query(api.accounts.q.checkSlugAvailability, { slug: 'citadel' })).toEqual({
+      slug: 'citadel',
+      available: false,
+      reason: 'reserved'
+    })
+    expect(await t.withIdentity(god).query(api.accounts.q.checkSlugAvailability, { slug: 'not--valid' })).toEqual({
+      slug: 'not--valid',
+      available: false,
+      reason: 'invalid'
+    })
+    expect(await t.withIdentity(god).query(api.accounts.q.checkSlugAvailability, { slug: 'org-1' })).toEqual({
+      slug: 'org-1',
+      available: false,
+      reason: 'taken'
+    })
+    await expect(
       t.withIdentity(god).mutation(api.accounts.m.update, { id: org1, slug: 'org-renamed' })
     ).rejects.toThrow(/permanent/)
     for (const slug of ['api', 'account', 'citadel', 'snaps', 'legal']) {
@@ -381,6 +423,11 @@ describe('Account submission links and immutable ownership', () => {
       ).rejects.toThrow(/reserved application path/)
     }
     await t.withIdentity(god).mutation(api.accounts.m.remove, { id: org1 })
+    expect(await t.withIdentity(god).query(api.accounts.q.checkSlugAvailability, { slug: 'org-1' })).toEqual({
+      slug: 'org-1',
+      available: false,
+      reason: 'taken'
+    })
     await expect(
       t.withIdentity(god).mutation(api.accounts.m.create, {
         name: 'Replacement',

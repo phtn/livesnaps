@@ -1,0 +1,39 @@
+import { useEffect, useState } from 'octane'
+import { signOutUser } from '@/lib/firebase/auth'
+import { Icon } from '@/lib/icons'
+
+setup
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const finishSignOut = async () => {
+      try {
+        // The console already signed out its own origin. This route runs on the
+        // main app origin and clears the separate Firebase persistence there.
+        await signOutUser()
+        if (!cancelled) window.location.replace('/')
+      } catch (signOutError) {
+        if (!cancelled) {
+          setError(signOutError instanceof Error ? signOutError.message : 'Unable to finish signing out.')
+        }
+      }
+    }
+
+    void finishSignOut()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+main(className='grid min-h-dvh place-items-center bg-background px-6 text-center')
+  div(className='flex max-w-sm flex-col items-center gap-3')
+    if error
+      fragment
+        p(className='text-sm text-destructive' role='alert') #{error}
+        button(type='button' onClick={() => window.location.reload()} className='rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background') Try again
+    else
+      fragment
+        Icon(name='spinner-ring' className='size-5 animate-spin text-muted-foreground')
+        p(className='text-sm text-muted-foreground' aria-live='polite') Signing out completely…

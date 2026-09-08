@@ -100,7 +100,7 @@ div(ref={menuRef} className='relative z-100!')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
       if hasWorkspace
-        Item(role='menuitem' label='workspace' icon='rook' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+        Item(role='menuitem' label='workspace' icon='admin' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
       if hasGodAccess
         RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       div(className='-mx-1 my-1 h-px bg-input' role='separator')

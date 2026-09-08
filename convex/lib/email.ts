@@ -47,6 +47,25 @@ export async function sendTransactionalEmail({ to, subject, html, text }: Outbou
   }
 }
 
+/** Sends a recipient list as a Resend batch without exposing addresses to one another. */
+export async function sendTransactionalEmailBatch(emails: OutboundEmail[]) {
+  if (emails.length === 0) return
+  if (emails.length === 1) return sendTransactionalEmail(emails[0])
+
+  const apiKey = (process.env.RESEND_API_KEY ?? process.env.RESEND ?? '').trim()
+  if (!apiKey) throw new ConvexError('Resend is not configured for this deployment. Set RESEND_API_KEY.')
+  const from = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
+  const response = await fetch('https://api.resend.com/emails/batch', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(emails.map(({ to, subject, html, text }) => ({ from, to: [to], subject, html, text })))
+  })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new ConvexError(`Resend API failed (${response.status}): ${detail.slice(0, 500)}`)
+  }
+}
+
 /**
  * Where an email's links point. Set `APP_BASE_URL` per deployment (a preview
  * pointing at production links would send people to the wrong data).

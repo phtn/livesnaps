@@ -22,7 +22,7 @@ import {
   type SnapPhotoRouteEnvironment
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
-import { handleWorkspaceAccounts, handleSubmissionLinks, handleSubmissionAnalytics } from './server/workspace-routes'
+import { handleWorkspaceAccounts, handleSubmissionLinks, handleSubmissionAnalytics, handleSubmissionLinkEmail } from './server/workspace-routes'
 
 interface WorkerEnvironment {
   ASSETS: {
@@ -117,6 +117,7 @@ export default {
 
     if (pathname === '/api/admin/accounts') return handleWorkspaceAccounts(request, { convexUrl })
     if (pathname === '/api/admin/submission-links') return handleSubmissionLinks(request, { convexUrl })
+    if (pathname === '/api/admin/submission-links/email') return handleSubmissionLinkEmail(request, { convexUrl })
     if (pathname === '/api/admin/submission-analytics') return handleSubmissionAnalytics(request, { convexUrl })
 
     if (pathname === '/api/account/confirm-admin') {

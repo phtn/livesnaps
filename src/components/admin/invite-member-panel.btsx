@@ -1,6 +1,5 @@
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
-import { useNavigate } from '@octanejs/tanstack-router'
 import { useField, useSelector } from '@octanejs/tanstack-form'
 import { Button, Input } from '@/components/ui'
 import Step from '@/components/admin/verification-step.btsx'
@@ -23,6 +22,11 @@ module
     type?: 'text' | 'email'
     placeholder?: string
     required?: boolean
+  }
+
+  interface Props {
+    onCancel?: () => void
+    onInvited?: () => void
   }
 
 // One text control bound to one form field. Value, blur, and the error message
@@ -70,9 +74,9 @@ component RoleField
           | #{ACCOUNT_MEMBER_ROLE_LABEL[option]}
     p(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[field.state.value]}
 
+props { onCancel, onInvited }: Props
 setup
   const account = useWorkspace()
-  const navigate = useNavigate()
 
   // The workspace is read for its name only — the Worker derives the account
   // the invitation lands on from the administrator's own membership, so the
@@ -101,7 +105,7 @@ setup
       await inviteAccountMember(input, account?.id)
       memberForm.reset()
       onSuccess(`Invitation sent to ${input.email}.`)
-      void navigate({ to: '/admin-settings' })
+      onInvited?.()
     }
   })
 
@@ -166,15 +170,16 @@ setup
 
   const cancel = () => {
     memberForm.reset()
-    void navigate({ to: '/admin-settings' })
+    onCancel?.()
   }
 
-section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
-  form(className='w-full max-w-3xl' onSubmit={submit})
+section(className='mt-4')
+  form(className='w-full' onSubmit={submit})
 
     div(className='flex items-center justify-between gap-3 pb-3')
-      div(className='min-w-0 md:space-y-5 md:mt-3')
-        h2(className='font-sans text-lg leading-none tracking-tight') Invite a staff member
+      div(className='min-w-0')
+        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Add access
+        h2(className='mt-1 font-sans text-base font-medium leading-none tracking-tight') Invite a staff member
         p(className='text-sm text-muted-foreground')
           if workspace?.account
             | #{`They are emailed an invitation to ${workspace.account.name} and join once they accept.`}

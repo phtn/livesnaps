@@ -38,7 +38,10 @@ module
     { id: 'snaps', label: 'my snaps', icon: 'snap', path: '/snaps' }
   ]
 
-  const godAppLinks: AppLink[] = [{ id: 'citadel', label: 'citadel', icon: 're-up.ph', path: '/citadel' }]
+  const godAppLinks: AppLink[] = [
+    { id: 'citadel', label: 'citadel', icon: 're-up.ph', path: '/citadel' },
+    { id: 'admin', label: 'admin', icon: 'admin', path: '/admin' },
+  ]
 
   function toAppHref(path: string) {
     if (typeof window === 'undefined') return path
@@ -101,11 +104,9 @@ props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compa
 
 setup
   const triggerRef = useRef<HTMLElement | null>(null)
-  // The mobile nav is a Vaul drawer, and Vaul puts `pointer-events: none` on the
-  // body while it is open, re-enabling it only inside the drawer content. A popup
-  // portalled to the body therefore lands on the dead side: every item measures
-  // `pointer-events: none`, the click falls through to the drawer beneath, and the
-  // menu closes instead of acting. Portalling into the drawer keeps it live.
+  // Keep the menu portal inside a modal Base UI drawer when this menu is used in
+  // mobile navigation. This preserves the drawer's focus boundary and prevents
+  // the menu from being treated as outside content.
   // `undefined` (not `null`, which disables portalling) falls back to the body.
   const [portalContainer, setPortalContainer] = useState<Element | undefined>(undefined)
   const [isLeaving, setIsLeaving] = useState(false)
@@ -131,7 +132,7 @@ setup
   }, [isLeaving, scope])
 
   useEffect(() => {
-    setPortalContainer(triggerRef.current?.closest('[data-vaul-drawer]') ?? undefined)
+    setPortalContainer(triggerRef.current?.closest('[data-drawer-content]') ?? undefined)
   }, [])
 
   const handleSignOut = useCallback(async () => {
@@ -141,7 +142,9 @@ setup
       await endConsoleSession(scope)
       await signOutUser()
       onSignOut?.()
-      window.location.assign(toAppHref('/'))
+      // Firebase browser persistence is isolated by origin. Finish on the main
+      // hostname so its independent Firebase session is signed out as well.
+      window.location.replace(toAppHref('/logout'))
     } catch (error) {
       console.error('Unable to sign out right now.', error)
       setIsSigningOut(false)
@@ -171,10 +174,10 @@ MenuPrimitive.Root
       ~ side='top'
       ~ align={compact ? 'start' : 'center'}
       ~ sideOffset={20}
-      ~ className='z-60 outline-hidden'
+      ~ className='z-60 outline-hidden overflow-hidden bg-surface dark:bg-sunken/60 backdrop-blur-3xl rounded-md'
       ~ )
       MenuPrimitive.Popup(
-        ~ className='z-50 md:w-48 w-64 origin-(--transform-origin) rounded-md border border-border/70 bg-popover p-2 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
+        ~ className='z-50 md:w-48 w-64 origin-(--transform-origin) rounded-md border border-border/40 bg-card/35 overflow-hidden p-1 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
         ~ )
         if showCredits
           CreditsMeter(used={creditsUsed as number} total={creditsTotal as number})
@@ -183,7 +186,7 @@ MenuPrimitive.Root
           each link in links key link.id
             MenuPrimitive.Item(
               ~ render={createElement('a', { href: toAppHref(link.path) })}
-              ~ className='flex cursor-pointer items-center gap-3 rounded-sm p-3 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
+              ~ className='flex cursor-pointer items-center gap-3 rounded-sm p-3.5 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
               ~ )
               Icon(name={link.icon} className='size-4')
               span #{link.label}

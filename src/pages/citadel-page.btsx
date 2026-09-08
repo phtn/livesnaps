@@ -8,10 +8,9 @@ import { useMobile } from '@/hooks/use-mobile'
 import UserMenu from '../components/admin/user-menu.btsx'
 import { Link, Outlet } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator } from '@octanejs/resizable-panels'
-import { Drawer } from '@octanejs/vaul'
-import '@octanejs/vaul/style.css'
 import ThemeToggle from '@/components/theme-toggle.btsx'
 import Container from "../components/admin/container.btsx";
+import Sidebar from '@/components/ui/sidebar.btsx'
 
 module
   type NavItem = {
@@ -33,7 +32,7 @@ module
   // The router sets `data-status="active"` on a matching Link, so the active
   // route is read off the link itself rather than by comparing paths here.
   const navLinkClassName =
-    'relative flex h-14 items-center text-foreground/70 transition-colors data-[status=active]:bg-sidebar data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
+    'relative flex h-14 items-center text-foreground/70 transition-colors md:data-[status=active]:rounded-e-lg data-[status=active]:bg-sidebar data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
 
 component Navigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
@@ -137,36 +136,21 @@ setup
   }, [hasGodAccess, isGodsHost, user])
 
 if isMobile
-  div(className='min-h-screen bg-background')
-    Drawer.Root(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} direction='left')
-      div(className='w-full fixed top-0 z-35 flex items-center justify-between h-12 px-2.5 text-white bg-black')
-        Drawer.Trigger(type='button' aria-label='Open citadel navigation' className='gap-2.5 inline-flex items-center justify-center')
-          Icon(name='sidebar' className='size-6 text-white/70')
-          h1(className='inline-flex items-center gap-0 font-poly text-white/90')
-            span(className='dark:text-lime-200') Citadel
-      Drawer.Portal
-        Drawer.Overlay(className='fixed inset-0 z-40 bg-black/40 backdrop-blur-[1px]')
-        Drawer.Content(className='fixed inset-y-0 left-0 z-50 flex w-72 flex-col bg-background! shadow-2xl outline-none')
-          Drawer.Title(className='sr-only') Citadel navigation
-          div(className='flex h-16 items-center px-6')
-            Link(className='inline-flex items-center gap-3 text-[clamp(1.2rem,3vw,1.4rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
-              Icon(name='re-up.ph')
-              h1(className='leading-6')
-                span(className='dark:text-lime-200') Citadel
-          Navigation(onNavigate={() => setIsMobileNavOpen(false)})
-
-          div(className='flex items-center justify-start h-16 px-5')
-            ThemeToggle
-          div(className='px-3 py-3')
-            UserMenu(
-              ~ scope='citadel'
-              ~ name={user?.displayName}
-              ~ email={email ?? user?.email}
-              ~ photoUrl={user?.photoURL}
-              ~ hasGodAccess={hasGodAccess}
-              ~ onSignOut={() => setIsMobileNavOpen(false)}
-              ~ )
-    main(className='min-h-screen bg-background pt-11')
+  div(className='min-h-screen bg-background dark:bg-card/5')
+    Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Citadel navigation' brand='citadel')
+      Navigation(onNavigate={() => setIsMobileNavOpen(false)})
+      div(className='flex items-center justify-start h-16 px-5')
+        ThemeToggle
+      div(className='px-3 py-3')
+        UserMenu(
+          ~ scope='citadel'
+          ~ name={user?.displayName}
+          ~ email={email ?? user?.email}
+          ~ photoUrl={user?.photoURL}
+          ~ hasGodAccess={hasGodAccess}
+          ~ onSignOut={() => setIsMobileNavOpen(false)}
+          ~ )
+    main(className='min-h-screen bg-background dark:bg-card/1 pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(90vh)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your administrator session…
@@ -183,7 +167,9 @@ if isMobile
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col bg-sunken')
+      aside(className='flex h-full min-w-0 w-full flex-col dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)] bg-sunken')
+
+        // div(className='absolute top-0 left-0 flex size-full min-h-0 flex-col dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)] p-4 text-[#f6f6f2] shadow-[0_22px_36px_rgba(15,16,14,0.18)]')
         div(className={cn('flex h-16 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
           Link(className='inline-flex items-center gap-2 text-[clamp(1rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
@@ -210,7 +196,7 @@ else
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
       span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
     Panel(id='content' minSize='40%')
-      main(className='min-h-screen bg-sunken')
+      main(className='min-h-screen bg-sunken dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)]')
         if status === 'loading'
           div(className='flex items-center justify-center gap-2 h-[calc(90vh)]')
             Icon(name='spinner-ferris' className='size-8 opacity-60')

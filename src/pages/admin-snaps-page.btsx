@@ -1,5 +1,5 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
-import { useCallback, useEffect, useMemo, useState } from 'octane'
+import { createElement, useCallback, useEffect, useMemo, useState } from 'octane'
 import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
 import { useAdminPages } from '@/hooks/use-admin-pages'
 import { workspaceJson } from '@/lib/accounts/link-client'
@@ -17,6 +17,9 @@ import Icon from "../lib/icons/icon.btsx";
 import {cn} from '@/lib/utils'
 import Container from "../components/admin/container.btsx";
 import Loading from "../components/loading.btsx";
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
+import type { Option as SelectOption } from '@/components/ui/SelectOctane.btsx'
+import { submissionLinkColorHex, type SubmissionLinkColor } from '@/lib/accounts/submission-links'
 
 props {}: {}
 setup
@@ -25,13 +28,48 @@ setup
   // admin origin has no Firebase client identity, so it cannot query Convex.
   const account = useWorkspace()
   const [sourceLinkId, setSourceLinkId] = useState(() => new URLSearchParams(window.location.search).get('sourceLinkId') ?? '')
-  const [sourceLinks, setSourceLinks] = useState<{ _id: string; label: string }[]>([])
+  const [sourceLinks, setSourceLinks] = useState<{ _id: string; label: string; color: SubmissionLinkColor }[]>([])
   useEffect(() => {
     const controller = new AbortController()
-    void workspaceJson<{ links: { _id: string; label: string }[] }>(accountEndpoint('/api/admin/submission-links', account?.id ?? ''), { signal: controller.signal })
+    void workspaceJson<{ links: { _id: string; label: string; color: SubmissionLinkColor }[] }>(accountEndpoint('/api/admin/submission-links', account?.id ?? ''), { signal: controller.signal })
       .then(result => { if (!controller.signal.aborted) setSourceLinks(result.links) }).catch(() => {})
     return () => controller.abort()
   }, [account?.id])
+  const sourceLinkOptions = useMemo(
+    () => [
+      { value: '', label: 'All links' },
+      ...sourceLinks.map((link) => ({ value: link._id, label: `#${link.label}`, color: submissionLinkColorHex(link.color) })),
+    ],
+    [sourceLinks],
+  )
+  const handleSourceLinkChange = useCallback((id: string) => {
+    setSourceLinkId(id)
+    const url = new URL(window.location.href)
+    if (id) url.searchParams.set('sourceLinkId', id)
+    else url.searchParams.delete('sourceLinkId')
+    window.history.replaceState(null, '', url)
+  }, [])
+  const formatSourceLinkOption = (option: SelectOption) => createElement('span', {
+    className: 'flex min-w-0 items-center gap-2',
+    children: [
+      option.color ? createElement('span', { className: 'size-2 shrink-0 rounded-full', style: { backgroundColor: option.color } }) : null,
+      createElement('span', { className: 'truncate', children: option.label })
+    ]
+  })
+  const sourceLinkSelect = createElement(SelectOctane, {
+    'aria-label': 'Filter submissions by source link',
+    className: 'w-36 sm:w-48',
+    classNames: {
+      control: () => 'h-8 min-h-8! bg-background px-1.5',
+      option: () => 'text-xs',
+      singleValue: () => 'text-xs',
+    },
+    isSearchable: sourceLinkOptions.length > 8,
+    formatOptionLabel: formatSourceLinkOption,
+    onChange: handleSourceLinkChange,
+    options: sourceLinkOptions,
+    value: sourceLinkId,
+  })
   const path = accountEndpoint(`/api/admin/snaps${sourceLinkId ? `?sourceLinkId=${encodeURIComponent(sourceLinkId)}` : ''}`, account?.id ?? '')
   const { error, isLoading, lastUpdatedAt, refresh, items: snaps, loadMore, hasMore } = useAdminPages<AdminSnapListItem>(path)
   const rows = snaps ?? EMPTY_SNAPS
@@ -54,12 +92,6 @@ setup
   }, [])
 
 Container(className='md:py-0')
-  label(className='flex flex-wrap items-center gap-3 px-4 py-3 text-sm')
-    span Source link
-    select(value={sourceLinkId} onChange={(event: Event) => { const id = (event.currentTarget as HTMLSelectElement).value; setSourceLinkId(id); const url = new URL(window.location.href); if (id) url.searchParams.set('sourceLinkId', id); else url.searchParams.delete('sourceLinkId'); window.history.replaceState(null, '', url) }} className='rounded-md border border-border bg-background px-3 py-2' aria-label='Filter submissions by source link')
-      option(value='') All links
-      each link in sourceLinks key link._id
-        option(value={link._id}) #{link.label}
   if isLoading && !hasRows
     Loading
   elseif error && !hasRows
@@ -81,6 +113,7 @@ Container(className='md:py-0')
           ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
           ~ initialPageSize={50}
           ~ pageSizes={PAGE_SIZES}
+          ~ titleActions={sourceLinkSelect}
           ~ emptyTitle='No snaps'
           ~ emptyDescription='Snaps will appear here as they are captured.'
           ~ )

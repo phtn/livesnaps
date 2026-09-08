@@ -7,6 +7,6 @@ module
     className?: ClassValue
   }
 props {children, className}: Props
-main(className='bg-sunken md:p-4')
+main(className='bg-sunken dark:transparent md:p-4')
   div(className={cn('md:p-4 md:h-[calc(100vh-32px)] overflow-scroll bg-surface rounded-lg shadow-[0_2px_4px_rgba(27,27,28,0.1)]', className)})
     fragment #{children}

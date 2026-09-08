@@ -1,11 +1,20 @@
 import { v } from 'convex/values'
+import { isAccountSlug } from '../../src/lib/accounts/accounts'
+import { isPublicAccountSlug } from '../../src/lib/accounts/submission-links'
 import { query } from '../_generated/server'
 import { requireAccountAccess } from '../accountMembers/helpers'
 import { accountDocumentSchema, accountStatusSchema } from './d'
-import { getAccountBySlug, requireAdminIdentity } from './helpers'
+import { getAccountBySlug, requireAdminIdentity, requireGodIdentity } from './helpers'
 
 const DEFAULT_LIST_LIMIT = 100
 const MAX_LIST_LIMIT = 250
+
+const slugAvailabilityReason = v.union(
+  v.literal('available'),
+  v.literal('invalid'),
+  v.literal('reserved'),
+  v.literal('taken')
+)
 
 const normalizeListLimit = (limit: number | undefined) => {
   if (limit === undefined || !Number.isFinite(limit)) {
@@ -35,6 +44,35 @@ export const listForAdmin = query({
     }
 
     return await ctx.db.query('accounts').withIndex('by_createdAt').order('desc').take(take)
+  }
+})
+
+/** Authoritative preflight for Citadel's create-account slug field. */
+export const checkSlugAvailability = query({
+  args: { slug: v.string() },
+  returns: v.object({
+    slug: v.string(),
+    available: v.boolean(),
+    reason: slugAvailabilityReason
+  }),
+  handler: async (ctx, { slug }) => {
+    await requireGodIdentity(ctx)
+
+    const candidate = slug.trim().toLowerCase()
+    if (!isAccountSlug(candidate)) return { slug: candidate, available: false, reason: 'invalid' as const }
+    if (!isPublicAccountSlug(candidate)) return { slug: candidate, available: false, reason: 'reserved' as const }
+
+    const reservation = await ctx.db
+      .query('accountSlugReservations')
+      .withIndex('by_slug', (q) => q.eq('slug', candidate))
+      .unique()
+    const account = reservation ? null : await getAccountBySlug(ctx, candidate)
+
+    return {
+      slug: candidate,
+      available: reservation === null && account === null,
+      reason: reservation || account ? ('taken' as const) : ('available' as const)
+    }
   }
 })
 

@@ -10,8 +10,8 @@ import { ACCOUNT_PLAN_VALUES, isAccountEmailAddress, toAccountSlug, type Account
 import Step from '@/components/admin/verification-step.btsx'
 import { ENTER_CLASS, errorTextClassName, fieldLabelClassName, type StepState } from '@/lib/verifications/step-flow'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
-import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, useAccountDraft, useAccountForm, validateAccountForm, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
-import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
+import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, resolveAccountSlug, useAccountDraft, useAccountForm, validateAccountForm, validateAccountSlug, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
+import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, checkAccountSlugAvailability, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
 import Container from "../admin/container.btsx";
 import HyperSearch from "../ui/table/hyper/HyperSearch.btsx";
 
@@ -19,6 +19,7 @@ module
   type RosterStatus = 'loading' | 'ready' | 'error'
 
   const CONTACT_SEARCH_DEBOUNCE_MS = 300
+  const SLUG_CHECK_DEBOUNCE_MS = 350
   const MIN_CONTACT_SEARCH_LENGTH = 2
   const ROSTER_URL_DEBOUNCE_MS = 200
 
@@ -55,7 +56,22 @@ module
     className?: string
     /** Called with every keystroke, for a caller that mirrors this field. */
     onEdit?: (value: string) => void
+    feedback?: string | null
+    feedbackTone?: 'error' | 'muted' | 'pending' | 'success'
   }
+
+  type SlugAvailabilityState =
+    | { status: 'idle'; slug: string; message: null }
+    | { status: 'checking'; slug: string; message: string }
+    | { status: 'available'; slug: string; message: string }
+    | { status: 'invalid' | 'taken' | 'error'; slug: string; message: string }
+
+  const FEEDBACK_TONE_CLASS = {
+    error: 'text-destructive',
+    muted: 'text-muted-foreground',
+    pending: 'text-active',
+    success: 'text-positive'
+  } as const
 
 component StatusBadge
   props { status }: { status: AccountStatus }
@@ -64,12 +80,14 @@ component StatusBadge
 // One text control bound to one form field. Value, blur, and the error message
 // all come from the field's own state rather than from a second copy kept here.
 component TextField
-  props { form, name, label, type = 'text', placeholder, required = false, className, onEdit }: TextFieldProps
+  props { form, name, label, type = 'text', placeholder, required = false, className, onEdit, feedback, feedbackTone = 'muted' }: TextFieldProps
   setup
     const field = useField({ form, name })
     const controlId = `account-${name}`
     const errorId = `${controlId}-error`
-    const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
+    const message = field.state.meta.isTouched || field.state.meta.isDirty ? readValidationMessage(field.state.meta.errors) : null
+    const visibleMessage = message ?? feedback ?? null
+    const hasError = message !== null || (feedback !== null && feedback !== undefined && feedbackTone === 'error')
 
     const handleInput = (event: Event) => {
       const next = (event.currentTarget as HTMLInputElement).value
@@ -86,13 +104,16 @@ component TextField
       ~ required={required}
       ~ autoComplete='off'
       ~ placeholder={placeholder}
-      ~ aria-invalid={message !== null}
-      ~ aria-describedby={message === null ? undefined : errorId}
+      ~ aria-invalid={hasError}
+      ~ aria-describedby={visibleMessage === null ? undefined : errorId}
       ~ onBlur={field.handleBlur}
       ~ onInput={handleInput}
       ~ )
-    if message
-      p(id={errorId} className={cn('mt-1.5', errorTextClassName)}) #{message}
+    if visibleMessage
+      p(id={errorId} className={cn('mt-1.5 flex items-center gap-1.5 font-mono text-2xs', message ? errorTextClassName : FEEDBACK_TONE_CLASS[feedbackTone])} aria-live='polite')
+        if feedbackTone === 'pending' && message === null
+          Icon(name='spinner-ring' className='size-3 animate-spin')
+        span #{visibleMessage}
 
 component PlanField
   props { form }: { form: AccountForm }
@@ -117,7 +138,7 @@ component AccountIdentity
       p(className='truncate text-sm text-foreground') #{account.name}
     div(className='flex items-center gap-0 min-w-0')
       Icon(name='account' className='size-3.5 opacity-70')
-      p(className='truncate font-mono text-xs text-muted-foreground') #{account.slug}
+      p(className='truncate font-mono text-xs text-muted-foreground') #{formatName(account.primaryContact.name)}
 
 component CreateAccountForm
   props { onCreated, onCancel }: { onCreated: (accounts: AccountRow[]) => void; onCancel: () => void }
@@ -145,7 +166,7 @@ component CreateAccountForm
     const isSubmitting = useSelector(accountForm.store, (state) => state.isSubmitting)
     // `canSubmit` alone stays true on a pristine form, before any validator
     // has run, so the same whole-form check the validator uses is applied here.
-    const canSubmit = useSelector(
+    const isFormValid = useSelector(
       accountForm.store,
       (state) => state.canSubmit && validateAccountForm(state.values) === undefined
     )
@@ -153,9 +174,81 @@ component CreateAccountForm
       typeof state.errorMap.onSubmit === 'string' ? state.errorMap.onSubmit : null
     )
     const nameValue = useSelector(accountForm.store, (state) => state.values.name)
+    const slugValue = useSelector(accountForm.store, (state) => state.values.slug)
     const contactName = useSelector(accountForm.store, (state) => state.values.contactName)
     const contactEmail = useSelector(accountForm.store, (state) => state.values.contactEmail)
     const contactUid = useSelector(accountForm.store, (state) => state.values.contactUid)
+    const identityHasErrors = useSelector(accountForm.store, (state) => {
+      const fields = validateAccountForm(state.values)?.fields
+      return fields?.name !== undefined || fields?.slug !== undefined
+    })
+    const contactHasErrors = useSelector(accountForm.store, (state) => {
+      const fields = validateAccountForm(state.values)?.fields
+      return fields?.contactName !== undefined || fields?.contactEmail !== undefined || fields?.contactPhone !== undefined
+    })
+    const organizationHasErrors = useSelector(accountForm.store, (state) => {
+      const fields = validateAccountForm(state.values)?.fields
+      return fields?.website !== undefined || fields?.billingEmail !== undefined || fields?.notes !== undefined
+    })
+    const slugCandidate = resolveAccountSlug({ name: nameValue, slug: slugValue })
+    const slugValidationMessage = validateAccountSlug(slugCandidate)
+    const [slugAvailability, setSlugAvailability] = useState<SlugAvailabilityState>({
+      status: 'idle',
+      slug: '',
+      message: null
+    })
+
+    useEffect(() => {
+      if (slugValidationMessage) {
+        setSlugAvailability({ status: 'invalid', slug: slugCandidate, message: slugValidationMessage })
+        return
+      }
+
+      const controller = new AbortController()
+      setSlugAvailability({ status: 'checking', slug: slugCandidate, message: `Checking “${slugCandidate}”…` })
+
+      const timer = setTimeout(() => {
+        checkAccountSlugAvailability(slugCandidate, controller.signal)
+          .then((response) => {
+            if (response.available) {
+              setSlugAvailability({ status: 'available', slug: response.slug, message: `“${response.slug}” is available.` })
+              return
+            }
+
+            const message =
+              response.reason === 'reserved'
+                ? `“${response.slug}” is reserved by the application. Choose another slug.`
+                : response.reason === 'taken'
+                  ? `“${response.slug}” is already taken.`
+                  : 'Use lowercase letters, numbers, and single dashes.'
+            setSlugAvailability({ status: response.reason === 'taken' ? 'taken' : 'invalid', slug: response.slug, message })
+          })
+          .catch((error: unknown) => {
+            if (isAbortError(error)) return
+            setSlugAvailability({
+              status: 'error',
+              slug: slugCandidate,
+              message: readErrorMessage(error, 'Could not validate this slug. Try again.')
+            })
+          })
+      }, SLUG_CHECK_DEBOUNCE_MS)
+
+      return () => {
+        clearTimeout(timer)
+        controller.abort()
+      }
+    }, [slugCandidate, slugValidationMessage])
+
+    const isSlugAvailable = slugAvailability.status === 'available' && slugAvailability.slug === slugCandidate
+    const canSubmit = isFormValid && isSlugAvailable
+    const slugFeedbackTone =
+      slugAvailability.status === 'available'
+        ? 'success'
+        : slugAvailability.status === 'checking'
+          ? 'pending'
+          : slugAvailability.status === 'idle'
+            ? 'muted'
+            : 'error'
 
     // Billing defaults to the contact address rather than being left blank —
     // a stored `null` is what the account is invoiced on. The mirror holds
@@ -252,8 +345,9 @@ component CreateAccountForm
         ).length
     )
 
-    const isIdentityDone = nameValue.trim().length > 0
-    const isContactDone = contactName.trim().length > 0 && isAccountEmailAddress(contactEmail.trim())
+    const isIdentityDone = nameValue.trim().length > 0 && !identityHasErrors && isSlugAvailable
+    const isContactDone =
+      contactName.trim().length > 0 && isAccountEmailAddress(contactEmail.trim()) && !contactHasErrors
 
     // A step is `done` once it is settled, `active` while it is the one thing
     // left to do, and `idle` while an earlier step still blocks it.
@@ -261,12 +355,13 @@ component CreateAccountForm
     const contactState: StepState = !isIdentityDone ? 'idle' : isContactDone ? 'done' : 'active'
     // A plan is always selected, so this step only waits on the ones above it.
     const planState: StepState = isContactDone ? 'done' : 'idle'
-    const organizationState: StepState = !isContactDone ? 'idle' : organizationFilled > 0 ? 'done' : 'active'
+    const organizationState: StepState =
+      !isContactDone ? 'idle' : organizationFilled > 0 && !organizationHasErrors ? 'done' : 'active'
     const createState: StepState = canSubmit && !isSubmitting ? 'active' : 'idle'
 
     // The idle Create step shows how far the form has come rather than an inert
     // bar, so the last step still moves while the earlier ones are settled.
-    const completedSteps = [isIdentityDone, isContactDone, organizationFilled > 0].filter(Boolean).length
+    const completedSteps = [isIdentityDone, isContactDone, organizationFilled > 0 && !organizationHasErrors].filter(Boolean).length
     const progressWidth = `${Math.round((completedSteps / 3) * 100)}%`
 
     // Reduced to one value rather than an if/elseif chain in the template: a
@@ -275,7 +370,15 @@ component CreateAccountForm
     const statusLabel = isSubmitting
       ? 'Creating account…'
       : !isIdentityDone
-        ? 'Needs an account name'
+        ? slugAvailability.status === 'checking'
+          ? 'Validating the account slug'
+          : slugAvailability.status === 'taken'
+            ? 'Choose an available slug'
+            : slugAvailability.status === 'error'
+              ? 'Slug validation must succeed'
+              : nameValue.trim().length === 0
+                ? 'Needs an account name'
+                : 'Fix the account slug'
         : !isContactDone
           ? 'Needs a primary contact'
           : canSubmit
@@ -313,7 +416,7 @@ component CreateAccountForm
         ~ title='Account'
         ~ state={identityState}
         ~ index={0}
-        ~ meta={isIdentityDone ? toAccountSlug(nameValue) || undefined : undefined}
+        ~ meta={slugCandidate || undefined}
         ~ )
         div(className='grid gap-4 md:grid-cols-2')
           TextField(form={accountForm} name='name' label='Account name' required={true} placeholder='Northwind Logistics')
@@ -322,6 +425,8 @@ component CreateAccountForm
             ~ name='slug'
             ~ label='Slug'
             ~ placeholder={toAccountSlug(nameValue) || 'auto-generated from the name'}
+            ~ feedback={slugAvailability.message}
+            ~ feedbackTone={slugFeedbackTone}
             ~ )
 
       Step(
@@ -556,7 +661,7 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
         elseif visibleAccounts.length === 0
           p(className='px-1 py-6 text-sm text-muted-foreground') No accounts match this filter.
         else
-          ul(className='divide-y divide-border/60 divide-dotted rounded-lg overflow-hidden border border-sidebar-border')
+          ul(className='divide-y divide-sidebar-border divide-dashed rounded-lg overflow-hidden border border-sidebar-border')
             each account in visibleAccounts key account._id
               li
                 Link(

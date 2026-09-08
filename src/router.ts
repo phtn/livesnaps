@@ -28,6 +28,12 @@ const adminHandoffRoute = createRoute({
   component: lazyRoute(() => import('./routes/admin-handoff.btsx'))
 })
 
+const logoutRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'logout',
+  component: lazyRoute(() => import('./routes/logout.btsx'))
+})
+
 const adminOverviewRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'admin-overview',
@@ -78,7 +84,8 @@ const adminSettingsRecipientsRoute = createRoute({
 const adminSettingsInviteRoute = createRoute({
   getParentRoute: () => adminSettingsRoute,
   path: 'invite',
-  component: lazyRoute(() => import('./pages/admin-settings-invite-page.btsx'))
+  // Preserve old bookmarks while keeping staff management in one tab.
+  component: lazyRoute(() => import('./pages/admin-settings-members-page.btsx'))
 })
 
 // `citadel-page.btsx` is a shell — nav plus an `Outlet` — so it only renders
@@ -187,14 +194,27 @@ const adminLinksRoute = createRoute({
   component: lazyRoute(() => import('./pages/admin-links-page.btsx'))
 })
 
+const adminLinksActivityRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: 'links/activity',
+  component: lazyRoute(() => import('./pages/admin-links-activity-page.btsx'))
+})
+
+const adminLinkDetailRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: 'links/$linkId',
+  component: lazyRoute(() => import('./pages/admin-link-detail-page.btsx'))
+})
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
+  logoutRoute,
   adminHandoffRoute,
   adminOverviewRoute,
   adminSnapsRoute,
   adminSnapsLabRoute,
   adminWorkspaceRoute,
-  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsRecipientsRoute, adminSettingsInviteRoute, adminLinksRoute]),
+  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsRecipientsRoute, adminSettingsInviteRoute, adminLinksRoute, adminLinksActivityRoute, adminLinkDetailRoute]),
   citadelRoute.addChildren([
     citadelIndexRoute,
     citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),

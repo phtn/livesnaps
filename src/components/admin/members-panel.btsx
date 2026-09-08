@@ -1,17 +1,20 @@
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
-import { Link } from '@octanejs/tanstack-router'
 import { Badge, Input } from '@/components/ui'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
 import { ACCOUNT_MEMBER_ROLE_LABEL, ACCOUNT_MEMBER_STATUS_LABEL, ACCOUNT_MEMBER_STATUS_TONE, countMembersByStatus, fetchAccountMembers, formatMemberDate, getMemberInitials, matchesMemberQuery, MEMBER_STATUS_FILTER_LABEL, MEMBER_STATUS_FILTERS, type MemberRow, type MemberWorkspace } from '@/lib/admin/account-members'
+import InviteMemberPanel from '@/components/admin/invite-member-panel.btsx'
 
 module
   type RosterStatus = 'loading' | 'ready' | 'error'
 
   const chipClassName =
     'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono text-2xs uppercase tracking-wider transition-colors'
+
+  const addButtonClassName =
+    'flex size-6 aspect-square items-center justify-center rounded-full bg-active text-white transition-colors duration-200 ease-out'
 
   const actionButtonClassName =
     'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-2.5 font-mono text-muted-foreground text-xs uppercase tracking-wide transition-colors hover:bg-accent'
@@ -29,7 +32,8 @@ setup
   const [workspace, setWorkspace] = useState<MemberWorkspace | null>(null)
   const [rosterStatus, setRosterStatus] = useState<RosterStatus>('loading')
   const [rosterError, setRosterError] = useState<string | null>(null)
-  const [reloadToken, setReloadToken] = useState(0)
+  const [localReloadToken, setLocalReloadToken] = useState(0)
+  const [isInviteOpen, setIsInviteOpen] = useState(() => window.location.pathname.endsWith('/invite'))
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<(typeof MEMBER_STATUS_FILTERS)[number]>('all')
 
@@ -50,15 +54,19 @@ setup
       })
 
     return () => controller.abort()
-  }, [account?.id, reloadToken])
+  }, [account?.id, localReloadToken])
 
   const members = workspace?.members ?? []
   const counts = countMembersByStatus(members)
   const visibleMembers = members.filter(
     (member) => (statusFilter === 'all' || member.status === statusFilter) && matchesMemberQuery(member, query)
   )
+  const handleInvited = () => {
+    setIsInviteOpen(false)
+    setLocalReloadToken((token) => token + 1)
+  }
 
-section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
+section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
   if workspace?.account === null && rosterStatus === 'ready'
     div(className='rounded-sm border border-dashed border-orange-400/60 px-4 py-10 text-center')
       p(className='text-sm text-muted-foreground') This administrator is not a member of any account.
@@ -66,28 +74,33 @@ section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
 
   else
     fragment
-      header(className='flex flex-wrap items-baseline justify-between gap-3')
-        div
-          h2(className='font-poly font-medium text-lg tracking-[0.01em]')
-            if rosterStatus === 'ready'
-              span #{members.length}
-            else
-              Icon(name='spinner-ring')
-          p(className='mt-1 text-sm text-muted-foreground')
-            if workspace?.account
-              | #{`Everyone on ${workspace.account.name}, and where each one stands.`}
-            else
-              | #{'Everyone on this workspace, and where each one stands.'}
+      header(className='flex h-12 items-center justify-between')
         div(className='flex items-center gap-3')
-          if rosterStatus === 'ready'
-            span(className='shrink-0 font-mono text-xs text-muted-foreground') #{`${members.length} ${members.length === 1 ? 'member' : 'members'}`}
+          h2(className='font-poly font-medium tracking-tight') Staff
+          span(className='flex size-7 items-center justify-center rounded-full bg-table-head font-mono text-xs')
+            if rosterStatus === 'ready'
+              | #{members.length}
+            else
+              Icon(name='spinner-ring' className='size-3')
+          button(
+            ~ type='button'
+            ~ aria-label={isInviteOpen ? 'Close invitation form' : 'Invite staff member'}
+            ~ aria-expanded={isInviteOpen}
+            ~ onClick={() => setIsInviteOpen((open) => !open)}
+            ~ className={cn(addButtonClassName, isInviteOpen && 'bg-foreground! text-background!')}
+            ~ )
+            Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', isInviteOpen && 'rotate-45')})
+        div(className='flex items-center gap-2')
           button(
             ~ type='button'
             ~ aria-label='Refresh members'
-            ~ onClick={() => setReloadToken((token) => token + 1)}
+            ~ onClick={() => setLocalReloadToken((token) => token + 1)}
             ~ className='group rounded-sm p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-sidebar hover:text-foreground'
             ~ )
             Icon(name='refresh' size='14' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+
+      if isInviteOpen
+        InviteMemberPanel(onInvited={handleInvited} onCancel={() => setIsInviteOpen(false)})
 
       div(className='relative mt-3')
         Input(
@@ -119,18 +132,18 @@ section(className='p-3 h-[calc(100vh-96px)] overflow-y-auto')
             Icon(name='spinner-ferris' className='size-4')
             p(className='text-sm text-muted-foreground') Loading members…
         elseif rosterStatus === 'error'
-          button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
+          button(type='button' onClick={() => setLocalReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
 
         elseif members.length === 0
           div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
             p(className='text-sm text-muted-foreground') No members yet.
-            Link(to='/admin-settings/invite' className={cn(actionButtonClassName, 'mt-4')}) Invite the first one
+            p(className='mt-1 text-xs text-muted-foreground') Use the invitation form to add the first teammate.
         elseif visibleMembers.length === 0
           p(className='px-1 py-6 text-sm text-muted-foreground') No members match this filter.
         else
-          ul(className='divide-y divide-border/60 divide-dotted rounded-sm')
+          ul(className='divide-y divide-sidebar-border divide-dashed overflow-hidden rounded-lg border border-sidebar-border')
             each member in visibleMembers key member._id
-              li(className='flex flex-wrap items-center justify-between gap-3 px-3 py-2.5')
+              li(className='flex flex-wrap items-center justify-between gap-3 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent')
                 MemberIdentity(member={member})
                 div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
                   span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline') #{member.title ?? ''}

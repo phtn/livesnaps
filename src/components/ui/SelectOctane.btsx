@@ -9,6 +9,8 @@ module
   export type Option = {
     value: string
     label: string
+    /** Optional metadata available to custom option renderers. */
+    color?: string
   }
 
   /**
@@ -39,8 +41,8 @@ module
     control: (props) => {
       const state = props as PartState
       return cn(
-        'flex min-h-9 cursor-pointer items-center gap-1 rounded-[4px] border border-input/50 bg-background px-2 text-sm text-foreground transition-colors',
-        state.isFocused && 'border-input ring-2 ring-ring/40',
+        'flex min-h-12 cursor-pointer items-center gap-1 rounded-[4px] border-input/50 bg-sunken px-2 text-sm text-foreground transition-colors hover:bg-border/10!',
+        state.isFocused && 'bg-border/20! dark:bg-sidebar/80!',
         state.isDisabled && 'cursor-not-allowed opacity-50'
       )
     },
@@ -62,7 +64,7 @@ module
       const state = props as PartState
       return cn(
         'cursor-pointer select-none rounded-[4px] px-2 py-1.5 text-sm',
-        state.isFocused && 'bg-accent text-accent-foreground',
+        state.isFocused && 'bg-sidebar/60 text-accent-foreground',
         state.isSelected && 'bg-active font-medium text-white',
         state.isDisabled && 'pointer-events-none opacity-50'
       )

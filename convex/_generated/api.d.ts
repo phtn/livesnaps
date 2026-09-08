@@ -38,6 +38,7 @@ import type * as snaps_handlers from "../snaps/handlers.js";
 import type * as snaps_m from "../snaps/m.js";
 import type * as snaps_q from "../snaps/q.js";
 import type * as submissionLinks_d from "../submissionLinks/d.js";
+import type * as submissionLinks_email from "../submissionLinks/email.js";
 import type * as submissionLinks_helpers from "../submissionLinks/helpers.js";
 import type * as submissionLinks_m from "../submissionLinks/m.js";
 import type * as submissionLinks_q from "../submissionLinks/q.js";
@@ -91,6 +92,7 @@ declare const fullApi: ApiFromModules<{
   "snaps/m": typeof snaps_m;
   "snaps/q": typeof snaps_q;
   "submissionLinks/d": typeof submissionLinks_d;
+  "submissionLinks/email": typeof submissionLinks_email;
   "submissionLinks/helpers": typeof submissionLinks_helpers;
   "submissionLinks/m": typeof submissionLinks_m;
   "submissionLinks/q": typeof submissionLinks_q;

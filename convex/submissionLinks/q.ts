@@ -1,6 +1,6 @@
 import { ConvexError, v } from 'convex/values'
-import { MAX_ACCOUNT_SUBMISSION_LINKS, MAX_SUBMISSION_ANALYTICS_DAYS } from '../../src/lib/accounts/submission-links'
-import { query } from '../_generated/server'
+import { MAX_ACCOUNT_SUBMISSION_LINKS, MAX_SUBMISSION_ANALYTICS_DAYS, normalizeSubmissionLinkColor } from '../../src/lib/accounts/submission-links'
+import { internalQuery, query } from '../_generated/server'
 import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
 import { type SubmissionCounts, submissionCountsSchema, submissionLinkSummarySchema } from './d'
 import { emptySubmissionCounts, resolveSubmissionDestination } from './helpers'
@@ -41,7 +41,30 @@ export const list = query({
       .query('submissionLinks')
       .withIndex('by_accountId_and_slug', (q) => q.eq('accountId', accountId))
       .take(MAX_ACCOUNT_SUBMISSION_LINKS)
-    return { canManage, links: links.map(({ _id, slug, label, enabled }) => ({ _id, slug, label, enabled })) }
+    return { canManage, links: links.map(({ _id, slug, label, color, enabled }) => ({ _id, slug, label, color: normalizeSubmissionLinkColor(color), enabled })) }
+  }
+})
+
+export const getShareEmailContextInternal = internalQuery({
+  args: { accountId: v.id('accounts'), linkId: v.id('submissionLinks') },
+  returns: v.union(v.null(), v.object({
+    accountName: v.string(),
+    accountSlug: v.string(),
+    linkLabel: v.string(),
+    linkSlug: v.string(),
+    enabled: v.boolean()
+  })),
+  handler: async (ctx, { accountId, linkId }) => {
+    const { account } = await requireSubmissionAccountAccess(ctx, accountId)
+    const link = await ctx.db.get('submissionLinks', linkId)
+    if (!link || link.accountId !== accountId) return null
+    return {
+      accountName: account.name,
+      accountSlug: account.slug,
+      linkLabel: link.label,
+      linkSlug: link.slug,
+      enabled: link.enabled
+    }
   }
 })
 
@@ -68,6 +91,7 @@ export const analytics = query({
         linkId: v.id('submissionLinks'),
         slug: v.string(),
         label: v.string(),
+        color: submissionLinkSummarySchema.fields.color,
         enabled: v.boolean()
       })
     ),
@@ -106,10 +130,11 @@ export const analytics = query({
       fromDay,
       toDay,
       totals,
-      links: links.map(({ _id, slug, label, enabled }) => ({
+      links: links.map(({ _id, slug, label, color, enabled }) => ({
         linkId: _id,
         slug,
         label,
+        color: normalizeSubmissionLinkColor(color),
         enabled,
         ...(byLink.get(_id) ?? emptySubmissionCounts())
       })),

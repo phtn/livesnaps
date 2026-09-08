@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { renderAccountInviteEmail } from './account-invite'
+import { EMAIL_WORDMARK_URL, renderAccountInviteEmail } from './account-invite'
 
 const base = {
   accountName: 'Northwind Logistics',
@@ -10,6 +10,14 @@ const base = {
 }
 
 describe('renderAccountInviteEmail', () => {
+  test('uses the official image wordmark in the HTML header', () => {
+    const email = renderAccountInviteEmail(base)
+
+    assert.ok(email.html.includes(`<img src="${EMAIL_WORDMARK_URL}"`))
+    assert.ok(email.html.includes('alt="LiveSnapsNow"'))
+    assert.ok(!email.html.includes('LIVE<span'))
+  })
+
   test('greets by name when there is one', () => {
     const email = renderAccountInviteEmail({ ...base, inviteeName: 'James Carter' })
 

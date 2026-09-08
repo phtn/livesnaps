@@ -4,6 +4,25 @@ import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
 import { writeWorkspaceJson } from '@/lib/accounts/link-client'
 import { parseRecipientDefaults } from '@/lib/verifications/recipient-defaults'
 import { onSuccess } from '@/lib/toast'
+import { Button } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+
+module
+  const cardClassName = 'overflow-hidden rounded-lg border border-border/60 bg-surface shadow-[0_12px_40px_-32px_rgba(0,0,0,0.55)]'
+
+component RecipientList
+  props { emails }: { emails: string[] }
+  if emails.length
+    ul(className='mt-4 divide-y divide-border/50 rounded-sm border border-border/50 bg-background/40')
+      each email, index in emails key email
+        li(className='flex min-w-0 items-center gap-2.5 px-3 py-2.5')
+          span(className='grid size-6 shrink-0 place-items-center rounded-full bg-active/8 font-mono text-2xs text-active') #{index + 1}
+          span(className='min-w-0 flex-1 truncate font-mono text-sm') #{email}
+          if index === 0
+            span(className='shrink-0 rounded-full bg-positive/10 px-2 py-0.5 font-mono text-2xs uppercase tracking-wider text-positive') Default
+  else
+    div(className='mt-4 rounded-sm border border-dashed border-border/60 px-4 py-8 text-center')
+      p(className='text-sm text-muted-foreground') No shared recipients yet.
 
 component RecipientDefaultsForm
   props { accountId, scope, emails, onSaved }: { accountId: string; scope: 'account' | 'member'; emails: string[]; onSaved: () => void }
@@ -28,43 +47,67 @@ component RecipientDefaultsForm
     const pending = useSelector(form.store, state => state.isSubmitting)
     const errors = useSelector(form.store, state => state.errors)
     const canSubmit = useSelector(form.store, state => state.canSubmit)
-  form(className='mt-4 grid gap-3' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
-    label(htmlFor={`${scope}-recipients`} className='text-sm font-medium') Saved recipients
-    textarea(id={`${scope}-recipients`} value={value} disabled={pending} onInput={(event: Event) => form.setFieldValue('emails', (event.currentTarget as HTMLTextAreaElement).value)} aria-describedby={`${scope}-help`} placeholder='reports@example.com' className='min-h-36 w-full rounded-sm border border-border bg-background p-3 font-mono text-sm')
-    p(id={`${scope}-help`} className='text-xs text-muted-foreground') One email address per line, up to 50. The first address is the default. Leave empty to #{scope === 'member' ? 'use account defaults' : 'start with an empty recipient'}.
+    const recipientCount = value.split(/\r?\n/).map(email => email.trim()).filter(Boolean).length
+  form(className='mt-5 grid gap-3' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
+    div(className='flex items-center justify-between gap-3')
+      label(htmlFor={`${scope}-recipients`} className='text-sm font-medium') Recipient addresses
+      span(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{recipientCount} / 50
+    div(className='relative')
+      textarea(id={`${scope}-recipients`} value={value} disabled={pending} onInput={(event: Event) => form.setFieldValue('emails', (event.currentTarget as HTMLTextAreaElement).value)} aria-describedby={`${scope}-help`} placeholder={'reports@example.com\nfinance@example.com'} className='min-h-44 w-full resize-y rounded-sm border border-border/60 bg-sunken/60 p-3 font-mono text-sm leading-7 outline-none transition-colors placeholder:text-muted-foreground/45 focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60')
+    p(id={`${scope}-help`} className='text-xs leading-5 text-muted-foreground') One address per line. The first becomes the default. Leave this empty to #{scope === 'member' ? 'inherit the shared account list' : 'start new messages without a preset recipient'}.
     if errors.length
-      p(className='text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}
-    button(type='submit' disabled={pending || !canSubmit} className='justify-self-start rounded-sm bg-foreground px-4 py-2 text-sm text-background disabled:opacity-50') #{pending ? 'Saving…' : 'Save defaults'}
+      p(className='rounded-sm border border-destructive/35 bg-destructive/8 px-3 py-2 text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}
+    div(className='flex items-center justify-between gap-3 border-t border-border/40 pt-3')
+      p(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{scope === 'member' ? 'Private to you' : 'Workspace-wide'}
+      Button(type='submit' variant='dark' size='sm' icon='check' label='Save recipients' pending={pending} pendingLabel='Saving…' disabled={!canSubmit})
 
 setup
   const account = useWorkspace()
   const { settings, error, refresh } = useRecipientDefaults(account?.id)
 
-section(className='p-5')
-  h2(className='font-poly text-2xl font-medium') Email recipients
-  p(className='mt-2 text-sm text-muted-foreground') Set recipient choices for #{account?.name ?? 'your account'}. Personal defaults take precedence over shared account defaults. You can always type another address when creating or sending a verification.
+section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
+  header(className='flex flex-wrap items-end justify-between gap-4')
+    div
+      p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Delivery preferences
+      h1(className='mt-1 font-poly text-2xl font-medium tracking-tight') Email recipients
+      p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Prepare the recipient lists used when #{account?.name ?? 'your account'} creates or sends a verification. Personal choices override the shared list without changing it for anyone else.
+    div(className='hidden items-center gap-2 rounded-full border border-border/50 bg-sidebar/30 px-3 py-1.5 font-mono text-2xs uppercase tracking-wider text-muted-foreground sm:flex')
+      Icon(name='email-body' className='size-3.5')
+      span First address is default
   if !account
-    p(className='mt-6 text-sm text-muted-foreground') Select an account to configure recipients.
+    p(className='mt-6 rounded-lg border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground') Select an account to configure recipients.
   elseif error
-    div(className='mt-6' role='alert')
+    div(className='mt-6 rounded-lg border border-destructive/40 bg-destructive/8 p-4' role='alert')
       p(className='text-sm text-destructive') #{error}
       button(type='button' onClick={refresh} className='mt-2 text-sm underline') Retry
   elseif !settings
-    p(className='mt-6 text-sm text-muted-foreground') Loading recipient defaults…
+    div(className='mt-6 flex items-center gap-2 rounded-lg border border-border/50 p-4' role='status')
+      Icon(name='spinner-ferris' className='size-4')
+      p(className='text-sm text-muted-foreground') Loading recipient defaults…
   else
-    div(className='mt-6 grid gap-6 lg:grid-cols-2')
-      section(className='rounded-sm border border-border p-4')
-        h3(className='font-medium') Account defaults
-        p(className='mt-1 text-xs text-muted-foreground') Shared with all members of this account.
-        if settings.canManageAccount
-          RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
-        else
-          p(className='mt-3 text-xs text-muted-foreground') An account owner or administrator can update this list.
-          each email in settings.accountEmails key email
-            p(className='mt-2 font-mono text-sm') #{email}
-          empty
-            p(className='mt-3 text-sm text-muted-foreground') No account defaults configured.
-      section(className='rounded-sm border border-border p-4')
-        h3(className='font-medium') My defaults
-        p(className='mt-1 text-xs text-muted-foreground') Your saved recipients for this account. Other members keep their own defaults.
-        RecipientDefaultsForm(accountId={account.id} scope='member' emails={settings.memberEmails} onSaved={refresh})
+    div(className='mt-5 grid items-start gap-4 lg:grid-cols-2')
+      section(className={cardClassName})
+        header(className='border-b border-border/50 bg-sidebar/20 px-4 py-4')
+          div(className='flex items-start justify-between gap-3')
+            div
+              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Shared list
+              h2(className='mt-1 font-sans text-base font-medium') Account defaults
+            span(className='rounded-full border border-border/50 bg-background px-2.5 py-1 font-mono text-2xs text-muted-foreground') #{settings.accountEmails.length}
+          p(className='mt-1 text-xs leading-5 text-muted-foreground') Available to everyone in this account.
+        div(className='p-4')
+          if settings.canManageAccount
+            RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
+          else
+            fragment
+              div(className='rounded-sm border border-border/50 bg-sunken/40 px-3 py-2 text-xs leading-5 text-muted-foreground') An account owner or administrator can update this list.
+              RecipientList(emails={settings.accountEmails})
+      section(className={cardClassName})
+        header(className='border-b border-active/15 bg-active/5 px-4 py-4')
+          div(className='flex items-start justify-between gap-3')
+            div
+              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-active') Personal override
+              h2(className='mt-1 font-sans text-base font-medium') My defaults
+            span(className='rounded-full border border-active/20 bg-background px-2.5 py-1 font-mono text-2xs text-active') #{settings.memberEmails.length}
+          p(className='mt-1 text-xs leading-5 text-muted-foreground') Used only for you; everyone else keeps their own choices.
+        div(className='p-4')
+          RecipientDefaultsForm(accountId={account.id} scope='member' emails={settings.memberEmails} onSaved={refresh})

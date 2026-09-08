@@ -1,10 +1,22 @@
 import { v } from 'convex/values'
 
+export const submissionLinkColorSchema = v.union(
+  v.literal('slate'),
+  v.literal('blue'),
+  v.literal('cyan'),
+  v.literal('emerald'),
+  v.literal('amber'),
+  v.literal('rose'),
+  v.literal('violet')
+)
+
 export const submissionLinkSchema = v.object({
   accountId: v.id('accounts'),
   // The empty slug is the Account's default /account-slug link.
   slug: v.string(),
   label: v.string(),
+  // Optional while existing links adopt the default color on their next edit.
+  color: v.optional(submissionLinkColorSchema),
   enabled: v.boolean(),
   createdAt: v.number(),
   createdBy: v.string(),
@@ -13,7 +25,8 @@ export const submissionLinkSchema = v.object({
 })
 
 export const submissionLinkSummarySchema = submissionLinkSchema.pick('slug', 'label', 'enabled').extend({
-  _id: v.id('submissionLinks')
+  _id: v.id('submissionLinks'),
+  color: submissionLinkColorSchema
 })
 
 export const submissionCountsSchema = v.object({

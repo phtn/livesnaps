@@ -1,20 +1,18 @@
 import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
 import Tabs from '@/components/ui/tabs.btsx'
 import type { PanelRoute } from '@/components/ui/tabs.btsx'
-import {cn} from '@/lib/utils'
 import {Container} from '@/components/admin'
 
 module
-  // One entry per child route under `adminSettingsRoute` in `router.ts`.
+  // Visible destinations under `adminSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
     { id: 'staff', href: '/admin-settings', label: 'Staff', shortLabel: 'Staff', icon: 'member' },
     { id: 'recipients', href: '/admin-settings/recipients', label: 'Email recipients', shortLabel: 'Recipients', icon: 'at' },
-    { id: 'invite', href: '/admin-settings/invite', label: 'Invite', shortLabel: 'Invite', icon: 'add-user' },
     { id: 'links', href: '/admin-settings/links', label: 'Submission links', shortLabel: 'Links', icon: 'link' }
   ]
 
-  // Longest href wins, otherwise the `/admin-settings` index would also claim
-  // `/admin-settings/invite` and both tabs would read as active at once.
+  // Longest href wins, otherwise the `/admin-settings` index would claim every
+  // nested settings route before its more specific tab.
   const panelRoutesByDepth = [...panelRoutes].sort((left, right) => right.href.length - left.href.length)
 
   const resolveActiveId = (pathname: string) =>

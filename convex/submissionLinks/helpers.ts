@@ -5,6 +5,7 @@ import {
   isSubmissionLinkSlug,
   SUBMISSION_LINK_LABEL_MAX_LENGTH
 } from '../../src/lib/accounts/submission-links'
+import { DEFAULT_SUBMISSION_LINK_COLOR } from '../../src/lib/accounts/submission-links'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { getAccountBySlug } from '../accounts/helpers'
@@ -47,6 +48,7 @@ export const ensureDefaultSubmissionLink = async (
     accountId,
     slug: '',
     label: 'Default link',
+    color: DEFAULT_SUBMISSION_LINK_COLOR,
     enabled: true,
     createdAt: now,
     createdBy: tokenIdentifier,

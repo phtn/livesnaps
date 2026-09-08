@@ -42,6 +42,9 @@ const brand = {
   actionInk: '#ffffff'
 }
 
+export const EMAIL_WORDMARK_URL =
+  'https://res.cloudinary.com/dx0heqhhe/image/upload/v1788892525/livesnaps-wordmark_pnd1ts.webp'
+
 /** Email HTML is assembled by string, so every interpolated value is escaped. */
 function escapeHtml(value: string) {
   return value
@@ -98,9 +101,7 @@ export function renderAccountInviteEmail(input: AccountInviteEmailInput): Render
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:${brand.surface};border:1px solid ${brand.hairline};border-radius:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
             <tr>
               <td style="padding:28px 32px 0;">
-                <p style="margin:0;font-size:15px;font-weight:600;letter-spacing:0.02em;color:${brand.ink};">
-                  LIVE<span style="color:#6aa84f;">SNAPS</span>Now
-                </p>
+                <img src="${EMAIL_WORDMARK_URL}" width="156" alt="LiveSnapsNow" style="display:block;width:156px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none;" />
               </td>
             </tr>
             <tr>

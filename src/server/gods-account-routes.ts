@@ -16,6 +16,8 @@ export type GodsAccountListResponse = {
 
 export type GodsAccountCreateResponse = GodsAccountListResponse
 
+export type GodsAccountSlugAvailabilityResponse = Awaited<ReturnType<typeof checkAccountSlugAvailability>>
+
 export type GodsAccountDetailResponse = {
   account: NonNullable<Awaited<ReturnType<typeof getAccountBySlug>>>
   members: Awaited<ReturnType<typeof listAccountMembers>>
@@ -66,6 +68,9 @@ async function getGodsConvexClient(
 
 const listAccounts = (client: GodsConvexClient) =>
   client.query(api.accounts.q.listForAdmin, { limit: ACCOUNT_LIST_LIMIT })
+
+const checkAccountSlugAvailability = (client: GodsConvexClient, slug: string) =>
+  client.query(api.accounts.q.checkSlugAvailability, { slug })
 
 const getAccountBySlug = (client: GodsConvexClient, slug: string) => client.query(api.accounts.q.getBySlug, { slug })
 
@@ -154,6 +159,7 @@ function handleRouteError(error: unknown, fallback: string) {
 
 /**
  * `GET /api/gods/accounts` — every account and its status.
+ * `GET /api/gods/accounts?slug=...` — validate one prospective slug.
  * `POST /api/gods/accounts` — provision a new account.
  */
 export async function handleGodsAccounts(
@@ -176,6 +182,8 @@ export async function handleGodsAccounts(
     const client = await getGodsConvexClient(session, environment)
 
     if (request.method === 'GET') {
+      const slug = new URL(request.url).searchParams.get('slug')
+      if (slug !== null) return json(await checkAccountSlugAvailability(client, slug))
       return json({ accounts: await listAccounts(client) })
     }
 

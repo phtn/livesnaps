@@ -1,7 +1,8 @@
 import { ConvexError, v } from 'convex/values'
-import { isSubmissionLinkSlug, MAX_ACCOUNT_SUBMISSION_LINKS } from '../../src/lib/accounts/submission-links'
+import { DEFAULT_SUBMISSION_LINK_COLOR, isSubmissionLinkSlug, MAX_ACCOUNT_SUBMISSION_LINKS } from '../../src/lib/accounts/submission-links'
 import { mutation } from '../_generated/server'
 import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
+import { submissionLinkColorSchema } from './d'
 import { ensureDefaultSubmissionLink, getSubmissionLink, normalizeLinkLabel } from './helpers'
 
 export const ensureDefault = mutation({
@@ -14,9 +15,9 @@ export const ensureDefault = mutation({
 })
 
 export const create = mutation({
-  args: { accountId: v.id('accounts'), slug: v.string(), label: v.string() },
+  args: { accountId: v.id('accounts'), slug: v.string(), label: v.string(), color: v.optional(submissionLinkColorSchema) },
   returns: v.id('submissionLinks'),
-  handler: async (ctx, { accountId, slug, label }) => {
+  handler: async (ctx, { accountId, slug, label, color }) => {
     const { identity } = await requireSubmissionAccountAccess(ctx, accountId, 'admin')
     const normalizedSlug = slug.trim().toLowerCase()
     if (!isSubmissionLinkSlug(normalizedSlug)) {
@@ -39,6 +40,7 @@ export const create = mutation({
       accountId,
       slug: normalizedSlug,
       label: normalizedLabel,
+      color: color ?? DEFAULT_SUBMISSION_LINK_COLOR,
       enabled: true,
       createdAt: now,
       createdBy: identity.tokenIdentifier,
@@ -49,14 +51,15 @@ export const create = mutation({
 })
 
 export const update = mutation({
-  args: { linkId: v.id('submissionLinks'), label: v.optional(v.string()), enabled: v.optional(v.boolean()) },
+  args: { linkId: v.id('submissionLinks'), label: v.optional(v.string()), color: v.optional(submissionLinkColorSchema), enabled: v.optional(v.boolean()) },
   returns: v.id('submissionLinks'),
-  handler: async (ctx, { linkId, label, enabled }) => {
+  handler: async (ctx, { linkId, label, color, enabled }) => {
     const link = await ctx.db.get(linkId)
     if (!link) throw new ConvexError('Submission link not found.')
     const { identity } = await requireSubmissionAccountAccess(ctx, link.accountId, 'admin')
     await ctx.db.patch(linkId, {
       ...(label === undefined ? {} : { label: normalizeLinkLabel(label) }),
+      ...(color === undefined ? {} : { color }),
       ...(enabled === undefined ? {} : { enabled }),
       updatedAt: Date.now(),
       updatedBy: identity.tokenIdentifier

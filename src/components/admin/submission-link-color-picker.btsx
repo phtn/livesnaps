@@ -1,0 +1,19 @@
+import { SUBMISSION_LINK_COLORS, type SubmissionLinkColor } from '@/lib/accounts/submission-links'
+
+props { value, onChange, disabled = false, label = 'Link color' }: { value: SubmissionLinkColor; onChange: (value: SubmissionLinkColor) => void; disabled?: boolean; label?: string }
+
+div
+  p(className='text-sm font-medium') #{label}
+  div(role='radiogroup' aria-label={label} className='mt-2 flex flex-wrap gap-2')
+    each option in SUBMISSION_LINK_COLORS key option.value
+      button(
+        ~ type='button'
+        ~ role='radio'
+        ~ aria-checked={value === option.value}
+        ~ aria-label={option.label}
+        ~ title={option.label}
+        ~ disabled={disabled}
+        ~ onClick={() => onChange(option.value)}
+        ~ className={`grid size-8 place-items-center rounded-full border transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ${value === option.value ? 'border-foreground/60 bg-foreground/6 shadow-sm' : 'border-transparent'}`}
+        ~ )
+        span(className='size-4 rounded-full ring-1 ring-black/10' style={{ backgroundColor: option.hex }})

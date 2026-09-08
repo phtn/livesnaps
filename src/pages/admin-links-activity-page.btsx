@@ -1,0 +1,123 @@
+import { useEffect, useState } from 'octane'
+import { useField, useForm } from '@octanejs/tanstack-form'
+import { Link } from '@octanejs/tanstack-router'
+import type { FunctionReturnType } from 'convex/server'
+import { api } from '../../convex/_generated/api'
+import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+import { workspaceJson } from '@/lib/accounts/link-client'
+import { Button } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+import { submissionLinkColorHex } from '@/lib/accounts/submission-links'
+
+module
+  type Analytics = FunctionReturnType<typeof api.submissionLinks.q.analytics>
+  const cardClass = 'overflow-hidden rounded-lg border border-border/60 bg-surface shadow-[0_12px_40px_-32px_rgba(0,0,0,0.55)]'
+  const utcDay = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10)
+  const percentage = (completed: number, started: number) => started ? `${Math.round(completed / started * 100)}%` : '—'
+
+setup
+  const account = useWorkspace()
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [reloadToken, setReloadToken] = useState(0)
+  const [range, setRange] = useState({ fromDay: utcDay(Date.now() - 29 * 86_400_000), toDay: utcDay(Date.now()) })
+  const dateForm = useForm({
+    defaultValues: range,
+    onSubmit: async ({ value }) => {
+      const days = (Date.parse(value.toDay) - Date.parse(value.fromDay)) / 86_400_000 + 1
+      if (!Number.isFinite(days) || days < 1 || days > 90) {
+        setError('Choose a date range of 1–90 days.')
+        return
+      }
+      setRange({ ...value })
+    }
+  })
+  const fromDay = useField({ form: dateForm, name: 'fromDay' })
+  const toDay = useField({ form: dateForm, name: 'toDay' })
+
+  useEffect(() => {
+    if (!account) return
+    const controller = new AbortController()
+    setLoading(true)
+    const statsUrl = accountEndpoint(`/api/admin/submission-analytics?fromDay=${range.fromDay}&toDay=${range.toDay}`, account.id)
+    workspaceJson<Analytics>(statsUrl, { signal: controller.signal }).then((result) => {
+      if (controller.signal.aborted) return
+      setAnalytics(result)
+      setError('')
+    }).catch((failure) => {
+      if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Unable to load submission activity.')
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [account?.id, range.fromDay, range.toDay, reloadToken])
+
+  const peak = Math.max(1, ...(analytics?.days.map(day => day.started) ?? []))
+  const submitDates = (event: SubmitEvent) => { event.preventDefault(); void dateForm.handleSubmit() }
+
+section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
+  div(className='flex flex-wrap items-start justify-between gap-4')
+    div
+      Link(to='/admin-settings/links' className='inline-flex items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-muted-foreground hover:text-foreground')
+        Icon(name='arrow-left' className='size-3.5')
+        span Submission links
+      p(className='mt-4 font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Performance
+      h1(className='mt-1 font-poly text-2xl font-medium tracking-tight') Submission activity
+      p(className='mt-1 max-w-2xl text-sm leading-6 text-muted-foreground') Compare starts, completions, and drop-off across every intake link for #{account?.name ?? 'this account'}.
+    Button(type='button' variant='secondary' size='sm' icon='refresh' label='Refresh' pending={loading} pendingLabel='Loading…' onClick={() => setReloadToken(token => token + 1)})
+
+  if error
+    p(role='alert' className='mt-5 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{error}
+
+  if analytics
+    fragment
+      section(className={`${cardClass} mt-5`})
+        header(className='flex flex-wrap items-end justify-between gap-4 border-b border-border/50 bg-sidebar/20 px-4 py-4')
+          div
+            p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Performance window
+            h2(className='mt-1 text-base font-medium') All submission links
+          form(className='flex flex-wrap items-end gap-2' onSubmit={submitDates})
+            label(className='space-y-1 text-xs text-muted-foreground')
+              span From · UTC
+              input(type='date' required value={fromDay.state.value} onInput={(event: Event) => fromDay.handleChange((event.currentTarget as HTMLInputElement).value)} className='h-8 rounded-sm border border-border/60 bg-background px-2 text-xs')
+            label(className='space-y-1 text-xs text-muted-foreground')
+              span Through · UTC
+              input(type='date' required value={toDay.state.value} onInput={(event: Event) => toDay.handleChange((event.currentTarget as HTMLInputElement).value)} className='h-8 rounded-sm border border-border/60 bg-background px-2 text-xs')
+            Button(type='submit' variant='secondary' size='sm' label='Apply')
+        div(className='space-y-5 p-4')
+          div(className='grid grid-cols-2 overflow-hidden rounded-sm border border-border/50 bg-sunken/30 md:grid-cols-4')
+            each metric in [{ label: 'Started', value: analytics.totals.started }, { label: 'Completed', value: analytics.totals.completed }, { label: 'Abandoned', value: analytics.totals.abandoned }, { label: 'Completion rate', value: percentage(analytics.totals.completed, analytics.totals.started) }] key metric.label
+              div(className='border-b border-r border-border/50 p-3 last:border-r-0 md:border-b-0')
+                p(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{metric.label}
+                p(className='mt-2 font-mono text-2xl tracking-tight') #{metric.value}
+          div
+            div(className='flex items-center justify-between gap-3')
+              h3(className='text-sm font-medium') Sessions started per day
+              span(className='font-mono text-2xs text-muted-foreground') #{analytics.fromDay} — #{analytics.toDay}
+            div(role='img' aria-label={`Daily session starts from ${analytics.fromDay} through ${analytics.toDay} UTC. ${analytics.totals.started} total.`} className='mt-4 flex h-32 items-end gap-1 rounded-sm border-b border-border/60 px-1')
+              each day in analytics.days key day.day
+                div(title={`${day.day} UTC: ${day.started} started, ${day.completed} completed`} className='group flex h-full flex-1 items-end')
+                  div(className='w-full rounded-t-sm bg-active/55 transition-colors group-hover:bg-active' style={{ height: `${day.started / peak * 100}%`, minHeight: day.started ? '2px' : '0' }})
+            p(className='mt-3 text-xs leading-5 text-muted-foreground') Counts use the UTC date a session started. Completion includes sessions still in progress · #{analytics.totals.cancelled} cancelled · #{analytics.totals.invalidated} invalidated.
+
+      div(className='mt-6')
+        div
+          p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') By link
+          h2(className='mt-1 text-base font-medium') Channel performance
+        ul(className='mt-3 divide-y divide-sidebar-border divide-dashed overflow-hidden rounded-lg border border-sidebar-border')
+          each link in analytics.links key link.linkId
+            li
+              Link(to='/admin-settings/links/$linkId' params={{ linkId: String(link.linkId) }} className='flex flex-wrap items-center justify-between gap-3 border-l-4 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent' style={{ borderLeftColor: submissionLinkColorHex(link.color) }})
+                div(className='flex min-w-0 items-center gap-2.5')
+                  span(className='size-2.5 shrink-0 rounded-full' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
+                  div(className='min-w-0')
+                    p(className='truncate text-sm text-foreground') #{link.label}
+                    p(className='mt-0.5 truncate font-mono text-xs text-muted-foreground') /#{link.slug}
+                div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
+                  span(className='hidden font-mono text-xs text-muted-foreground sm:inline') #{link.started} started
+                  span(className='hidden font-mono text-xs text-muted-foreground md:inline') #{link.completed} completed
+                  span(className='font-mono text-xs text-foreground') #{percentage(link.completed, link.started)}
+                  Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')
+  elseif loading
+    div(className='mt-6 flex items-center gap-2')
+      Icon(name='spinner-ferris' className='size-4')
+      p(className='text-sm text-muted-foreground') Loading submission activity…

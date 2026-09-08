@@ -1,10 +1,11 @@
 import { ACCOUNT_STATUS_VALUES, type AccountPlan, type AccountStatus } from '@/lib/accounts/accounts'
+import type { ContactAdminAction } from '@/server/gods-account-admin-access'
 import type {
   GodsAccountCreateResponse,
   GodsAccountDetailResponse,
-  GodsAccountListResponse
+  GodsAccountListResponse,
+  GodsAccountSlugAvailabilityResponse
 } from '@/server/gods-account-routes'
-import type { ContactAdminAction } from '@/server/gods-account-admin-access'
 export type { ContactAdminAction } from '@/server/gods-account-admin-access'
 
 // Type-only import: the Convex and Firebase Admin modules behind this response
@@ -54,6 +55,14 @@ async function requestJson<T>(input: string, init: RequestInit, fallback: string
 
 export function fetchAccounts(signal?: AbortSignal) {
   return requestJson<GodsAccountListResponse>(GODS_ACCOUNTS_ENDPOINT, { signal }, 'Could not load the account roster.')
+}
+
+export function checkAccountSlugAvailability(slug: string, signal?: AbortSignal) {
+  return requestJson<GodsAccountSlugAvailabilityResponse>(
+    `${GODS_ACCOUNTS_ENDPOINT}?slug=${encodeURIComponent(slug)}`,
+    { signal },
+    'Could not validate this slug.'
+  )
 }
 
 export function fetchAccount(slug: string, signal?: AbortSignal) {
@@ -112,10 +121,10 @@ export const ACCOUNT_STATUS_FILTER_LABEL: Record<AccountStatusFilter, string> = 
 // Used with `Badge`'s `plain` variant so the whole status palette lives here
 // rather than being split between the badge's variants and the call site.
 export const ACCOUNT_STATUS_TONE: Record<AccountStatus, string> = {
-  pending: 'border-amber-500/25 bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  confirmed: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  active: 'border-emerald-500/25 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-  suspended: 'border-destructive/25 bg-destructive/10 text-destructive',
+  pending: 'border-orange-400/25 bg-orange-500/8 text-orange-700 dark:text-orange-300',
+  confirmed: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400',
+  active: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400',
+  suspended: 'border-destructive/25 bg-destructive/8 text-destructive',
   closed: 'border-border/60 bg-foreground/5 text-muted-foreground'
 }
 

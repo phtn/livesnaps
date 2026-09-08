@@ -61,6 +61,12 @@ module
     queryState?: QueryState
     title?: string
     /**
+     * A compact table-scoping control. It shares the title row on desktop and
+     * moves directly after the filter control on mobile without rendering a
+     * second copy of the control.
+     */
+    titleActions?: OctaneNode
+    /**
      * Namespace for this table's query-string keys (`q` becomes `<prefix>q`,
      * and so on). Set it when more than one table shares a route so they don't
      * write over each other's state.
@@ -126,6 +132,7 @@ props {
   ~ initialSorting = [],
   ~ pageSizes = DEFAULT_PAGE_SIZES,
   ~ queryState = IDLE_QUERY_STATE,
+  ~ titleActions,
   ~ urlKeyPrefix = '',
   ~ children,
   ~ toolbarActions,
@@ -320,6 +327,9 @@ section(className='relative overflow-hidden rounded-xs _border border-sidebar-bo
           ~ columnFilters={columnFilters}
           ~ onReset={handleResetFilters}
           ~ )
+      if titleActions && !isSearchExpanded
+        div(className='md:absolute md:right-2 md:top-2')
+          fragment #{titleActions}
     div(className={cn('flex items-center gap-2.5 font-mono text-sm text-active', isSearchExpanded && 'w-full md:w-auto')})
       Popper(condition={isQuerying && !isSearchExpanded} lead={queryLabel} value={queryPercent.toFixed(0)} trail='%' role='status' className='text-orange-500 justify-end')
       Popper(condition={queryState.phase === 'error' && !isSearchExpanded} lead='error' trail='index interrupted')

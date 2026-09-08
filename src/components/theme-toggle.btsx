@@ -14,4 +14,4 @@ button(
   ~ aria-pressed={theme === 'dark'}
   ~ title={title}
   ~ )
-  Icon(name='theme')
+  Icon(name='theme' className='size-6 md:size-5')

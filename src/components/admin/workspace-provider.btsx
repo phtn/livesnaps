@@ -1,53 +1,26 @@
-import { useEffect, useState } from 'octane'
 import { Outlet } from '@octanejs/tanstack-router'
 import { WorkspaceContext, type WorkspaceAccount } from '@/hooks/use-workspace'
 
-props { uid }: { uid: string }
-setup
-  const [accounts, setAccounts] = useState<WorkspaceAccount[] | null>(null)
-  const [selectedId, setSelectedId] = useState('')
-  const [error, setError] = useState('')
-  const [reload, setReload] = useState(0)
-  const storageKey = `livesnaps:workspace:${uid}`
-  useEffect(() => {
-    const controller = new AbortController()
-    void (async () => {
-      try {
-        const response = await fetch('/api/admin/accounts', { credentials: 'same-origin', signal: controller.signal })
-        if (!response.ok) throw new Error('Unable to load your Accounts. Sign in again or retry.')
-        const rows = await response.json() as WorkspaceAccount[]
-        if (controller.signal.aborted) return
-        let saved = ''
-        try { saved = sessionStorage.getItem(storageKey) ?? '' } catch {}
-        setAccounts(rows)
-        setSelectedId(rows.some(row => row.id === saved) ? saved : rows.length === 1 ? rows[0].id : '')
-        setError('')
-      } catch (error) {
-        if (!controller.signal.aborted) setError(error instanceof Error ? error.message : 'Unable to load Accounts.')
-      }
-    })()
-    return () => controller.abort()
-  }, [storageKey, reload])
-  const account = accounts?.find(row => row.id === selectedId) ?? null
-  const selectAccount = (event: Event) => {
-    const id = (event.currentTarget as HTMLSelectElement).value
-    setSelectedId(id)
-    try { sessionStorage.setItem(storageKey, id) } catch {}
+module
+  /**
+   * The Account list and the picker live in the shell's sidebar, so this only
+   * publishes the chosen Account to the routes below it.
+   */
+  export interface WorkspaceProviderProps {
+    account: WorkspaceAccount | null
+    /** Null until the first read settles, so loading reads differently to empty. */
+    accounts: WorkspaceAccount[] | null
+    error: string
+    onRetry: () => void
+    uid: string
   }
 
-section(className='flex min-h-14 flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3')
-  label(className='flex items-center gap-3 text-sm font-medium')
-    span Account
-    select(aria-label='Active Account' value={selectedId} onChange={selectAccount} className='max-w-64 rounded-md border border-border bg-background px-3 py-1.5 text-sm' disabled={!accounts?.length})
-      option(value='' disabled) Select an Account
-      each row in accounts ?? [] key row.id
-        option(value={row.id}) #{row.name}
-  if account
-    span(className='text-xs text-muted-foreground') All Account members share these submissions.
+props { account, accounts, error, onRetry, uid }: WorkspaceProviderProps
+
 if error
   div(role='alert' className='p-6 text-sm text-destructive')
     p #{error}
-    button(type='button' className='mt-3 underline' onClick={() => setReload(value => value + 1)}) Retry
+    button(type='button' className='mt-3 underline' onClick={onRetry}) Retry
 elseif accounts === null
   p(className='p-6 text-sm text-muted-foreground') Loading your Accounts…
 elseif accounts.length === 0

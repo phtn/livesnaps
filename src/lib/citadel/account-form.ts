@@ -7,11 +7,13 @@ import {
   ACCOUNT_PHONE_MAX_LENGTH,
   ACCOUNT_PLAN_VALUES,
   normalizeAccountWebsiteUrl,
+  toAccountSlug,
   type AccountPlan,
   DEFAULT_ACCOUNT_PLAN,
   isAccountEmailAddress,
   isAccountSlug
 } from '@/lib/accounts/accounts'
+import { isPublicAccountSlug, RESERVED_ACCOUNT_SLUGS } from '@/lib/accounts/submission-links'
 import type { CreateAccountInput } from '@/lib/citadel/accounts'
 import { readErrorMessage } from '@/lib/citadel/errors'
 
@@ -109,8 +111,8 @@ export function validateAccountForm(values: AccountFormValues) {
   if (name.length === 0) fields.name = 'An account name is required.'
   else if (name.length > ACCOUNT_NAME_MAX_LENGTH) fields.name = `Keep this under ${ACCOUNT_NAME_MAX_LENGTH} characters.`
 
-  const slug = values.slug.trim()
-  if (slug.length > 0 && !isAccountSlug(slug)) fields.slug = 'Use lowercase letters, numbers, and single dashes.'
+  const slugMessage = validateAccountSlug(resolveAccountSlug(values))
+  if (slugMessage) fields.slug = slugMessage
 
   if (values.contactName.trim().length === 0) fields.contactName = 'A contact name is required.'
 
@@ -134,6 +136,19 @@ export function validateAccountForm(values: AccountFormValues) {
     fields.notes = `Keep this under ${ACCOUNT_NOTES_MAX_LENGTH} characters.`
 
   return Object.keys(fields).length > 0 ? { fields } : undefined
+}
+
+/** The exact slug the create mutation will receive, including its name fallback. */
+export const resolveAccountSlug = (values: Pick<AccountFormValues, 'name' | 'slug'>) =>
+  values.slug.trim() || toAccountSlug(values.name)
+
+/** Synchronous slug rules shared by the form and the availability workflow. */
+export function validateAccountSlug(slug: string) {
+  if (!slug) return 'Enter an account name or a custom slug.'
+  if (!isAccountSlug(slug)) return 'Use lowercase letters, numbers, and single dashes.'
+  if (RESERVED_ACCOUNT_SLUGS.has(slug)) return `“${slug}” is reserved by the application. Choose another slug.`
+  if (!isPublicAccountSlug(slug)) return 'This slug cannot be used for a public account.'
+  return null
 }
 
 const trimmed = (value: string) => {
