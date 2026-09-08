@@ -1,3 +1,71 @@
+import { useEffect, useState } from 'octane'
+import { useForm, useStore } from '@octanejs/tanstack-form'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { api } from '../../convex/_generated/api'
+import { REPORT_FIELD_GROUPS } from '@/lib/snaps/report-settings'
+import { updateReportField } from '@/lib/snaps/report-settings-client'
+
+component ReportField
+  props { fieldKey, label, included }: { fieldKey: string; label: string; included: boolean }
+  setup
+    const [error, setError] = useState<string | null>(null)
+    const [saved, setSaved] = useState(false)
+    const form = useForm({
+      defaultValues: { included },
+      onSubmit: async ({ value }) => {
+        setError(null)
+        setSaved(false)
+        try {
+          await updateReportField(fieldKey, value.included)
+          setSaved(true)
+        } catch (failure) {
+          form.setFieldValue('included', !value.included)
+          setError(failure instanceof Error ? failure.message : 'Could not save this change.')
+        }
+      }
+    })
+    const checked = useStore(form.store, state => state.values.included)
+    const saving = useStore(form.store, state => state.isSubmitting)
+    useEffect(() => { form.setFieldValue('included', included) }, [included])
+    const change = (event: Event) => {
+      form.setFieldValue('included', (event.currentTarget as HTMLInputElement).checked)
+      void form.handleSubmit()
+    }
+  div(className='rounded-sm border border-border/50 px-3 py-2.5')
+    label(className='flex cursor-pointer items-center gap-3 text-sm')
+      input(type='checkbox' checked={checked} disabled={saving} onChange={change} aria-describedby={error ? `${fieldKey}-error` : undefined} className='size-4 shrink-0 accent-foreground disabled:opacity-50')
+      span(className='flex-1 capitalize') #{label}
+      span(className='text-xs text-muted-foreground' role='status') #{saving ? 'Saving…' : saved ? 'Saved' : ''}
+    if error
+      p(id={`${fieldKey}-error`} className='mt-2 text-xs text-destructive' role='alert') #{error}
+
+component ReportSettings
+  setup
+    const settings = useConvexQuery(api.snapSettings.q.getReport, {})
+  if !settings
+    p(className='mt-6 text-sm text-muted-foreground' role='status') Loading report settings…
+  else
+    div(className='mt-6 space-y-7')
+      each group in REPORT_FIELD_GROUPS key group.id
+        fieldset(className='rounded-sm border border-border/70 p-4')
+          legend(className='px-2 font-medium text-sm') #{group.title}
+          if group.id === 'attributes'
+            p(className='mb-3 text-xs text-muted-foreground') Includes all custom attribute paths, which vary between snaps.
+          elseif group.id === 'evidence-item'
+            p(className='mb-3 text-xs text-muted-foreground') These choices apply to every photo in the evidence manifest.
+          elseif group.id === 'location'
+            p(className='mb-3 text-xs text-muted-foreground') Address components includes provider-specific fields. Optional fields appear only when recorded.
+          div(className='grid gap-2 sm:grid-cols-2 xl:grid-cols-3')
+            each field in group.fields key field.key
+              ReportField(fieldKey={field.key} label={field.label} included={!settings.excludedFields.includes(field.key)})
+
 section(className='p-5')
-  h2(className='font-poly text-2xl font-medium') General
-  p(className='mt-2 text-sm text-muted-foreground') Citadel-wide configuration.
+  h2(className='font-poly text-2xl font-medium') Snap full report
+  p(className='mt-2 max-w-3xl text-sm text-muted-foreground') Choose the information to include, grouped in PDF order. Each change saves automatically and applies to reports for every account.
+  p(className='mt-2 max-w-3xl text-xs text-muted-foreground') Checked fields are included when available. Empty sections are omitted. Existing downloaded files are unchanged.
+  try
+    ReportSettings
+  catch error, reset
+    div(className='mt-6 text-sm text-destructive' role='alert')
+      p Could not load report settings.
+      button(type='button' onClick={() => reset()} className='mt-2 underline') Retry

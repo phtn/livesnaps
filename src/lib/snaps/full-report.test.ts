@@ -1,3 +1,4 @@
+import { REPORT_FIELD_GROUPS } from './report-settings'
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import type { Doc, Id } from '../../../convex/_generated/dataModel'
@@ -235,4 +236,27 @@ describe('full proof report reshaping', () => {
       ['bytes:2:0102', 'NaN', 'Infinity']
     )
   })
+})
+
+test('global exclusions remove fields, repeated evidence fields, empty sections and header values', () => {
+  const snap = createSnap()
+  const document = createSnapFullReportDocument(snap, new Date(), ['applicant:email', 'evidence-item:r2-object-key', 'header:record-id', 'header:upload-id', 'header:generated-timestamp', 'attributes:all-supplemental-attributes'])
+  assert.equal(document.recordId, '')
+  assert.equal(document.uploadId, '')
+  assert.equal(document.showGeneratedAt, false)
+  assert.ok(!document.blocks.some(block => block.id === 'attributes'))
+  assert.ok(!document.blocks.find(block => block.id === 'applicant')?.fields.some(field => field.label === 'Email'))
+  const evidence = document.blocks.find(block => block.kind === 'evidence')
+  assert.ok(evidence?.kind === 'evidence')
+  assert.ok(evidence.items.every(item => !item.fields.some(field => field.label === 'R2 object key')))
+})
+
+test('the catalogue can exclude every report block, including conditional fields', () => {
+  const snap = createSnap()
+  if (snap.location) snap.location.address.city = 'Different city'
+  const document = createSnapFullReportDocument(snap, new Date(), REPORT_FIELD_GROUPS.flatMap(group => group.fields.map(field => field.key)))
+  assert.deepEqual(document.blocks, [])
+  assert.deepEqual(document.metrics, [])
+  assert.equal(document.title, 'Snap report')
+  assert.equal(document.subtitle, '')
 })

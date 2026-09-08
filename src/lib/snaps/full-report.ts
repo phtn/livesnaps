@@ -1,3 +1,4 @@
+import { reportFieldKey } from './report-settings'
 import type { Doc } from '../../../convex/_generated/dataModel'
 import type { SnapCaptureIntegrity, SnapDeviceLocation } from '../../../convex/snaps/d'
 
@@ -48,6 +49,7 @@ export type SnapReportBlock = SnapReportSectionBlock | SnapReportCalloutBlock | 
 
 export interface SnapFullReportDocument {
   blocks: SnapReportBlock[]
+  showGeneratedAt?: boolean
   generatedAt: string
   kind: 'snap-full-row-report'
   metrics: Array<{
@@ -343,7 +345,7 @@ const canonicalLocationFields = (snap: Doc<'snaps'>): { description: string; fie
   }
 }
 
-export const createSnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = new Date()): SnapFullReportDocument => {
+export const createSnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = new Date(), excludedFields: readonly string[] = []): SnapFullReportDocument => {
   const session = snap.location_session
   const status = session?.status ?? 'pending'
   const accuracy = session?.best_accuracy_meters ?? snap.location?.best_accuracy_meters ?? null
@@ -520,7 +522,7 @@ export const createSnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = n
     title: 'Record provenance'
   })
 
-  return {
+  return filterSnapReport({
     blocks,
     generatedAt: generatedAt.toISOString(),
     kind: 'snap-full-row-report',
@@ -545,5 +547,36 @@ export const createSnapFullReportDocument = (snap: Doc<'snaps'>, generatedAt = n
     title: snap.plate_number || snap.metadata.upload_id,
     uploadId: snap.metadata.upload_id,
     version: 1
+  }, excludedFields)
+}
+
+/** Apply one global policy to the document consumed by preview and export. */
+export function filterSnapReport(document: SnapFullReportDocument, excludedFields: readonly string[]): SnapFullReportDocument {
+  const excluded = new Set(excludedFields)
+  const included = (group: string, label: string) => !excluded.has(reportFieldKey(group, label))
+  const fieldsFor = (group: string, fields: SnapReportField[]) => fields.filter(field => included(group,
+    group === 'attributes' ? 'All supplemental attributes' :
+    group === 'location' && field.label.startsWith('Component / ') ? 'Address components' : field.label))
+  const blocks = document.blocks.flatMap<SnapReportBlock>(block => {
+    const fields = fieldsFor(block.id, block.fields)
+    if (block.kind === 'evidence') {
+      const items = block.items.map(item => ({ ...item,
+        title: included('evidence-item', 'Label') ? item.title : '',
+        fields: fieldsFor('evidence-item', item.fields)
+      })).filter(item => item.title || item.fields.length)
+      return fields.length || items.length ? [{ ...block, fields, items }] : []
+    }
+    return fields.length ? [{ ...block, fields }] : []
+  })
+  return {
+    ...document, blocks,
+    showGeneratedAt: included('header', 'Generated timestamp'),
+    recordId: included('header', 'Record ID') ? document.recordId : '',
+    uploadId: included('header', 'Upload ID') ? document.uploadId : '',
+    title: included('header', 'Plate number') && included('vehicle', 'Plate number') && (document.title !== document.uploadId || included('header', 'Upload ID')) ? document.title : 'Snap report',
+    subtitle: document.subtitle.split(' / ').filter((_, index) => index === 0
+      ? included('header', 'Vehicle') && ['Year', 'Make', 'Model'].every(label => included('vehicle', label))
+      : included('header', 'Applicant') && included('applicant', 'Full name')).join(' / '),
+    metrics: document.metrics.filter(metric => included('header', metric.label))
   }
 }

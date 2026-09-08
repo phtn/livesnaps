@@ -6,7 +6,7 @@ import { createContactAdminAccessService } from '../src/server/gods-account-admi
 
 const query = vi.fn()
 const mutation = vi.fn()
-const deps = { getByUid: vi.fn(), getByEmail: vi.fn(), revoke: vi.fn() }
+const deps = { getByUid: vi.fn(), getByEmail: vi.fn(), revoke: vi.fn(), grant: vi.fn() }
 const service = createContactAdminAccessService(deps)
 type Client = Parameters<typeof service.read>[0]
 const client = { query, mutation } as unknown as Client
@@ -92,3 +92,18 @@ test.each(['self', 'topg', 'stale-member'])('refuses %s revocation', async (kind
   expect(mutation).not.toHaveBeenCalled()
   expect(deps.revoke).not.toHaveBeenCalled()
 })
+
+ test('grant is actionable only after contact confirmation and uses the resolved contact', async () => {
+  query.mockResolvedValue({ member: { _id: 'member', status: 'invited', adminConfirmation: 'confirmed' }, firebaseUid: 'contact-uid' })
+  deps.getByUid.mockResolvedValue({ ...target, email: 'contact@example.com', emailVerified: true, customClaims: {} })
+  expect(await service.read(client, account, actor)).toMatchObject({ canGrant: true })
+  await service.change(client, account, actor, 'grant-admin', 'member')
+  expect(deps.grant).toHaveBeenCalledExactlyOnceWith('contact-uid', 'account', undefined)
+ })
+ test.each(['pending', 'complete', 'cancelled', 'revoking', 'revoked'])('hides and refuses grant for %s', async (stage) => {
+  query.mockResolvedValue({ member: { _id: 'member', status: 'invited', adminConfirmation: stage }, firebaseUid: 'contact-uid' })
+  deps.getByUid.mockResolvedValue({ ...target, email: 'contact@example.com', emailVerified: true, customClaims: {} })
+  expect(await service.read(client, account, actor)).toMatchObject({ canGrant: false })
+  await expect(service.change(client, account, actor, 'grant-admin', 'member')).rejects.toThrow(/No admin grant/)
+  expect(deps.grant).not.toHaveBeenCalled()
+ })

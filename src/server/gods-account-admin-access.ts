@@ -6,12 +6,15 @@ import { revokeAccountAdminClaim } from '@/lib/firebase-admin/account-admin-acce
 import { canViewTopgFirebaseUser, type FirebaseCustomClaims } from '@/lib/firebase-admin/custom-claims'
 import { readFirebaseCustomClaims } from '@/lib/firebase-admin/god-directory'
 import { type createConvexClient, RequestError } from './convex'
+import { mintAdminIdToken } from '@/lib/firebase-admin/admin-id-token'
+import { handleAccountAdminConfirmation } from './account-confirmation-routes'
 
-export type ContactAdminAction = 'cancel-admin-invite' | 'revoke-admin'
+export type ContactAdminAction = 'cancel-admin-invite' | 'revoke-admin' | 'grant-admin'
 export type ContactAdminAccess = {
   memberId: Id<'accountMembers'> | null
   status: 'pending' | 'confirming' | 'granted' | 'cancelled' | 'revoking' | 'revoked' | 'not-granted' | 'unavailable'
   claimGranted: boolean | null
+  canGrant: boolean
   canCancel: boolean
   canRevoke: boolean
   error: string | null
@@ -21,7 +24,16 @@ type Client = Pick<ReturnType<typeof createConvexClient>, 'query' | 'mutation'>
 const dependencies = {
   getByUid: getFirebaseUserByUid,
   getByEmail: getFirebaseUserByEmail,
-  revoke: revokeAccountAdminClaim
+  revoke: revokeAccountAdminClaim,
+  async grant(uid: string, accountId: string, convexUrl?: string) {
+    const token = await mintAdminIdToken(uid)
+    const response = await handleAccountAdminConfirmation(new Request('https://internal/api/account/confirm', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ accountId })
+    }), { convexUrl })
+    if (!response.ok) throw new RequestError(502, 'Could not finish granting admin access. Refresh and try again.')
+  }
 }
 
 export function createContactAdminAccessService(deps = dependencies) {
@@ -79,6 +91,11 @@ export function createContactAdminAccessService(deps = dependencies) {
         status,
         claimGranted,
         canCancel,
+        canGrant: stage === 'confirmed' && member?.status === 'invited' &&
+          account.status !== 'closed' && account.status !== 'suspended' &&
+          target !== null && !target.disabled && target.emailVerified === true &&
+          target.email?.toLowerCase() === account.primaryContact.email &&
+          canViewTopgFirebaseUser(actor.claims, claims) && !error,
         canRevoke: !!member && mayRevoke && (claimGranted === true || stage === 'confirmed' || stage === 'revoking'),
         error
       } satisfies ContactAdminAccess
@@ -89,12 +106,16 @@ export function createContactAdminAccessService(deps = dependencies) {
     async read(client: Client, account: Doc<'accounts'>, actor: Actor): Promise<ContactAdminAccess> {
       return (await load(client, account, actor)).summary
     },
-    async change(client: Client, account: Doc<'accounts'>, actor: Actor, action: ContactAdminAction, memberId: string) {
+    async change(client: Client, account: Doc<'accounts'>, actor: Actor, action: ContactAdminAction, memberId: string, convexUrl?: string) {
       const { target, member, summary } = await load(client, account, actor)
       if (!member || member._id !== memberId)
         throw new RequestError(409, 'The account contact has changed. Reload before continuing.')
       const args = { accountId: account._id, memberId: member._id }
-      if (action === 'cancel-admin-invite') {
+      if (action === 'grant-admin') {
+        if (!summary.canGrant || !target)
+          throw new RequestError(409, 'No admin grant is available. The contact must confirm their invitation first.')
+        await deps.grant(target.uid, account._id, convexUrl)
+      } else if (action === 'cancel-admin-invite') {
         if (!summary.canCancel)
           throw new RequestError(409, 'Confirmation has already started or was cancelled. Reload this account.')
         await client.mutation(api.accountMembers.m.cancelAdminInvitation, args)

@@ -1,3 +1,5 @@
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { api } from '../../../../convex/_generated/api'
 import { createElement, useEffect, useMemo, useRef, useState } from 'octane'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { Document, Page, pdfjs } from '@octanejs/pdf'
@@ -78,6 +80,7 @@ component FailedPdf
 // pulls this in only once it opens.
 props { reportSnap, isLoading, loadError, onRetry }: SnapReportPreviewProps
 setup
+  const reportSettings = useConvexQuery(api.snapSettings.q.getReport, {})
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const [pageCount, setPageCount] = useState(0)
   const [viewportWidth, setViewportWidth] = useState(0)
@@ -89,7 +92,7 @@ setup
   // built once here and reused for both. The blob is dropped when the source
   // snap changes or the component unmounts.
   useEffect(() => {
-    if (!reportSnap) {
+    if (!reportSnap || !reportSettings) {
       setPreview(null)
       setPageCount(0)
       return
@@ -103,7 +106,7 @@ setup
 
     void (async () => {
       try {
-        const report = createSnapFullReportDocument(reportSnap)
+        const report = createSnapFullReportDocument(reportSnap, new Date(), reportSettings.excludedFields)
         const bytes = await renderSnapFullReportPdf(report)
         if (cancelled) return
         setPreview({
@@ -120,7 +123,7 @@ setup
     return () => {
       cancelled = true
     }
-  }, [reportSnap])
+  }, [reportSnap, reportSettings])
 
   // pdf.js renders to a fixed pixel width, so the page has to be told how wide
   // its container actually is. The scroll port is measured rather than the

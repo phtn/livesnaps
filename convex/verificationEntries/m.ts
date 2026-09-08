@@ -6,7 +6,8 @@ import {
   isVerificationEmailAddress,
   VERIFICATION_APPLICANT_MAX_LENGTH
 } from '../../src/lib/verifications/entries'
-import { internal } from '../_generated/api'
+import { api, internal } from '../_generated/api'
+import { createSnapFullReportDocument } from '../../src/lib/snaps/full-report'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, env, mutation } from '../_generated/server'
@@ -462,25 +463,23 @@ export const sendEmail = action({
     let hasReportAttachment = false
     let attachedBytes = 0
 
-    const generateFullReport = (): string => {
-      const lines: string[] = [
-        `Verification Report`,
-        `===================`,
-        `Applicant: ${entry.applicant}`,
-        `Plate: ${entry.plateNumber}`,
-        `Upload ID: ${entry.uploadId}`,
-        `Sender: ${entry.senderName} <${entry.emailFromAddress}>`,
-        `Recipients: ${entry.emailToAddress}${entry.ccEmailAddress ? ` / CC ${entry.ccEmailAddress}` : ''}`,
-        `Status: ${entry.status}`,
-        `Created: ${new Date(entry.createdAt).toISOString()}`,
-        ``,
-        `Proof details: ${snaps ? `found (${snaps._id})` : 'not found for uploadId'}`,
-        snaps ? `Photos: ${snaps.metadata.photos.length} slots` : 'Photos: unknown',
-        snaps ? `Vehicle: ${[snaps.year, snaps.make, snaps.model].filter(Boolean).join(' ') || 'pending'}` : '',
-        snaps?.location_session ? `Location: ${snaps.location_session.address.full_address}` : '',
-        ``,
-        `Generated at ${new Date().toISOString()}`
-      ]
+    const generateFullReport = async (): Promise<string> => {
+      if (!snaps) throw new ConvexError('Snap not found for the full report.')
+      const settings = await ctx.runQuery(api.snapSettings.q.getReport, {})
+      const report = createSnapFullReportDocument(snaps, new Date(), settings.excludedFields)
+      const lines = [report.title, report.subtitle]
+      if (report.recordId) lines.push(`Record ID: ${report.recordId}`)
+      if (report.uploadId) lines.push(`Upload ID: ${report.uploadId}`)
+      if (report.showGeneratedAt) lines.push(`Generated at: ${report.generatedAt}`)
+      for (const metric of report.metrics) lines.push(`${metric.label}: ${metric.value}`)
+      for (const block of report.blocks) {
+        lines.push('', block.title)
+        for (const field of block.fields) lines.push(`${field.label}: ${field.value}`)
+        if (block.kind === 'evidence') for (const item of block.items) {
+          if (item.title) lines.push(item.title)
+          for (const field of item.fields) lines.push(`${field.label}: ${field.value}`)
+        }
+      }
       return lines.join('\n')
     }
 
@@ -525,7 +524,7 @@ export const sendEmail = action({
 
     if (finalAttachments.includes('full report')) {
       try {
-        const report: string = generateFullReport()
+        const report: string = await generateFullReport()
         const filename: string = `verification-report-${entry.plateNumber.replace(/\s+/g, '_')}.txt`
         const content: string = toBase64(report)
         if (!content) {

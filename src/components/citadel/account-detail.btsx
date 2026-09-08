@@ -61,14 +61,14 @@ setup
   const [adminNotice, setAdminNotice] = useState<string | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
 
-  const confirmAdminAction = async () => {
-    if (!detail?.adminAccess.memberId || !adminAction || isUpdatingAdmin) return
+  const confirmAdminAction = async (action = adminAction) => {
+    if (!detail?.adminAccess.memberId || !action || isUpdatingAdmin) return
     setIsUpdatingAdmin(true)
     setAdminError(null)
     setAdminNotice(null)
     try {
-      setDetail(await changeContactAdminAccess(slug, detail.adminAccess.memberId, adminAction))
-      setAdminNotice(adminAction === 'cancel-admin-invite' ? 'Admin confirmation cancelled.' : 'Admin claim revoked and sessions invalidated.')
+      setDetail(await changeContactAdminAccess(slug, detail.adminAccess.memberId, action))
+      setAdminNotice(action === 'grant-admin' ? 'Admin access granted.' : action === 'cancel-admin-invite' ? 'Admin confirmation cancelled.' : 'Admin claim revoked and sessions invalidated.')
       setAdminAction(null)
     } catch (failure) {
       setAdminError(readErrorMessage(failure, 'Could not update admin access.'))
@@ -162,7 +162,8 @@ section(className='p-5')
           p(className={labelClassName}) Notes
           p(className='mt-1 text-sm text-foreground') #{detail.account.notes}
 
-      Grant
+      if detail.adminAccess.canGrant
+        Grant(name={detail.account.primaryContact.name} email={detail.account.primaryContact.email} disabled={isUpdatingAdmin || isDeleting} isGranting={isUpdatingAdmin} onGrant={() => void confirmAdminAction('grant-admin')})
 
       div(className='mt-8 rounded-sm border border-border/60 p-4')
         div(className='flex flex-wrap items-center justify-between gap-3')

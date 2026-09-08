@@ -252,10 +252,10 @@ export async function handleGodsAccountDetail(
         return json({ error: 'A valid JSON body is required.' }, 400)
       }
       const { action, memberId } = readObject(payload)
-      if ((action !== 'cancel-admin-invite' && action !== 'revoke-admin') || typeof memberId !== 'string') {
+      if ((action !== 'cancel-admin-invite' && action !== 'revoke-admin' && action !== 'grant-admin') || typeof memberId !== 'string') {
         return json({ error: 'A valid admin access action and membership are required.' }, 400)
       }
-      await contactAdminAccessService.change(client, account, actor, action, memberId)
+      await contactAdminAccessService.change(client, account, actor, action, memberId, environment.convexUrl)
       account = await getAccountBySlug(client, slug)
       if (!account) return json({ error: 'That account could not be found.' }, 404)
     }

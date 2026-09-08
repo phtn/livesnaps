@@ -12,6 +12,7 @@ export const snapSettingsValuesSchema = v.object({
 
 export const snapSettingsSchema = snapSettingsValuesSchema.extend({
   key: v.literal(IMAGE_CAPTURE_SETTINGS_KEY),
+  reportExcludedFields: v.optional(v.array(v.string())),
   createdAt: v.number(),
   updatedAt: v.number(),
   updatedBy: v.string()
@@ -28,3 +29,5 @@ export const snapSettingsResultSchema = snapSettingsValuesSchema.extend({
 
 export type SnapSettings = typeof snapSettingsSchema.type
 export type SnapSettingsResult = typeof snapSettingsResultSchema.type
+
+export const reportSettingsResultSchema = v.object({ excludedFields: v.array(v.string()), updatedAt: v.union(v.number(), v.null()) })

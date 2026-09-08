@@ -1,3 +1,5 @@
+import { REPORT_FIELD_KEYS } from '../../src/lib/snaps/report-settings'
+import { requireGodIdentity } from '../accounts/helpers'
 import { ConvexError, v } from 'convex/values'
 import {
   DEFAULT_IMAGE_CAPTURE_SETTINGS,
@@ -6,7 +8,7 @@ import {
   type ImageCaptureSettingsValues
 } from '../../src/lib/snaps/snap-settings'
 import { internalMutation, type MutationCtx, mutation } from '../_generated/server'
-import { snapSettingsResultSchema, snapSettingsValuesSchema } from './d'
+import { reportSettingsResultSchema, snapSettingsResultSchema, snapSettingsValuesSchema } from './d'
 
 const getSettingsDocument = async (ctx: MutationCtx) =>
   await ctx.db
@@ -109,5 +111,25 @@ export const seedDefaults = internalMutation({
         updatedAt
       }
     }
+  }
+})
+
+/** Patch one field atomically so edits by different operators do not overwrite each other. */
+export const updateReportField = mutation({
+  args: { key: v.string(), included: v.boolean() },
+  returns: reportSettingsResultSchema,
+  handler: async (ctx, { key, included }) => {
+    const identity = await requireGodIdentity(ctx)
+    if (!REPORT_FIELD_KEYS.has(key)) throw new ConvexError('Unknown report field.')
+    const existing = await getSettingsDocument(ctx)
+    const excluded = new Set(existing?.reportExcludedFields ?? [])
+    if (included) excluded.delete(key)
+    else excluded.add(key)
+    const excludedFields = [...excluded].sort()
+    const updatedAt = Date.now()
+    const changes = { reportExcludedFields: excludedFields, updatedAt, updatedBy: identity.tokenIdentifier }
+    if (existing) await ctx.db.patch(existing._id, changes)
+    else await ctx.db.insert('snapSettings', { ...DEFAULT_IMAGE_CAPTURE_SETTINGS, key: IMAGE_CAPTURE_SETTINGS_KEY, createdAt: updatedAt, ...changes })
+    return { excludedFields, updatedAt }
   }
 })

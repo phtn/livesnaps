@@ -1,10 +1,7 @@
 
-import { useState } from 'octane'
 import {Icon} from '@/lib/icons'
 
-props {}: {}
-setup
-  const [hasAccess, setHasAccess] = useState(false)
+props { name, email, disabled, isGranting, onGrant }: { name: string; email: string; disabled: boolean; isGranting: boolean; onGrant: () => void }
 
 article(className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] border border-border/70 bg-card shadow-[0_18px_60px_-28px_color-mix(in_oklab,var(--foreground)_22%,transparent)]")
   div(className="relative min-h-80 overflow-hidden bg-muted/55 px-8 py-9 sm:min-h-96 sm:px-12 sm:py-12")
@@ -24,12 +21,7 @@ article(className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] border bord
       Icon(name='key' className="mt-1 size-7 shrink-0 text-muted-foreground" strokeWidth={1.6} aria-hidden="true")
       div
         h1(className="text-xl font-sans font-medium tracking-[0.01em] text-foreground sm:text-3xl") Admin Access Role
-        p(className="mt-1 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-[1.35rem]") Kim Tablizo email@gmail.com.ph.com
+        p(className="mt-1 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-[1.35rem]") #{name} #{email}
   div(className="flex flex-col gap-5 border-t border-border/70 px-8 py-7 sm:px-12")
-    button(type="button" onClick={() => setHasAccess((current) => !current)} aria-pressed={hasAccess} className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-foreground px-7 text-lg font-medium text-background shadow-sm transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2")
-      if hasAccess
-        fragment
-          Icon(name='key' className="size-5" aria-hidden="true")
-          span Access granted
-      else
-        span Grant access
+    button(type="button" onClick={onGrant} disabled={disabled} aria-busy={isGranting} className="inline-flex min-h-14 items-center justify-center gap-3 rounded-2xl bg-foreground px-7 text-lg font-medium text-background shadow-sm transition disabled:opacity-50 disabled:pointer-events-none hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2")
+      span #{isGranting ? 'Granting access…' : 'Grant access'}

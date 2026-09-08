@@ -305,7 +305,7 @@ const reportHeader = (document: SnapFullReportDocument): Node =>
         tagName: 'div',
         style: { alignItems: 'flex-end', display: 'flex', flexDirection: 'column', gap: 1, paddingRight: 12 },
         children: [
-          text('RECORD ID', { color: pdfTheme.color.muted, fontSize: 6.5, letterSpacing: '0.06em' }),
+          text(document.recordId ? 'RECORD ID' : '', { color: pdfTheme.color.muted, fontSize: 6.5, letterSpacing: '0.06em' }),
           text(document.recordId.slice(-16), {
             fontFamily: pdfTheme.font.mono,
             fontSize: 7,
@@ -368,7 +368,7 @@ const reportHero = (document: SnapFullReportDocument): Node =>
             letterSpacing: '0.16em',
             textTransform: 'uppercase'
           }),
-          text(`${document.generatedAt} · v${document.version}.0`, {
+          text(document.showGeneratedAt === false ? `v${document.version}.0` : `${document.generatedAt} · v${document.version}.0`, {
             backgroundColor: pdfTheme.color.wash,
             borderRadius: 999,
             color: pdfTheme.color.muted,
@@ -415,7 +415,7 @@ const reportHero = (document: SnapFullReportDocument): Node =>
       container({
         tagName: 'div',
         style: { color: pdfTheme.color.faint, display: 'flex', fontSize: 6.5, marginTop: 7 },
-        children: [text(`Generated ${document.generatedAt} / timestamps in report are UTC`)]
+        children: [text(document.showGeneratedAt === false ? 'Timestamps in report are UTC' : `Generated ${document.generatedAt} / timestamps in report are UTC`)]
       })
     ]
   })
@@ -457,7 +457,7 @@ export const createSnapFullReportPdfLayout = (
     margin: { top: 72, right: 44, bottom: 42, left: 44 },
     metadata: {
       authors: ['xpriori'],
-      creationDate: document.generatedAt.slice(0, 19),
+      ...(document.showGeneratedAt === false ? {} : { creationDate: document.generatedAt.slice(0, 19) }),
       creator: 'LiveSnapsNow',
       description: `Full Snap Proof row report for ${document.uploadId}`,
       keywords: ['snap, proof', 'pre-inspection', 'verification'],
