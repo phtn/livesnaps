@@ -315,12 +315,11 @@ div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen 
       div(className='mx-auto w-full max-w-3xl px-5 pt-5 text-center')
         if destination
           p(className='rounded-lg border border-border/60 bg-accent/40 px-4 py-3 text-sm')
-            span(className='text-muted-foreground') Submitting to 
+            span(className='text-muted-foreground') Submitting to
             strong #{destination.accountName}
             if destination.linkSlug
               span(className='text-muted-foreground') #{` · ${destination.label}`}
         elseif !runtimeMode.debug
-          p(className='text-sm text-muted-foreground') Use the submission link shared by your organization to start a snap.
       div(className={cn(viewportStyles.pageContent, 'relative z-0', isExpanded && 'pointer-events-none')} inert={isExpanded})
         Suspense(fallback={Fallback})
           LazyHero(authenticatedUserId={user?.uid ?? null} error={startError} isAuthenticated={Boolean(user)} isAuthLoading={isUserLoading} isDebugMode={runtimeMode.debug} isStarting={isStarting} onGetStarted={handleGetStarted})

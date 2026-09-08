@@ -418,13 +418,13 @@ component CreateAccountForm
       div(className='flex min-w-0 items-center gap-2')
         span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
         span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
-      div(className='flex shrink-0 items-center gap-2')
+      div(className='flex shrink-0 items-center gap-3')
         Button(
           ~ type='button'
           ~ size='sm'
           ~ variant='secondary'
           ~ label='Cancel'
-          ~ className='rounded-xs'
+          ~ className=''
           ~ disabled={isSubmitting}
           ~ onClick={cancel}
           ~ )
@@ -435,7 +435,7 @@ component CreateAccountForm
           ~ icon='check'
           ~ iconPosition='right'
           ~ label='Create account'
-          ~ className='rounded-xs'
+          ~ className=''
           ~ pending={isSubmitting}
           ~ pendingLabel='Creating…'
           ~ disabled={!canSubmit}
