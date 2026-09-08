@@ -435,7 +435,6 @@ export const sendEmail = action({
       { id: args.id }
     )
     if (!entry) throw new ConvexError('Entry not found.')
-    if (entry.status === 'submitted') throw new ConvexError('This entry has already been sent.')
 
     const normalizedAttachments: string[] = args.attachments
       ? args.attachments

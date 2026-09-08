@@ -1,0 +1,11 @@
+import { useAdminPages } from '../../src/hooks/use-admin-pages'
+
+props { path }: { path: string }
+setup
+  const { items, loadMore, refresh } = useAdminPages<{ _id: string; name: string }>(path)
+
+div
+  each item in items ?? [] key item._id
+    p #{item.name}
+  button(onClick={loadMore}) More
+  button(onClick={refresh}) Refresh

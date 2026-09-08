@@ -36,7 +36,7 @@ export const setHandler = mutation({
       .unique()
     if (!snap) throw new ConvexError('Snap not found.')
     const { membership } = await requireSnapAccess(ctx, snap, 'admin')
-    let handler: Handler = {} as Handler
+    let handler: Handler | undefined
     if (memberId !== null) {
       const member = await ctx.db.get('accountMembers', memberId)
       if (

@@ -40,7 +40,7 @@ export async function getAdminConvexClient(
 }
 
 /**
- * Runs an admin-only Convex read behind the admin session cookie.
+ * Runs an Account-authorized Convex read behind the workspace session cookie.
  *
  * The browser on the admin origin has no Firebase client identity, so the
  * Worker re-mints an ID token server-side and calls Convex on its behalf.
@@ -94,7 +94,7 @@ async function runAdminConvex<T>(
   try {
     const client = await getAdminConvexClient(request, environment)
 
-    if (!client) return json({ error: 'Administrator access is required.' }, 401)
+    if (!client) return json({ error: 'An active Account session is required.' }, 401)
 
     return json(await run(client))
   } catch (error) {
@@ -103,11 +103,11 @@ async function runAdminConvex<T>(
     }
 
     if (error instanceof AdminIdTokenError) {
-      return json({ error: 'The administrator session could not be authenticated.' }, 500)
+      return json({ error: 'The Account session could not be authenticated.' }, 500)
     }
 
     if (error instanceof Error && /Unauthorized|Unauthenticated/i.test(error.message)) {
-      return json({ error: 'Administrator access is required.' }, 403)
+      return json({ error: 'An active Account session is required.' }, 403)
     }
 
     if (passThroughErrorMessage && error instanceof Error) {
