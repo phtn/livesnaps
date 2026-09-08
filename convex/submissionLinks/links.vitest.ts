@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { DEFAULT_SUBMISSION_LINK_LABEL } from '../../src/lib/accounts/submission-links'
 import { buildSnapObjectKey, SNAP_SLOTS } from '../../src/lib/r2/snap-images'
 import { api, internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
@@ -164,7 +165,7 @@ describe('Account submission links and immutable ownership', () => {
       accountName: 'org-1',
       accountSlug: 'org-1',
       linkSlug: '',
-      label: 'Default link',
+      label: DEFAULT_SUBMISSION_LINK_LABEL,
       available: true
     })
     expect(await t.query(api.submissionLinks.q.resolvePublic, { accountSlug: 'org-1', linkSlug: 'unknown' })).toBeNull()
@@ -207,6 +208,7 @@ describe('Account submission links and immutable ownership', () => {
       last_location: location()
     }
     await t.withIdentity(applicant).mutation(api.snaps.m.endSession, complete)
+    expect(await t.withIdentity(applicant).query(api.snaps.q.getByUploadId, { upload_id: uid(1) })).toBeNull()
     await t.withIdentity(applicant).mutation(api.snaps.m.endSession, complete)
     await expect(
       t.withIdentity(applicant).mutation(api.snaps.m.endSession, { upload_id: uid(1), status: 'cancelled' })
@@ -226,6 +228,7 @@ describe('Account submission links and immutable ownership', () => {
   test('rejects write spoofing by unauthenticated callers, another applicant, or an Account owner', async () => {
     const snapId = await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1))
     for (const caller of [t, t.withIdentity(outsider), t.withIdentity(owner)]) {
+      await expect(caller.query(api.snaps.q.getByUploadId, { upload_id: uid(1) })).rejects.toThrow(/Unauthorized/)
       await expect(
         caller.mutation(api.snaps.m.savePhoto, {
           upload_id: uid(1),
@@ -337,6 +340,7 @@ describe('Account submission links and immutable ownership', () => {
     expect(await t.withIdentity(owner).mutation(api.submissionLinks.m.ensureDefault, { accountId: org1 })).toBe(
       defaultId
     )
+    expect(await t.run((ctx) => ctx.db.get(defaultId))).toMatchObject({ label: DEFAULT_SUBMISSION_LINK_LABEL })
     await createLink()
     await expect(createLink()).rejects.toThrow(/already has/)
     for (const caller of [t.withIdentity(viewer), t.withIdentity(outsider), t.withIdentity(god)]) {

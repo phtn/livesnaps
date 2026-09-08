@@ -1,5 +1,10 @@
 import { ConvexError, v } from 'convex/values'
-import { MAX_ACCOUNT_SUBMISSION_LINKS, MAX_SUBMISSION_ANALYTICS_DAYS, normalizeSubmissionLinkColor } from '../../src/lib/accounts/submission-links'
+import {
+  DEFAULT_SUBMISSION_LINK_LABEL,
+  MAX_ACCOUNT_SUBMISSION_LINKS,
+  MAX_SUBMISSION_ANALYTICS_DAYS,
+  normalizeSubmissionLinkColor
+} from '../../src/lib/accounts/submission-links'
 import { internalQuery, query } from '../_generated/server'
 import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
 import { type SubmissionCounts, submissionCountsSchema, submissionLinkSummarySchema } from './d'
@@ -26,7 +31,7 @@ export const resolvePublic = query({
       accountName: destination.account.name,
       accountSlug: destination.account.slug,
       linkSlug: destination.link?.slug ?? '',
-      label: destination.link?.label ?? 'Default link',
+      label: destination.link?.label ?? DEFAULT_SUBMISSION_LINK_LABEL,
       available: destination.available
     }
   }

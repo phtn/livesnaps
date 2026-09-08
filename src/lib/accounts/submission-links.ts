@@ -52,6 +52,7 @@ export const SUBMISSION_LINK_COLORS = [
 ] as const
 
 export type SubmissionLinkColor = typeof SUBMISSION_LINK_COLORS[number]['value']
+export const DEFAULT_SUBMISSION_LINK_LABEL = 'Group Name'
 export const DEFAULT_SUBMISSION_LINK_COLOR: SubmissionLinkColor = 'blue'
 export const isSubmissionLinkColor = (value: unknown): value is SubmissionLinkColor =>
   typeof value === 'string' && SUBMISSION_LINK_COLORS.some(option => option.value === value)

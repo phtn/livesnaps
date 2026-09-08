@@ -1,8 +1,8 @@
+import { accountEndpoint } from '@/hooks/use-workspace'
 import { ACCOUNT_MEMBER_ROLE_VALUES, type AccountMemberRole, type AccountMemberStatus } from '@/lib/accounts/members'
 // Type-only import: the Convex and Firebase Admin modules behind this response
 // never reach the client bundle.
-import type { AdminAccountMemberListResponse } from '@/server/admin-member-routes'
-import { accountEndpoint } from '@/hooks/use-workspace'
+import type { AdminAccountMemberListResponse, AdminRegisteredUserSearchResponse } from '@/server/admin-member-routes'
 
 export type MemberWorkspace = AdminAccountMemberListResponse
 export type MemberRow = AdminAccountMemberListResponse['members'][number]
@@ -15,6 +15,7 @@ export interface InviteMemberInput {
 }
 
 const ACCOUNT_MEMBERS_ENDPOINT = '/api/admin/account-members'
+const REGISTERED_USERS_ENDPOINT = '/api/admin/users'
 
 async function readError(response: Response, fallback: string) {
   try {
@@ -33,8 +34,23 @@ async function requestJson<T>(input: string, init: RequestInit, fallback: string
 }
 
 export function fetchAccountMembers(signal?: AbortSignal, accountId = '') {
-  return requestJson<MemberWorkspace>(accountEndpoint(ACCOUNT_MEMBERS_ENDPOINT, accountId), { signal }, 'Could not load the account members.')
+  return requestJson<MemberWorkspace>(
+    accountEndpoint(ACCOUNT_MEMBERS_ENDPOINT, accountId),
+    { signal },
+    'Could not load the account members.'
+  )
 }
+
+export function searchRegisteredUsers(query: string, signal?: AbortSignal, accountId = '') {
+  const endpoint = accountEndpoint(`${REGISTERED_USERS_ENDPOINT}?search=${encodeURIComponent(query)}`, accountId)
+  return requestJson<AdminRegisteredUserSearchResponse>(
+    endpoint,
+    { signal },
+    'Could not search the registered user directory.'
+  )
+}
+
+export type RegisteredUser = AdminRegisteredUserSearchResponse['users'][number]
 
 /** Resolves with the roster the invitation was added to, already refreshed. */
 export function inviteAccountMember(input: InviteMemberInput, accountId = '') {

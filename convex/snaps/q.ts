@@ -535,6 +535,14 @@ export const getByUploadId = query({
       .unique()
 
     if (!snap) return null
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity || snap.metadata.applicant_token_identifier !== identity.tokenIdentifier) {
+      throw new ConvexError('Unauthorized.')
+    }
+    // The capture UI subscribes while the session is active. Completion makes
+    // that subscription rerun before the client can unsubscribe; returning no
+    // draft closes it cleanly without exposing any submitted contents.
+    if (!isDraftSnap(snap)) return null
     await requireOwnDraftSnap(ctx, snap)
     return { plate_number: snap.plate_number ?? '', make: snap.make ?? '', model: snap.model ?? '', mileage: snap.mileage ?? null }
   }

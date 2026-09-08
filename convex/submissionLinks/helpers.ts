@@ -1,11 +1,12 @@
 import { ConvexError } from 'convex/values'
 import { canUseAccount } from '../../src/lib/accounts/accounts'
 import {
+  DEFAULT_SUBMISSION_LINK_COLOR,
+  DEFAULT_SUBMISSION_LINK_LABEL,
   isPublicAccountSlug,
   isSubmissionLinkSlug,
   SUBMISSION_LINK_LABEL_MAX_LENGTH
 } from '../../src/lib/accounts/submission-links'
-import { DEFAULT_SUBMISSION_LINK_COLOR } from '../../src/lib/accounts/submission-links'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { MutationCtx, QueryCtx } from '../_generated/server'
 import { getAccountBySlug } from '../accounts/helpers'
@@ -47,7 +48,7 @@ export const ensureDefaultSubmissionLink = async (
   const linkId = await ctx.db.insert('submissionLinks', {
     accountId,
     slug: '',
-    label: 'Default link',
+    label: DEFAULT_SUBMISSION_LINK_LABEL,
     color: DEFAULT_SUBMISSION_LINK_COLOR,
     enabled: true,
     createdAt: now,

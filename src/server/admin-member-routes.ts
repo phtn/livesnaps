@@ -1,11 +1,25 @@
 import { ACCOUNT_MEMBER_ROLE_VALUES, type AccountMemberRole } from '@/lib/accounts/members'
+import {
+  FIREBASE_USER_SEARCH_RESULT_LIMIT,
+  matchesFirebaseUserSearch,
+  normalizeUserSearchQuery,
+  scanFirebaseUsers
+} from '@/lib/firebase-admin/god-directory'
+import { getVerifiedWorkspaceSession } from '@/lib/firebase-admin/server-auth'
 import { api } from '../../convex/_generated/api'
-import { type AdminConvexClient, type AdminConvexEnvironment, AdminRequestError, withAdminConvex, withAdminConvexWrite } from './admin-convex'
+import {
+  type AdminConvexClient,
+  type AdminConvexEnvironment,
+  AdminRequestError,
+  withAdminConvex,
+  withAdminConvexWrite
+} from './admin-convex'
 import { resolveWorkspaceAccount } from './workspace-routes'
 
 export type AdminMemberRouteEnvironment = AdminConvexEnvironment
 
 const MEMBER_LIST_LIMIT = 250
+const MIN_REGISTERED_USER_SEARCH_LENGTH = 2
 
 /**
  * The workspace the signed-in administrator operates.
@@ -30,9 +44,70 @@ async function readWorkspace(client: AdminConvexClient, request: Request) {
 
 export type AdminAccountMemberListResponse = Awaited<ReturnType<typeof readWorkspace>>
 
+export type AdminRegisteredUserSearchResponse = {
+  truncated: boolean
+  users: Array<{
+    uid: string
+    displayName: string | null
+    email: string
+    emailVerified: boolean
+  }>
+}
+
 /** `GET /api/admin/account-members` — the workspace and everyone on it. */
 export function handleAdminAccountMemberList(request: Request, environment: AdminMemberRouteEnvironment = {}) {
-  return withAdminConvex(request, environment, client => readWorkspace(client, request), 'Unable to load the account members.')
+  return withAdminConvex(
+    request,
+    environment,
+    (client) => readWorkspace(client, request),
+    'Unable to load the account members.'
+  )
+}
+
+/** `GET /api/admin/users?search=<query>` — registered invite candidates. */
+export async function handleAdminRegisteredUserSearch(request: Request, environment: AdminMemberRouteEnvironment = {}) {
+  if (request.method !== 'GET') {
+    return Response.json({ error: 'Method not allowed.' }, { status: 405, headers: { 'cache-control': 'no-store' } })
+  }
+
+  const session = await getVerifiedWorkspaceSession(request)
+  if (!session) {
+    return Response.json(
+      { error: 'An active Account session is required.' },
+      { status: 401, headers: { 'cache-control': 'no-store' } }
+    )
+  }
+
+  const search = normalizeUserSearchQuery(new URL(request.url).searchParams.get('search') ?? '')
+
+  return withAdminConvex(
+    request,
+    environment,
+    async (client) => {
+      const account = await resolveWorkspaceAccount(client, request)
+      if (account.role !== 'admin' && account.role !== 'owner') throw new Error('Unauthorized')
+
+      if (search.length < MIN_REGISTERED_USER_SEARCH_LENGTH) {
+        return { truncated: false, users: [] } satisfies AdminRegisteredUserSearchResponse
+      }
+
+      const scan = await scanFirebaseUsers({
+        actorClaims: session.customClaims,
+        limit: FIREBASE_USER_SEARCH_RESULT_LIMIT,
+        match: (user) => !user.disabled && user.email !== null && matchesFirebaseUserSearch(user, search)
+      })
+
+      return {
+        truncated: scan.truncated,
+        users: scan.users.flatMap((user) =>
+          user.email === null
+            ? []
+            : [{ uid: user.uid, displayName: user.displayName, email: user.email, emailVerified: user.emailVerified }]
+        )
+      } satisfies AdminRegisteredUserSearchResponse
+    },
+    'Could not search the registered user directory.'
+  )
 }
 
 const readString = (value: unknown): string | undefined => {
