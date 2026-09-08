@@ -70,7 +70,6 @@ Container(className='md:py-0')
                 span(className='text-destructive') #{error} — showing the last successful load.
               else
                 div(className='flex items-center gap-1')
-                  Icon(name='history' size='12')
                   span(className='font-mono') #{freshnessLabel}
               button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
                 Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')

@@ -48,6 +48,12 @@ module
     onOpenReportViewer: OpenSnapReportViewer
   }
 
+  interface SnapReportViewerDialogProps {
+    snapId: SnapRow['_id'] | null
+    open: boolean
+    onOpenChange: (open: boolean) => void
+  }
+
 component SnapRowActionsProvider
   props { children, onExportReport, onOpenPhotoViewer, onOpenReportViewer }: SnapRowActionsProviderProps
 
@@ -116,7 +122,7 @@ component LoadingReport
     span(className='mt-2') Loading report…
 
 component SnapReportViewerDialog
-  props { snapId, open, onOpenChange }: { snapId: SnapRow['_id'] | null; open: boolean; onOpenChange: (open: boolean) => void }
+  props { snapId, open, onOpenChange }: SnapReportViewerDialogProps
   setup
     const [reportSnap, setReportSnap] = useState<Doc<'snaps'> | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -215,22 +221,22 @@ Dropdown.Root
   Dropdown.Content(
     ~ align='end'
     ~ sideOffset={4}
-    ~ className='w-64 rounded-md border border-border shadow-sm'
+    ~ className='w-64 rounded-md bg-table-head border border-border/50 shadow-sm'
     ~ onClick={(event: MouseEvent) => event.stopPropagation()}
     ~ )
     Dropdown.Group
-      Dropdown.Label(className='border-b border-dashed border-border') Row Actions
+      Dropdown.Label(className='border-b border-dashed border-border/50') #{snap.plateNumber !== '' ? snap.plateNumber : 'Options'}
       Dropdown.Item(onClick={handleView} className='h-12 rounded-xs')
-        Icon(name='eye' className='size-5 text-blue-600 dark:text-blue-400')
+        Icon(name='eye' className='size-4 opacity-80')
         span(className='flex min-w-0 flex-col')
-          span View Report
-          span(className='text-xs text-muted-foreground') Preview full row report
+          span Open Report
+      Dropdown.Separator
       Dropdown.Item(
         ~ disabled={!hasPhotos || isExporting}
         ~ onClick={() => void handleExport()}
         ~ className='h-12 rounded-xs'
         ~ )
-        Icon(name='download-line' className='size-5 text-red-600 dark:text-red-400')
+        Icon(name={!hasPhotos ? 'circle-minus': 'download-line'} className='size-4 opacity-80')
         span(className='flex min-w-0 flex-col')
-          span Full Report
-          span(className='text-xs text-muted-foreground') #{hasPhotos ? 'Download as PDF' : 'Requires at least one proof photo'}
+          span Download Report
+          span(className='text-2xs text-muted-foreground') #{!hasPhotos && 'No proof'}

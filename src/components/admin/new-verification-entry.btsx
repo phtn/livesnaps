@@ -16,6 +16,7 @@ import { attachmentSize, attachmentTotalLabel, CONTENT_BASE_CLASS, CONTENT_BOTTO
 import { createVerificationEntry } from '@/lib/verifications/admin-writes'
 import { DEFAULT_VERIFICATION_ATTACHMENTS, isVerificationEmailAddress, VERIFICATION_EMAIL_MAX_LENGTH } from '@/lib/verifications/entries'
 import { readValidationMessage, toCreateVerificationEntryInput, useVerificationEntryForm, validateVerificationEntryForm, verificationEntryFormDefaults, type VerificationEntryEmailField, type VerificationEntryForm } from '@/lib/verifications/entry-form'
+import IconButton from "../ui/icon-button.btsx";
 
 
 module
@@ -223,13 +224,13 @@ setup
   }
 
 fragment
-  Button(
+  IconButton(
     ~ id='create-new-entry'
     ~ size='sm'
     ~ variant='dark'
     ~ icon='add'
     ~ label={isMobile ? undefined : 'New'}
-    ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
+    // ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
     ~ onClick={() => setIsOpen(true)}
     ~ )
 
