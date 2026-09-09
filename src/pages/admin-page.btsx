@@ -48,7 +48,7 @@ module
 component AdminNavigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className='flex flex-col')
+    ul(className='flex flex-col space-y-0.5')
       each item in navs key item.path
         li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
           Link(
@@ -73,7 +73,8 @@ component AccountPicker
       SelectOctane(
         ~ inputId='admin-account-picker'
         ~ aria-label='Active Account'
-        ~ className='text-sm border-none ring-0 outline-none'
+        ~ className={cn('text-sm border-none ring-0 outline-none')}
+        ~ controlClassName={cn({'w-full! transition-opacity! duration-200! ease-out! opacity-0!':options.length === 0})}
         ~ isDisabled={options.length === 0}
         ~ isSearchable={options.length > 6}
         ~ onChange={onChange}
@@ -167,8 +168,8 @@ if isMobile
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col bg-sunken _border-r border-border/70')
-        div(className={cn('flex h-16 items-center _border-b border-border/70', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+      aside(className='flex h-full min-w-0 w-full flex-col pe-6 bg-sunken _border-r border-border/70')
+        div(className={cn('flex h-16 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
 
           Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
             if isNavigationCompact

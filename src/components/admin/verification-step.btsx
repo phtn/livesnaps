@@ -42,7 +42,7 @@ div(className='flex gap-3')
     div(className='flex items-baseline justify-between gap-3')
       h3(
         ~ style={{ transitionDelay: tileDelay }}
-        ~ className={cn('mb-2 font-sans font-medium text-sm md:text-base leading-7 -tracking-[0.01em] transition-colors duration-300 ease-out motion-reduce:transition-none', STEP_TITLE_CLASS[state])}
+        ~ className={cn('mb-2 font-sans font-medium text-sm md:text-base leading-6 -tracking-[0.01em] transition-colors duration-300 ease-out motion-reduce:transition-none', STEP_TITLE_CLASS[state])}
         ~ )
         | #{title}
       if meta

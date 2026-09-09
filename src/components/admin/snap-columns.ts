@@ -1,4 +1,3 @@
-import SnapHandler from './snap-handler.btsx'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
 import PhotosCell from '@/components/ui/table/photos-cell.btsx'
 import RowActions from '@/components/ui/table/row-actions.btsx'
@@ -11,6 +10,7 @@ import { format } from 'date-fns'
 import { createElement } from 'octane'
 import StatusBadge from './badges.btsx'
 import { snapIpcMatchStatus, snapSessionStatus, snapVerificationStatus } from './data'
+import SnapHandler from './snap-handler.btsx'
 import type { snapsFeatures } from './table-config'
 
 /**
@@ -32,7 +32,9 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   email: false,
   firebaseUid: false,
   phone: false,
-  uploadId: false
+  uploadId: false,
+  make: false,
+  model: false
 }
 
 export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
@@ -54,13 +56,15 @@ const createHeader = (header: string) => () => createElement('div', { className:
 export const snapColumns = columnHelper.columns([
   columnHelper.accessor('plateNumber', {
     header: createHeader('Plate'),
-    size: 120,
+    size: 100,
+    minSize: 100,
     sortFn: 'text',
     enableColumnFilter: false
   }),
   columnHelper.accessor('fullName', {
     header: createHeader('Applicant'),
     size: 276,
+    minSize: 60,
     sortFn: 'text',
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
@@ -69,14 +73,14 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor('locationLabel', {
     header: createHeader('Location'),
-    size: 300,
+    size: 380,
     sortFn: 'text',
     enableColumnFilter: false
   }),
   columnHelper.accessor((row) => row.photos.length, {
     id: 'photos',
     header: createHeader('Photos'),
-    size: 140,
+    size: 120,
     sortFn: 'basic',
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
@@ -86,7 +90,7 @@ export const snapColumns = columnHelper.columns([
   columnHelper.accessor((row) => toIpcMatchToken(row.countryCodeMatchesIpinfo), {
     id: 'countryCodeMatchesIpinfo',
     header: createHeader('IPCm'),
-    size: 150,
+    size: 130,
     sortFn: 'text',
     filterFn: 'arrHas',
     enableColumnFilter: true,
@@ -117,7 +121,7 @@ export const snapColumns = columnHelper.columns([
   // }),
   columnHelper.accessor('status', {
     header: createHeader('Status'),
-    size: 200,
+    size: 140,
     sortFn: 'text',
     filterFn: 'arrHas',
     enableColumnFilter: true,
@@ -128,18 +132,24 @@ export const snapColumns = columnHelper.columns([
   columnHelper.accessor((row) => row.handler?.name ?? '', {
     id: 'handler',
     header: createHeader('Handler'),
-    size: 200,
+    size: 224,
     sortFn: 'text',
     filterFn: 'includesString',
     enableColumnFilter: true,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(SnapHandler, { uploadId: info.row.original.uploadId, email: info.row.original.handler?.email, imageUrl: info.row.original.handlerImageUrl, name: info.getValue() })
+    cell: (info) =>
+      createElement(SnapHandler, {
+        uploadId: info.row.original.uploadId,
+        email: info.row.original.handler?.email,
+        imageUrl: info.row.original.handlerImageUrl,
+        name: info.getValue()
+      })
   }),
   columnHelper.accessor((row) => row.verification_status ?? 'unsubmitted', {
     id: 'verification_status',
     header: createHeader('Verification'),
-    size: 200,
+    size: 150,
     sortFn: 'text',
     filterFn: 'includesString',
     enableColumnFilter: true,
@@ -149,7 +159,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor('updatedAt', {
     header: createHeader('Updated'),
-    size: 300,
+    size: 220,
     sortFn: 'basic',
     filterFn: 'inDateRange',
     enableColumnFilter: true,

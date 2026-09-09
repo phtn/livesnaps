@@ -179,7 +179,7 @@ export const verificationEntryStatus: Record<
 
 export const snapSessionStatus: Record<SnapSessionStatus, { className: string; icon: IconName; label: string }> = {
   completed: {
-    className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-600 dark:text-emerald-400',
+    className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-400',
     icon: 'circle-check',
     label: 'Completed'
   },

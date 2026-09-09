@@ -57,7 +57,7 @@ component ColumnViewTrigger
         | #{invisibleCount > 99 ? '99+' : invisibleCount}
     else
       Icon(name='cols' className='size-5 opacity-80')
-    span(className='hidden font-okx text-sm opacity-80 md:flex uppercase') Cols
+    span(className='hidden font-mono text-xs opacity-70 md:flex uppercase') Cols
     | #{children}
 
 component ColumnVisibilityItem

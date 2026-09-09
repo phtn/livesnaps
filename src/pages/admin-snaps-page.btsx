@@ -60,7 +60,7 @@ setup
     'aria-label': 'Filter submissions by source link',
     className: 'w-36 sm:w-48',
     classNames: {
-      control: () => 'h-8 min-h-8! bg-background px-1.5',
+      control: () => 'h-8 min-h-8! px-1.5 bg-zinc-200/50! dark:bg-zinc-200/8! hover:bg-active/50! dark:hover:bg-mist-100/5! font-mono text-sm text-foreground/50! uppercase',
       option: () => 'text-xs',
       singleValue: () => 'text-xs',
     },

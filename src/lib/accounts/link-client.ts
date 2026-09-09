@@ -1,9 +1,9 @@
 import { submissionLinkPath } from './submission-links'
-import { getAppRootHostname } from '../routing/admin-subdomain'
+
+export const PUBLIC_SUBMISSION_ORIGIN = 'https://livesnapsnow.com'
 
 export function submissionShareUrl(accountSlug: string, linkSlug = '') {
-  const url = new URL(typeof window === 'undefined' ? 'https://livesnapsnow.com' : window.location.origin)
-  url.hostname = getAppRootHostname(url.hostname)
+  const url = new URL(PUBLIC_SUBMISSION_ORIGIN)
   url.pathname = submissionLinkPath(accountSlug, linkSlug)
   return url.toString()
 }

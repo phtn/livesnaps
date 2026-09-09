@@ -1,5 +1,5 @@
 import { ConvexError, v } from 'convex/values'
-import { canUseAccount } from '../../src/lib/accounts/accounts'
+import { ACCOUNT_PHONE_MAX_LENGTH, canUseAccount } from '../../src/lib/accounts/accounts'
 import {
   type DeviceLocation,
   isSnapLocationCurrentAndAccurate,
@@ -23,11 +23,14 @@ import { updateSnapPhotos } from '../../src/lib/snaps/photo-state'
 import { prepareSnapLocation } from '../../src/lib/snaps/snap-location'
 import {
   MAX_PLATE_NUMBER_LENGTH,
+  MAX_VEHICLE_NAME_LENGTH,
   normalizeDetectedVehicleDetails,
   normalizePlateNumber
 } from '../../src/lib/snaps/vehicle-details'
+import { VERIFICATION_APPLICANT_MAX_LENGTH } from '../../src/lib/verifications/entries'
 import type { Doc } from '../_generated/dataModel'
 import { internalMutation, type MutationCtx, mutation } from '../_generated/server'
+import { requireSnapAccess } from '../lib/submissionAccess'
 import {
   ensureDefaultSubmissionLink,
   recordSubmissionEvent,
@@ -618,5 +621,66 @@ export const updateDetails = mutation({
     })
 
     return SNAP_id
+  }
+})
+
+export const updateAdminDetails = mutation({
+  args: {
+    snapId: v.id('snaps'),
+    details: v.object({
+      fullName: v.string(),
+      plateNumber: v.string(),
+      make: v.string(),
+      model: v.string(),
+      year: v.number(),
+      mileage: v.union(v.number(), v.null()),
+      phone: v.string()
+    })
+  },
+  returns: v.null(),
+  handler: async (ctx, { snapId, details }) => {
+    const snap = await ctx.db.get('snaps', snapId)
+    if (!snap) throw new ConvexError('Snap not found.')
+
+    await requireSnapAccess(ctx, snap, 'admin')
+
+    const fullName = normalizeRequiredString(details.fullName, 'Applicant name')
+    if (fullName.length > VERIFICATION_APPLICANT_MAX_LENGTH) {
+      throw new ConvexError(`Applicant name must be ${VERIFICATION_APPLICANT_MAX_LENGTH} characters or fewer.`)
+    }
+
+    const phone = normalizeRequiredString(details.phone, 'Phone')
+    if (phone.length > ACCOUNT_PHONE_MAX_LENGTH) {
+      throw new ConvexError(`Phone must be ${ACCOUNT_PHONE_MAX_LENGTH} characters or fewer.`)
+    }
+
+    const plateNumber = normalizeConfirmedPlateNumber(details.plateNumber)
+    const make = normalizeRequiredString(details.make, 'Make')
+    const model = normalizeRequiredString(details.model, 'Model')
+    if (make.length > MAX_VEHICLE_NAME_LENGTH || model.length > MAX_VEHICLE_NAME_LENGTH) {
+      throw new ConvexError(`Make and model must each be ${MAX_VEHICLE_NAME_LENGTH} characters or fewer.`)
+    }
+
+    if (!Number.isSafeInteger(details.year) || details.year < 1886 || details.year > new Date().getFullYear() + 1) {
+      throw new ConvexError('Year must be a valid vehicle model year.')
+    }
+
+    const mileage = details.mileage === null ? null : normalizeMileage(details.mileage)
+    if (details.mileage !== null && mileage === null) {
+      throw new ConvexError('Mileage must be a valid non-negative kilometer reading.')
+    }
+
+    await ctx.db.patch('snaps', snapId, {
+      full_name: fullName,
+      plate_number: plateNumber,
+      make,
+      model,
+      year: details.year,
+      mileage: mileage ?? undefined,
+      phone,
+      updated_at: Date.now()
+    })
+
+    return null
   }
 })

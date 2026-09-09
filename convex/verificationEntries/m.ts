@@ -6,14 +6,13 @@ import {
   isVerificationEmailAddress,
   VERIFICATION_APPLICANT_MAX_LENGTH
 } from '../../src/lib/verifications/entries'
-import { api, internal } from '../_generated/api'
-import { createSnapFullReportDocument } from '../../src/lib/snaps/full-report'
+import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, env, mutation } from '../_generated/server'
 import { toBase64 as bytesToBase64, getR2ObjectBytes, isR2Configured } from '../lib/r2'
 import { requireSnapAccess, requireVerificationEntryAccess } from '../lib/submissionAccess'
-import { createVerificationEntrySchema, verificationEntryDocumentSchema, type VerificationUpload } from './d'
+import { createVerificationEntrySchema, type VerificationUpload, verificationEntryDocumentSchema } from './d'
 import { ATTACHMENT_UPLOAD_TTL_MS } from './uploads'
 
 const FIREBASE_UID_MAX_LENGTH = 128
@@ -466,26 +465,6 @@ export const sendEmail = action({
     let hasReportAttachment = false
     let attachedBytes = 0
 
-    const generateFullReport = async (): Promise<string> => {
-      if (!snaps) throw new ConvexError('Snap not found for the full report.')
-      const settings = await ctx.runQuery(api.snapSettings.q.getReport, {})
-      const report = createSnapFullReportDocument(snaps, new Date(), settings.excludedFields)
-      const lines = [report.title, report.subtitle]
-      if (report.recordId) lines.push(`Record ID: ${report.recordId}`)
-      if (report.uploadId) lines.push(`Upload ID: ${report.uploadId}`)
-      if (report.showGeneratedAt) lines.push(`Generated at: ${report.generatedAt}`)
-      for (const metric of report.metrics) lines.push(`${metric.label}: ${metric.value}`)
-      for (const block of report.blocks) {
-        lines.push('', block.title)
-        for (const field of block.fields) lines.push(`${field.label}: ${field.value}`)
-        if (block.kind === 'evidence') for (const item of block.items) {
-          if (item.title) lines.push(item.title)
-          for (const field of item.fields) lines.push(`${field.label}: ${field.value}`)
-        }
-      }
-      return lines.join('\n')
-    }
-
     if (finalAttachments.includes('photos')) {
       if (!snaps) {
         attachmentErrors.push(`snap not found for uploadId ${entry.uploadId}`)
@@ -527,14 +506,18 @@ export const sendEmail = action({
 
     if (finalAttachments.includes('full report')) {
       try {
-        const report: string = await generateFullReport()
-        const filename: string = `verification-report-${entry.plateNumber.replace(/\s+/g, '_')}.txt`
-        const content: string = toBase64(report)
+        const report: { content: string; byteLength: number } = await ctx.runAction(
+          internal.verificationEntries.pdf.renderFullReport,
+          { uploadId: entry.uploadId }
+        )
+        const filename: string = `verification-report-${entry.plateNumber.replace(/\s+/g, '_')}.pdf`
+        const content: string = report.content
         if (!content) {
           attachmentErrors.push('full report: empty content')
         } else {
-          emailAttachments.push({ filename, content, contentType: 'text/plain' })
+          emailAttachments.push({ filename, content, contentType: 'application/pdf' })
           hasReportAttachment = true
+          attachedBytes += content.length
         }
       } catch (error: unknown) {
         const message: string = error instanceof Error ? error.message : String(error)

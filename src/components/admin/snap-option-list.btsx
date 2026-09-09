@@ -27,12 +27,12 @@ component SnapOptionRow
       ~ type='button'
       ~ onClick={() => onSelect(snap._id)}
       ~ aria-pressed={isSelected}
-      ~ className={cn('flex w-full items-center px-3 py-2.5 transition-colors duration-200 ease-out hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset', isSelected && 'bg-accent/70')}
+      ~ className={cn('flex w-full items-center px-3 py-2.5 transition-colors duration-200 ease-out hover:bg-sidebar focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset', isSelected && 'bg-accent/70')}
       ~ )
       SnapOptionItem(snap={snap} isSelected={isSelected})
 
 props { snaps, onSelect, selectedId, className }: SnapOptionListProps
 
-ul(role='list' className={cn('divide-y divide-border/40', className)})
+ul(role='list' className={cn('divide-y divide-border/40 divide-dashed', className)})
   each snap, index in snaps key snap._id
     SnapOptionRow(snap={snap} isSelected={snap._id === selectedId} onSelect={onSelect} delay={rowDelay(index)})

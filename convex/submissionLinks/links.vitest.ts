@@ -247,6 +247,37 @@ describe('Account submission links and immutable ownership', () => {
     expect(await t.run((ctx) => ctx.db.get(snapId))).toMatchObject({ accountId: org1, phone: details.phone })
   })
 
+  test('lets Account admins edit only the approved snap details', async () => {
+    const snapId = await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1))
+    const updated = {
+      fullName: 'Updated Applicant',
+      plateNumber: 'XYZ 9876',
+      make: 'Honda',
+      model: 'Civic',
+      year: 2025,
+      mileage: 42_500.5,
+      phone: '09998887777'
+    }
+
+    await expect(
+      t.withIdentity(viewer).mutation(api.snaps.m.updateAdminDetails, { snapId, details: updated })
+    ).rejects.toThrow(/administrator/)
+    await expect(
+      t.withIdentity(outsider).mutation(api.snaps.m.updateAdminDetails, { snapId, details: updated })
+    ).rejects.toThrow(/Unauthorized/)
+
+    await t.withIdentity(owner).mutation(api.snaps.m.updateAdminDetails, { snapId, details: updated })
+    expect(await t.run((ctx) => ctx.db.get(snapId))).toMatchObject({
+      full_name: updated.fullName,
+      plate_number: updated.plateNumber,
+      make: updated.make,
+      model: updated.model,
+      year: updated.year,
+      mileage: updated.mileage,
+      phone: updated.phone
+    })
+  })
+
   test('disabled links block new starts while existing captures keep their attribution', async () => {
     const linkId = await createLink()
     const snapId = await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1, 'org-1', 'team-a'))
@@ -363,15 +394,17 @@ describe('Account submission links and immutable ownership', () => {
       label: 'Color team',
       color: 'emerald'
     })
-    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links)
-      .toEqual(expect.arrayContaining([
+    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links).toEqual(
+      expect.arrayContaining([
         expect.objectContaining({ _id: defaultId, color: 'blue' }),
         expect.objectContaining({ _id: teamId, color: 'emerald' })
-      ]))
+      ])
+    )
 
     await t.withIdentity(owner).mutation(api.submissionLinks.m.update, { linkId: teamId, color: 'violet' })
-    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links)
-      .toEqual(expect.arrayContaining([expect.objectContaining({ _id: teamId, color: 'violet' })]))
+    expect((await t.withIdentity(viewer).query(api.submissionLinks.q.list, { accountId: org1 })).links).toEqual(
+      expect.arrayContaining([expect.objectContaining({ _id: teamId, color: 'violet' })])
+    )
   })
 
   test('rejects unsafe link slugs and invalid or excessive analytics windows', async () => {

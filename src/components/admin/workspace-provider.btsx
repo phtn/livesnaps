@@ -1,5 +1,6 @@
 import { Outlet } from '@octanejs/tanstack-router'
 import { WorkspaceContext, type WorkspaceAccount } from '@/hooks/use-workspace'
+import {Icon } from '@/lib/icons'
 
 module
   /**
@@ -22,7 +23,8 @@ if error
     p #{error}
     button(type='button' className='mt-3 underline' onClick={onRetry}) Retry
 elseif accounts === null
-  p(className='p-6 text-sm text-muted-foreground') Loading your Accounts…
+  span(className='p-6')
+    Icon(name='spinner-axial' className='opacity-70 p-6')
 elseif accounts.length === 0
   p(className='p-6 text-sm text-muted-foreground') You have no active Account memberships. Accept your invitation or contact your Account administrator.
 elseif account

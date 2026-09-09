@@ -8,7 +8,8 @@ import { DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_VERIFICATION_E
 import { SNAP_LIST_LIMIT } from '@/components/admin/snap-columns'
 import CreateVerificationEntryDialog from '@/components/admin/new-verification-entry.btsx'
 import SendVerificationEntryDialog from '@/components/admin/send-verification-entry.btsx'
-import { VerificationSendProvider } from '@/components/admin/verification-row-actions.btsx'
+import EditSnapDrawer from '@/components/admin/edit-snap.btsx'
+import { VerificationRowActionsProvider } from '@/components/admin/verification-row-actions.btsx'
 import DataTable from '@/components/ui/table/DataTable.btsx'
 import VerificationEntryFilterList from '@/components/admin/VerificationEntryFilterList.btsx'
 import ErrorPage from '@/components/error.btsx'
@@ -16,6 +17,7 @@ import { Icon } from '@/lib/icons'
 import {cn} from '@/lib/utils'
 import Container from "../components/admin/container.btsx";
 import Loading from "../components/loading.btsx";
+import { onError } from '@/lib/toast'
 
 props {}: {}
 setup
@@ -70,8 +72,21 @@ setup
     if (!open) setSendEntry(null)
   }, [])
 
-  // A create claims a snap and a send moves an entry's status, so both tables
-  // are refetched rather than waiting out the next 30s poll.
+  const [editSnap, setEditSnap] = useState<NonNullable<typeof snaps>[number] | null>(null)
+  const openEditSnap = useCallback((entry: VerificationEntryRow) => {
+    const snap = snaps?.find((item) => item.uploadId === entry.uploadId)
+    if (!snap) {
+      onError('The snap details are not available in the current workspace list.')
+      return
+    }
+    setEditSnap(snap)
+  }, [snaps])
+  const closeEditSnap = useCallback((open: boolean) => {
+    if (!open) setEditSnap(null)
+  }, [])
+
+  // Creates, sends, and snap edits can change either table, so both are
+  // refetched rather than waiting out the next 30s poll.
   const handleWritten = useCallback(() => {
     refresh()
     refreshSnaps()
@@ -93,7 +108,7 @@ Container(className='md:py-0')
     ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
   else
     SnapHandlerProvider(refresh={handleWritten})
-      VerificationSendProvider(onOpenSendDialog={setSendEntry})
+      VerificationRowActionsProvider(onOpenEditDialog={openEditSnap} onOpenSendDialog={setSendEntry})
         DataTable(
           ~ title='Verification Entries'
           ~ data={rows}
@@ -126,4 +141,10 @@ Container(className='md:py-0')
     ~ onOpenChange={closeSendDialog}
     ~ onSent={handleWritten}
     ~ snaps={snaps ?? []}
+    ~ )
+  EditSnapDrawer(
+    ~ snap={editSnap}
+    ~ open={editSnap !== null}
+    ~ onOpenChange={closeEditSnap}
+    ~ onUpdated={handleWritten}
     ~ )

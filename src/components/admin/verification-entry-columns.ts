@@ -1,13 +1,14 @@
-import SnapHandler from './snap-handler.btsx'
 import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
-import { createElement } from 'octane'
+import { createElement, useState } from 'octane'
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
 import StatusBadge from './badges.btsx'
-import VerificationRowActionsCell from './verification-row-actions.btsx'
-import { verificationEntryStatus, type VerificationEntryRow } from './data'
+import { type VerificationEntryRow, verificationEntryStatus } from './data'
+import { useSnapHandlerContext } from './snap-handler-context'
 import type { snapsFeatures } from './table-config'
+import VerificationRowActionsCell from './verification-row-actions.btsx'
 
 /**
  * Shared table definition for the verification entries admin table, mirroring
@@ -44,13 +45,81 @@ const formatTimestamp = (timestamp: number) => format(new Date(timestamp), 'M/dd
 const columnHelper = createColumnHelper<typeof snapsFeatures, VerificationEntryRow>()
 const createHeader = (header: string) => () => createElement('div', { className: 'ps-4' }, header)
 
+const VerificationHandlerCell = ({ handler, uploadId }: Pick<VerificationEntryRow, 'handler' | 'uploadId'>) => {
+  const context = useSnapHandlerContext()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const members = context?.options.members ?? []
+  const currentMemberId = members.find((member) => member.email === handler?.email)?.id ?? ''
+  const options = [
+    ...members.map((member) => ({ value: member.id, label: member.name })),
+    { value: 'clear', label: 'Clear handler' }
+  ]
+
+  const changeHandler = async (memberId: string) => {
+    if (!memberId || memberId === currentMemberId || busy) return
+
+    setBusy(true)
+    setError('')
+    try {
+      const response = await fetch('/api/admin/snap-handlers', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ uploadId, memberId: memberId === 'clear' ? null : memberId })
+      })
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string }
+        throw new Error(payload.error || 'Unable to update handler.')
+      }
+      context?.refresh()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Unable to update handler.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!context?.options.canManage) {
+    return createElement(PersonCell, { imageUrl: handler?.image_url, name: handler?.name || 'Unassigned' })
+  }
+
+  return createElement('div', {
+    className: 'flex flex-col gap-1',
+    onClick: (event: MouseEvent) => event.stopPropagation(),
+    children: [
+      createElement(SelectOctane, {
+        'aria-label': `Change handler for ${uploadId}`,
+        className: 'max-w-48',
+        classNames: {
+          option: () => 'text-xs',
+          singleValue: () => 'text-xs'
+        },
+        controlClassName: 'h-8 min-h-8! bg-background px-1.5',
+        isDisabled: busy,
+        isSearchable: members.length > 8,
+        menuPortalTarget: typeof document === 'undefined' ? undefined : document.body,
+        menuPosition: 'fixed',
+        onChange: changeHandler,
+        options,
+        placeholder: busy ? 'Saving…' : handler?.name || 'Unassigned',
+        value: currentMemberId
+      }),
+      error ? createElement('span', { role: 'alert', className: 'text-xs text-destructive' }, error) : null
+    ]
+  })
+}
+
 export const verificationEntryColumns = columnHelper.columns([
   columnHelper.display({
-    id: 'handler', header: createHeader('Handler'), size: 240,
-    cell: (info) => {
-      const handler = info.row.original.handler
-      return createElement(SnapHandler, { uploadId: info.row.original.uploadId, name: handler?.name, email: handler?.email, imageUrl: handler?.image_url })
-    }
+    id: 'handler',
+    header: createHeader('Handler'),
+    size: 240,
+    cell: (info) =>
+      createElement(VerificationHandlerCell, {
+        handler: info.row.original.handler,
+        uploadId: info.row.original.uploadId
+      })
   }),
   columnHelper.accessor('plateNumber', {
     header: createHeader('Plate'),
@@ -141,7 +210,7 @@ export const verificationEntryColumns = columnHelper.columns([
   columnHelper.display({
     id: 'actions',
     header: createHeader('⁞'),
-    size: 40,
+    size: 72,
     enableHiding: false,
     enableSorting: false,
     enableGlobalFilter: false,

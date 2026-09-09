@@ -1,8 +1,16 @@
-import { handleRecipientDefaults } from './server/recipient-defaults-routes'
-import { handleReportSettings } from './server/report-settings-routes'
-import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
-import { handleAdminSnapDetail, handleAdminSnapList, handleAdminSnapHandlers } from './server/admin-snap-routes'
+import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
+import {
+  handleAdminAccountMemberInvite,
+  handleAdminAccountMemberList,
+  handleAdminRegisteredUserSearch
+} from './server/admin-member-routes'
+import {
+  handleAdminSnapDetail,
+  handleAdminSnapHandlers,
+  handleAdminSnapList,
+  handleAdminSnapUpdate
+} from './server/admin-snap-routes'
 import {
   handleAdminVerificationEntryAttachmentRemove,
   handleAdminVerificationEntryAttachmentUpload,
@@ -13,11 +21,8 @@ import {
 import { handleGodsAccountDetail, handleGodsAccounts } from './server/gods-account-routes'
 import { handleGodsSession, handleGodsSessionToken } from './server/gods-auth-routes'
 import { handleGodsUserClaims, handleGodsUsers } from './server/gods-user-routes'
-import {
-  handleAdminAccountMemberInvite,
-  handleAdminAccountMemberList,
-  handleAdminRegisteredUserSearch
-} from './server/admin-member-routes'
+import { handleRecipientDefaults } from './server/recipient-defaults-routes'
+import { handleReportSettings } from './server/report-settings-routes'
 import { handleResendWebhook } from './server/resend-webhook-routes'
 import {
   handleAdminSnapPhotoRequest,
@@ -26,7 +31,12 @@ import {
   type SnapPhotoRouteEnvironment
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
-import { handleWorkspaceAccounts, handleSubmissionLinks, handleSubmissionAnalytics, handleSubmissionLinkEmail } from './server/workspace-routes'
+import {
+  handleSubmissionAnalytics,
+  handleSubmissionLinkEmail,
+  handleSubmissionLinks,
+  handleWorkspaceAccounts
+} from './server/workspace-routes'
 
 interface WorkerEnvironment {
   ASSETS: {
@@ -81,9 +91,11 @@ export default {
     const pathname = new URL(request.url).pathname
     const photoRouteMatch = SNAP_SUBMISSION_PHOTO_PATH.exec(pathname)
 
-    if (pathname === '/api/admin/recipient-defaults') return handleRecipientDefaults(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
+    if (pathname === '/api/admin/recipient-defaults')
+      return handleRecipientDefaults(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
 
-    if (pathname === '/api/gods/report-settings') return handleReportSettings(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
+    if (pathname === '/api/gods/report-settings')
+      return handleReportSettings(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })
 
     if (pathname === SESSION_PATH) {
       const environment: SnapRouteEnvironment = {
@@ -203,7 +215,9 @@ export default {
         return Response.json({ error: 'The snap ID is invalid.' }, { status: 400 })
       }
 
-      return handleAdminSnapDetail(request, snapId, { convexUrl })
+      return request.method === 'POST'
+        ? handleAdminSnapUpdate(request, snapId, { convexUrl })
+        : handleAdminSnapDetail(request, snapId, { convexUrl })
     }
 
     if (pathname === PHOTO_PATH) {

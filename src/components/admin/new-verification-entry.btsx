@@ -1,7 +1,6 @@
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
 import { recipientChoices } from '@/lib/verifications/recipient-defaults'
-import RecipientInput from './recipient-input.btsx'
 import { useEffect, useMemo, useState } from 'octane'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
@@ -21,6 +20,7 @@ import { createVerificationEntry } from '@/lib/verifications/admin-writes'
 import { DEFAULT_VERIFICATION_ATTACHMENTS, isVerificationEmailAddress, VERIFICATION_EMAIL_MAX_LENGTH } from '@/lib/verifications/entries'
 import { readValidationMessage, toCreateVerificationEntryInput, useVerificationEntryForm, validateVerificationEntryForm, verificationEntryFormDefaults, type VerificationEntryEmailField, type VerificationEntryForm } from '@/lib/verifications/entry-form'
 import IconButton from "../ui/icon-button.btsx";
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
 
 
 module
@@ -51,11 +51,36 @@ component EmailField
     const controlId = `verification-${name}`
     const errorId = `${controlId}-error`
     const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
+    const recipientOptions = options.map((email) => ({ value: email, label: email }))
+    const savedRecipientValue = options.includes(field.state.value) ? field.state.value : ''
+    const menuPortalTarget = typeof document === 'undefined' ? undefined : document.body
+    const handleRecipientInputChange = (value: string, meta: { action: string }) => {
+      if (meta.action === 'input-change') field.handleChange(value)
+    }
 
   div(className='flex flex-col gap-1.5')
     label(className={fieldLabelClassName} htmlFor={controlId}) #{label}
     if name === 'emailToAddress'
-      RecipientInput(id={controlId} value={field.state.value} options={options} onChange={field.handleChange} onBlur={field.handleBlur} invalid={message !== null} describedBy={message === null ? undefined : errorId})
+      SelectOctane(
+        ~ inputId={controlId}
+        ~ aria-label={label}
+        ~ aria-invalid={message !== null}
+        ~ aria-describedby={message === null ? undefined : errorId}
+        ~ aria-required={true}
+        ~ className='w-full min-w-0'
+        ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
+        ~ inputValue={field.state.value}
+        ~ isSearchable={true}
+        ~ menuPortalTarget={menuPortalTarget}
+        ~ menuPosition='fixed'
+        ~ noOptionsMessage={() => 'Type a recipient email'}
+        ~ onBlur={field.handleBlur}
+        ~ onChange={field.handleChange}
+        ~ onInputChange={handleRecipientInputChange}
+        ~ options={recipientOptions}
+        ~ placeholder={placeholder}
+        ~ value={savedRecipientValue}
+        ~ )
     else
       Input(
         ~ id={controlId}
@@ -279,16 +304,15 @@ fragment
                 ~ meta={selectedSnap ? undefined : `${filteredSnaps.length} of ${eligibleSnaps.length}`}
                 ~ )
                 if selectedSnap
-                  div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
+                  div(className={cn('relative flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
                     SnapOptionItem(snap={selectedSnap} isSelected={true})
-                    div(className='flex shrink-0 flex-col items-end gap-1.5')
-                      Badge(variant='outline' className='font-mono text-2xs font-normal capitalize') #{selectedSnap.status}
+                    div(className='absolute top-0 right-0 border')
                       button(
                         ~ type='button'
                         ~ onClick={clearSnap}
-                        ~ className={cn(ghostButtonClassName, 'h-7 gap-1 px-2 font-mono text-2xs uppercase tracking-wider')}
+                        ~ className={cn(ghostButtonClassName, 'absolute top-1 right-1 h-7 px-1 font-mono text-2xs uppercase tracking-wider hover:text-destructive')}
                         ~ )
-                        Icon(name='cancel' className='size-3')
+                        Icon(name='circle-minus' className='size-3 opacity-80')
                         span Clear
                 else
                   div(className={cn('grid gap-2', ENTER_CLASS)})
@@ -303,8 +327,8 @@ fragment
                         ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
                         ~ )
                     div(className='')
-                      ScrollArea(className='h-40')
-                        div(className='')
+                      ScrollArea(className='h-48 rounded-lg overflow-hidden')
+                        div(className='bg-table-head/20')
                           if isLoadingSnaps
                             div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')
                               Icon(name='spinner-ring' className='size-5 animate-spin')

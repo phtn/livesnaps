@@ -112,7 +112,7 @@ component SnapPhotosCell
       ~ aria-label={`Download all ${photoCount} proof ${photoWord}`}
       ~ title={photoCount === 0 ? 'No proof photos available' : 'Download all photos as ZIP'}
       ~ onClick={handleDownload}
-      ~ className={cn(GHOST_BUTTON_CLASS, 'size-8 hover:text-blue-600 dark:hover:text-blue-400')}
+      ~ className={cn(GHOST_BUTTON_CLASS, 'size-8 hover:text-blue-600 dark:hover:text-blue-400', {'opacity-0!': photoCount === 0})}
       ~ )
       Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className='size-4')
 

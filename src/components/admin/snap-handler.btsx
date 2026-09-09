@@ -1,14 +1,13 @@
-import { createContext, use, useEffect, useState } from 'octane'
+import { useEffect, useState } from 'octane'
 import type { OctaneNode } from 'octane'
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import PersonCell from '@/components/ui/table/person-cell.btsx'
 import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+import { SnapHandlerContext, useSnapHandlerContext } from './snap-handler-context'
+import type { HandlerOptions } from './snap-handler-context'
+import {cn} from '@/lib/utils'
 
 module
-  interface HandlerOptions {
-    canManage: boolean
-    members: { id: string; name: string; email: string }[]
-  }
-  const HandlerContext = createContext<{ options: HandlerOptions; refresh: () => void } | null>(null)
   export { SnapHandlerProvider }
 
 component SnapHandlerProvider
@@ -24,19 +23,27 @@ component SnapHandlerProvider
       return () => controller.abort()
     }, [account?.id])
 
-  HandlerContext.Provider(value={{ options, refresh }})
+  SnapHandlerContext.Provider(value={{ options, refresh }})
     fragment #{children}
 
 props { uploadId, name, email, imageUrl }: { uploadId: string; name?: string; email?: string; imageUrl?: string }
 setup
-  const context = use(HandlerContext)
+  const context = useSnapHandlerContext()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const changeHandler = async (event: Event) => {
-    const select = event.currentTarget as HTMLSelectElement
-    const memberId = select.value
-    select.value = ''
-    if (!memberId || busy) return
+  const members = context?.options.members ?? []
+  const currentMemberId = members.find((member) => member.email === email)?.id ?? ''
+  const options = [
+    ...members.map((member) => ({ value: member.id, label: member.name })),
+    { value: 'clear', label: 'Clear handler' }
+  ]
+  const selectClassNames = {
+    option: () => 'text-xs',
+    singleValue: () => 'text-xs'
+  }
+  const menuPortalTarget = typeof document === 'undefined' ? undefined : document.body
+  const changeHandler = async (memberId: string) => {
+    if (!memberId || memberId === currentMemberId || busy) return
     setBusy(true)
     setError('')
     try {
@@ -57,12 +64,22 @@ setup
   }
 
 div(className='flex flex-col gap-1' onClick={(event: MouseEvent) => event.stopPropagation()})
-  PersonCell(name={name || 'Unassigned'} imageUrl={imageUrl})
   if context?.options.canManage
-    select(aria-label={`Change handler for ${uploadId}`} value='' disabled={busy} onChange={changeHandler} className='max-w-48 rounded border border-border bg-surface px-2 py-1 text-xs')
-      option(value='' disabled) #{busy ? 'Saving…' : 'Change handler'}
-      option(value='clear') Clear handler
-      each member in context.options.members key member.id
-        option(value={member.id} disabled={member.email === email}) #{member.name}
+    SelectOctane(
+      ~ aria-label={`Change handler for ${uploadId}`}
+      ~ className='max-w-48'
+      ~ classNames={selectClassNames}
+      ~ controlClassName={cn('h-8 min-h-8! border! border-mist-500/15! bg-mist-500/8! text-mist-600! dark:text-mist-400! px-1.5! text-xs! rounded-md transition-opacity duration-400 ease-out', {'opacity-0!': members.length === 0})}
+      ~ isDisabled={busy}
+      ~ isSearchable={members.length > 8}
+      ~ menuPortalTarget={menuPortalTarget}
+      ~ menuPosition='fixed'
+      ~ onChange={changeHandler}
+      ~ options={options}
+      ~ placeholder={busy ? 'Saving…' : name || 'Unassigned'}
+      ~ value={currentMemberId}
+      ~ )
+  else
+    PersonCell(name={name || 'Unassigned'} imageUrl={imageUrl})
   if error
     span(role='alert' className='text-xs text-destructive') #{error}

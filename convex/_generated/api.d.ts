@@ -49,6 +49,7 @@ import type * as utils from "../utils.js";
 import type * as verificationEntries_d from "../verificationEntries/d.js";
 import type * as verificationEntries_helpers from "../verificationEntries/helpers.js";
 import type * as verificationEntries_m from "../verificationEntries/m.js";
+import type * as verificationEntries_pdf from "../verificationEntries/pdf.js";
 import type * as verificationEntries_q from "../verificationEntries/q.js";
 import type * as verificationEntries_uploads from "../verificationEntries/uploads.js";
 import type * as vision_logs_d from "../vision_logs/d.js";
@@ -103,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "verificationEntries/d": typeof verificationEntries_d;
   "verificationEntries/helpers": typeof verificationEntries_helpers;
   "verificationEntries/m": typeof verificationEntries_m;
+  "verificationEntries/pdf": typeof verificationEntries_pdf;
   "verificationEntries/q": typeof verificationEntries_q;
   "verificationEntries/uploads": typeof verificationEntries_uploads;
   "vision_logs/d": typeof vision_logs_d;

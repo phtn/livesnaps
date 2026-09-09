@@ -1,0 +1,28 @@
+import {cn} from '@/lib/utils'
+import { PopoverTrigger } from '@/components/ui/Popover.btsx'
+import {useMemo} from 'octane'
+import {Icon} from '@/lib/icons'
+
+module
+  interface FilterTriggerProps {
+    activeFilterCount: number
+    activeFilterLabel: string
+  }
+props {activeFilterCount, activeFilterLabel}: FilterTriggerProps
+setup
+  const buttonClass = useMemo(() => cn(
+    'relative h-8 w-9 flex items-center justify-center text-sm rounded-[4px] select-none',
+    ' py-0.5 gap-2 md:space-x-1 md:mx-1 md:w-auto md:px-2',
+    'data-popup-open:bg-zinc-200/50 dark:data-popup-open:bg-zinc-800',
+    'border border-zinc-200/50 hover:border-indigo-500 dark:border-zinc-200/10',
+    'bg-zinc-200/50 dark:bg-zinc-200/8 hover:bg-indigo-200/20 dark:hover:bg-mist-100/5',
+    'transition-colors duration-75 active:bg-foreground/10 dark:active:bg-indigo-100/5',
+    'focus-visible:bg-none focus-visible:outline-1 focus-visible:-outline-offset-1',
+    {'gap-0.5! md:ps-1.5 md:pe-2 border-indigo-200! dark:border-indigo-200/10! bg-indigo-100/5!': activeFilterCount > 0},
+  ), [activeFilterCount])
+PopoverTrigger(type='button' aria-label='Filter' className={cn(buttonClass)})
+  if activeFilterCount > 0
+    span(className='min-w-6 w-6 rounded-xs bg-indigo-500 px-1.5 font-sans font-semibold text-white dark:bg-indigo-500') #{activeFilterLabel}
+  else
+    Icon(name='filter' className='size-4 opacity-80')
+  span(className='hidden font-mono text-xs opacity-70 md:inline uppercase') Filter

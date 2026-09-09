@@ -1,7 +1,10 @@
-import { useState } from 'octane'
+import { useState, createElement } from 'octane'
 import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
-import { cn } from '@/lib/utils'
+import { cn, formatName } from '@/lib/utils'
+import StatusBadge from "./badges.btsx";
+import { snapSessionStatus } from './data'
+
 
 module
   export interface SnapOptionItemProps {
@@ -51,6 +54,7 @@ setup
   // fall back to the initials rather than leave a broken image in the row.
   const [hasFailedImage, setHasFailedImage] = useState(false)
   const showImage = Boolean(snap.imageUrl) && !hasFailedImage
+  const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status], className: 'scale:70' })
 
 div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-xs', className)})
   span(className='relative size-10 shrink-0')
@@ -74,17 +78,18 @@ div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-xs',
         ~ )
         | #{initials}
     if isSelected
-      span(className='absolute -right-0.5 -bottom-0.5 grid size-4 origin-center animate-in place-items-center rounded-full border-2 border-popover bg-[#01bf7c] text-white duration-200 ease-out zoom-in-50 motion-reduce:animate-none')
-        Icon(name='check' size={8} className='m-0 text-white')
+      span(className='absolute -right-0.5 -bottom-0.5 grid size-4 origin-center animate-in zoom-in duration-200 ease-out flex items-center justify-center rounded-full border-2 border-popover bg-[#01bf7c] text-white duration-200 ease-out zoom-in-50 motion-reduce:animate-none')
+        Icon(name='check' size={11} className='mt-[0.5px] text-white')
   div(className='min-w-0 flex-1')
-    p(className='truncate font-poly font-medium text-foreground text-sm uppercase tracking-wide') #{plateNumber}
-    div(className='mt-0.5 flex min-w-0 items-center gap-1.5 text-muted-foreground text-xs')
-      span(className='truncate font-medium text-foreground/70') #{fullName || 'Unknown applicant'}
+    p(className='flex items-center gap-3 text-foreground text-sm uppercase')
+      span(className='font-poly font-medium text-lg truncate tracking-wide') #{plateNumber}
+      Status
+    div(className='mt-0.5 flex min-w-0 items-center gap-1.5 font-mono text-xs text-foreground/80')
+      span(className='truncate whitespace-nowrap') #{formatName(fullName) || 'Unknown applicant'}
       if email
         span(className='flex min-w-0 items-center gap-1.5')
           span(className='shrink-0 text-muted-foreground/50') #{'·'}
           span(className='truncate') #{email}
-    div(className='flex items-center gap-1 mt-1 text-muted-foreground/70')
-      Icon(name='history' className='size-3')
-      time(dateTime={createdAtIso} className='block font-mono text-2xs')
-        | #{formatCreatedAt(snap.createdAt)}
+          span(className='shrink-0 text-muted-foreground/50') #{'·'}
+          time(dateTime={createdAtIso} className='block')
+          | #{formatCreatedAt(snap.createdAt)}
