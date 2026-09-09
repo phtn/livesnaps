@@ -57,6 +57,11 @@ component EmailField
     const handleRecipientInputChange = (value: string, meta: { action: string }) => {
       if (meta.action === 'input-change') field.handleChange(value)
     }
+    // A selected saved address is also the controlled input value. Treat that
+    // state as an unopened search so the menu still shows both personal and
+    // shared account recipients; free-typed text continues to filter the list.
+    const filterRecipientOption = (candidate: { label: string }, inputValue: string) =>
+      options.includes(field.state.value) || candidate.label.toLowerCase().includes(inputValue.trim().toLowerCase())
 
   div(className='flex flex-col gap-1.5')
     label(className={fieldLabelClassName} htmlFor={controlId}) #{label}
@@ -69,6 +74,7 @@ component EmailField
         ~ aria-required={true}
         ~ className='w-full min-w-0'
         ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
+        ~ filterOption={filterRecipientOption}
         ~ inputValue={field.state.value}
         ~ isSearchable={true}
         ~ menuPortalTarget={menuPortalTarget}
@@ -310,7 +316,7 @@ fragment
                       button(
                         ~ type='button'
                         ~ onClick={clearSnap}
-                        ~ className={cn(ghostButtonClassName, 'absolute top-1 right-1 h-7 px-1 font-mono text-2xs uppercase tracking-wider hover:text-destructive')}
+                        ~ className={cn(ghostButtonClassName, 'absolute top-1 right-2 h-7 px-1 font-mono text-2xs uppercase tracking-wider hover:text-destructive')}
                         ~ )
                         Icon(name='circle-minus' className='size-3 opacity-80')
                         span Clear
@@ -327,7 +333,7 @@ fragment
                         ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
                         ~ )
                     div(className='')
-                      ScrollArea(className='h-48 rounded-lg overflow-hidden')
+                      ScrollArea(className='h-54 rounded-lg overflow-hidden')
                         div(className='bg-table-head/20')
                           if isLoadingSnaps
                             div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')

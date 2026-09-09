@@ -3,12 +3,13 @@ import '@octanejs/vaul/style.css'
 import { useField, useSelector } from '@octanejs/tanstack-form'
 import { useEffect } from 'octane'
 import { Button, Input } from '@/components/ui'
+import Step from '@/components/admin/verification-step.btsx'
 import { useMobile } from '@/hooks/use-mobile'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { updateAdminSnap } from '@/lib/snaps/admin-writes'
 import { type EditSnapFieldName, type EditSnapForm, editSnapFormDefaults, readEditSnapValidationMessage, toUpdateAdminSnapInput, useEditSnapForm, validateEditSnapForm } from '@/lib/snaps/edit-form'
 import { onError, onSuccess } from '@/lib/toast'
-import { CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, errorTextClassName, fieldLabelClassName } from '@/lib/verifications/step-flow'
+import { CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, errorTextClassName, fieldLabelClassName, type StepState } from '@/lib/verifications/step-flow'
 import { cn } from '@/lib/utils'
 
 module
@@ -73,9 +74,10 @@ setup
   })
 
   useEffect(() => {
-    form.reset(editSnapFormDefaults(snap))
-  }, [snap?._id])
+    if (open) form.reset(editSnapFormDefaults(snap))
+  }, [open, snap?._id, snap?.fullName, snap?.phone, snap?.plateNumber, snap?.make, snap?.model, snap?.year, snap?.mileage])
 
+  const values = useSelector(form.store, (state) => state.values)
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
   const canSubmit = useSelector(
     form.store,
@@ -87,6 +89,32 @@ setup
     if (error && typeof error === 'object' && 'form' in error && typeof error.form === 'string') return error.form
     return null
   })
+
+  const validation = validateEditSnapForm(values)
+  const fieldErrors = validation?.fields ?? {}
+  const applicantIsValid = !fieldErrors.fullName && !fieldErrors.phone
+  const vehicleIsValid = !fieldErrors.plateNumber && !fieldErrors.make && !fieldErrors.model && !fieldErrors.year
+  const mileageIsValid = !fieldErrors.mileage
+  const applicantState: StepState = applicantIsValid ? 'done' : 'active'
+  const vehicleState: StepState = !applicantIsValid ? 'idle' : vehicleIsValid ? 'done' : 'active'
+  const mileageState: StepState = !applicantIsValid || !vehicleIsValid ? 'idle' : mileageIsValid ? 'done' : 'active'
+  const saveState: StepState = canSubmit ? 'active' : 'idle'
+  const completedSteps = [applicantIsValid, vehicleIsValid, mileageIsValid].filter(Boolean).length
+  const progressWidth = `${Math.round((completedSteps / 3) * 100)}%`
+  const statusLabel = isSubmitting
+    ? 'Saving changes…'
+    : !snap
+      ? 'Snap unavailable'
+      : canSubmit
+        ? 'Ready to save'
+        : 'Check required details'
+  const statusToneClass = isSubmitting
+    ? 'text-active'
+    : canSubmit
+      ? 'text-positive'
+      : snap
+        ? 'text-muted-foreground'
+        : 'text-destructive'
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (isSubmitting) return
@@ -108,27 +136,45 @@ Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
           if isMobile
             Drawer.Handle(className='mb-4')
           div(className='flex items-center justify-between gap-3')
-            Drawer.Title(className='font-poly text-lg leading-none tracking-tight') Edit snap
+            Drawer.Title(className='font-poly text-lg leading-none tracking-tight') Edit Applicant
             if snap
-              span(className='inline-flex max-w-48 shrink-0 truncate rounded-full border border-border/30 bg-border/20 px-2.5 py-1 font-mono text-2xs text-muted-foreground') #{snap.uploadId}
+              span(className='inline-flex max-w-48 shrink-0 truncate rounded-full border border-border/20 bg-table-head/80 px-2.5 py-1 font-mono text-xs text-muted-foreground') #{snap.uploadId.split('-').pop()}
           Drawer.Description(className='sr-only')
             | Edit the applicant and vehicle details stored on this snap. The verification entry is not changed.
 
         div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
-          div(className={cn('grid gap-4 rounded-2xl border border-border/0 bg-popover p-4 shadow-sm', ENTER_CLASS)})
-            EditSnapField(form={form} name='fullName' label='Applicant name' maxLength={120} placeholder='Applicant name')
-            EditSnapField(form={form} name='phone' label='Phone' type='tel' maxLength={32} placeholder='Phone number')
-            EditSnapField(form={form} name='plateNumber' label='Plate number' maxLength={32} placeholder='Plate number')
-            div(className='grid gap-4 sm:grid-cols-2')
-              EditSnapField(form={form} name='make' label='Make' maxLength={80} placeholder='Vehicle make')
-              EditSnapField(form={form} name='model' label='Model' maxLength={80} placeholder='Vehicle model')
-            div(className='grid gap-4 sm:grid-cols-2')
-              EditSnapField(form={form} name='year' label='Year' type='number' min={1886} max={new Date().getFullYear() + 1} step={1} placeholder='Model year')
-              EditSnapField(form={form} name='mileage' label='Mileage (km)' type='number' min={0} max={9999999.9} step='any' placeholder='Optional')
+          div(className='rounded-2xl border border-border/0 bg-popover p-4 shadow-sm')
+            Step(icon='person' title='Applicant' state={applicantState} index={0})
+              div(className={cn('grid gap-3 sm:grid-cols-2', ENTER_CLASS)})
+                EditSnapField(form={form} name='fullName' label='Applicant name' maxLength={120} placeholder='Applicant name')
+                EditSnapField(form={form} name='phone' label='Phone' type='tel' maxLength={32} placeholder='Phone number')
+
+            Step(icon='car-front' title='Vehicle' state={vehicleState} index={1} meta={values.plateNumber.trim() || undefined})
+              div(className={cn('grid gap-3', ENTER_CLASS)})
+                EditSnapField(form={form} name='plateNumber' label='Plate number' maxLength={32} placeholder='Plate number')
+                div(className='grid gap-3 sm:grid-cols-2')
+                  EditSnapField(form={form} name='make' label='Make' maxLength={80} placeholder='Vehicle make')
+                  EditSnapField(form={form} name='model' label='Model' maxLength={80} placeholder='Vehicle model')
+                EditSnapField(form={form} name='year' label='Year' type='number' min={1886} max={new Date().getFullYear() + 1} step={1} placeholder='Model year')
+
+            Step(icon='car-odo' title='Odometer' state={mileageState} index={2} meta={values.mileage.trim() ? `${values.mileage} km` : 'optional'})
+              div(className={ENTER_CLASS})
+                EditSnapField(form={form} name='mileage' label='Mileage (km)' type='number' min={0} max={9999999.9} step='any' placeholder='Optional')
+
+            Step(icon='sparkle' title='Save' state={saveState} index={3} isLast={true})
+              if canSubmit
+                p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Update this snap with the details above.
+              else
+                div(className='h-2 w-full overflow-hidden rounded-full bg-muted/70')
+                  div(className='h-full rounded-full bg-active/60 transition-[width] duration-500 ease-out' style={{ width: progressWidth }})
 
             if submitError
-              p(className='rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive' role='alert') #{submitError}
+              p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
 
-        div(className='flex shrink-0 items-center justify-end gap-2 border-t border-border/50 px-4 py-3 sm:px-5')
-          Button(type='button' size='sm' variant='ghost' label='Cancel' disabled={isSubmitting} onClick={() => handleOpenChange(false)})
-          Button(type='submit' size='sm' variant='dark' icon='pencil-bold' label='Save changes' pending={isSubmitting} pendingLabel='Saving…' disabled={!canSubmit || !snap})
+        div(className='flex shrink-0 items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-5')
+          div(className='flex min-w-0 items-center gap-2')
+            span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
+            span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
+          div(className='flex shrink-0 items-center gap-2')
+            Button(type='button' size='sm' variant='ghost' label='Cancel' disabled={isSubmitting} onClick={() => handleOpenChange(false)})
+            Button(type='submit' size='sm' variant='dark' icon='pencil-bold' label='Save changes' pending={isSubmitting} pendingLabel='Saving…' disabled={!canSubmit || !snap})

@@ -54,9 +54,9 @@ setup
   // fall back to the initials rather than leave a broken image in the row.
   const [hasFailedImage, setHasFailedImage] = useState(false)
   const showImage = Boolean(snap.imageUrl) && !hasFailedImage
-  const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status], className: 'scale:70' })
+  const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status] })
 
-div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-xs', className)})
+div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-sm py-1.5', className)})
   span(className='relative size-10 shrink-0')
     if showImage
       img(
@@ -80,10 +80,10 @@ div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-xs',
     if isSelected
       span(className='absolute -right-0.5 -bottom-0.5 grid size-4 origin-center animate-in zoom-in duration-200 ease-out flex items-center justify-center rounded-full border-2 border-popover bg-[#01bf7c] text-white duration-200 ease-out zoom-in-50 motion-reduce:animate-none')
         Icon(name='check' size={11} className='mt-[0.5px] text-white')
-  div(className='min-w-0 flex-1')
+  div(className='min-w-0 flex-1 space-y-1')
     p(className='flex items-center gap-3 text-foreground text-sm uppercase')
-      span(className='font-poly font-medium text-lg truncate tracking-wide') #{plateNumber}
-      Status
+      span(className='font-poly text-base tracking-wide min-w-24') #{plateNumber}
+      Status(className='scale:70')
     div(className='mt-0.5 flex min-w-0 items-center gap-1.5 font-mono text-xs text-foreground/80')
       span(className='truncate whitespace-nowrap') #{formatName(fullName) || 'Unknown applicant'}
       if email
