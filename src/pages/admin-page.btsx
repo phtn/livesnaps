@@ -168,10 +168,9 @@ if isMobile
 else
   Group(className='min-h-screen h-dvh')
     Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col pe-6 bg-sunken _border-r border-border/70')
-        div(className={cn('flex h-16 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
-
-          Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
+      aside(className='flex h-full min-w-0 w-full flex-col pe-6 bg-sunken dark:bg-sunken/40')
+        div(className={cn('flex h-30 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+          Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
             if isNavigationCompact
               Icon(name='livesnaps')
             else

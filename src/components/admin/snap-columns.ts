@@ -190,7 +190,7 @@ export const snapColumns = columnHelper.columns([
   columnHelper.display({
     id: 'actions',
     header: createHeader('⁞'),
-    size: 40,
+    size: 50,
     enableHiding: false,
     enableSorting: false,
     enableGlobalFilter: false,

@@ -150,7 +150,7 @@ Sortable(value={reorderableColumnIds} onValueChange={handleColumnOrderChange})
     Menu.Trigger(render={createElement(ColumnViewTrigger, { invisibleCount })})
     Menu.Portal
       Menu.Positioner(align='start' className='isolate z-50 outline-none' sideOffset={3})
-        Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:bg-dark-table dark:text-zinc-200')
+        Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:text-zinc-200')
           div(className='flex items-center justify-between border-b border-dashed border-border px-4 py-1 font-sans text-sm')
             span(className='font-sans text-sm text-muted-foreground')
               | #{positioningEnabled ? 'Position Columns' : 'View Options'}

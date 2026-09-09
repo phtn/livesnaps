@@ -1,4 +1,5 @@
 import { Menu as MenuPrimitive } from "@octanejs/base-ui/menu"
+import type { Ref } from "octane"
 import { cn } from "@/lib/utils"
 
 module
@@ -7,37 +8,71 @@ module
     label: string
     content: unknown
     value?: string
+    href?: string
+    onClick?: () => void
+    disabled?: boolean
+    closeOnClick?: boolean
+    className?: string
+    separatorBefore?: boolean
   }
 
   interface MenuProps {
     items: MenuItem[]
     children?: unknown
+    beforeItems?: unknown
     side?: "top" | "bottom" | "left" | "right" | "inline-end" | "inline-start"
     align?: "start" | "center" | "end"
     sideOffset?: number
+    portalContainer?: HTMLElement | ShadowRoot | null
+    triggerRef?: Ref<HTMLElement>
+    triggerAriaLabel?: string
     triggerClassName?: string
+    positionerClassName?: string
     popupClassName?: string
+    separatorClassName?: string
   }
 
   export type { MenuItem, MenuProps }
 
-props { children, items, side = "bottom", align = "center", sideOffset = 8, triggerClassName, popupClassName }: MenuProps
+props { children, items, beforeItems, side = "bottom", align = "center", sideOffset = 8, portalContainer, triggerRef, triggerAriaLabel, triggerClassName, positionerClassName, popupClassName, separatorClassName }: MenuProps
 
 MenuPrimitive.Root
   MenuPrimitive.Trigger(
+    ~ ref={triggerRef}
+    ~ aria-label={triggerAriaLabel}
     ~ className={cn("flex items-center justify-center gap-1.5 rounded-md border border-border text-base font-normal text-foreground select-none active:bg-background data-popup-open:bg-background", triggerClassName)}
     ~ )
     | #{children ?? "Menu"}
-  MenuPrimitive.Portal
+  MenuPrimitive.Portal(container={portalContainer})
     MenuPrimitive.Positioner(
       ~ positionMethod="fixed"
       ~ side={side}
       ~ align={align}
       ~ sideOffset={sideOffset}
-      ~ className="z-60 outline-hidden"
+      ~ className={cn("z-60 outline-hidden", positionerClassName)}
       ~ )
       MenuPrimitive.Popup(
         ~ className={cn("z-60 origin-(--transform-origin) rounded-md py-0 bg-background/10 backdrop-blur-3xl shadow-lg shadow-gray-200 border border-foreground/20 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:shadow-none", popupClassName)}
         ~ )
+        | #{beforeItems}
         each item in items key item.id
-          MenuPrimitive.Item(label={item.label}) #{item.content}
+          if item.separatorBefore
+            div(role="separator" className={cn("my-1 h-px bg-border/40", separatorClassName)})
+          if item.href
+            MenuPrimitive.LinkItem(
+              ~ href={item.href}
+              ~ label={item.label}
+              ~ closeOnClick={item.closeOnClick}
+              ~ onClick={item.onClick}
+              ~ className={item.className}
+              ~ )
+              | #{item.content}
+          else
+            MenuPrimitive.Item(
+              ~ label={item.label}
+              ~ disabled={item.disabled}
+              ~ closeOnClick={item.closeOnClick}
+              ~ onClick={item.onClick}
+              ~ className={item.className}
+              ~ )
+              | #{item.content}

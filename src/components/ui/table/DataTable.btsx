@@ -308,7 +308,7 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
   // other control in it stands down for the duration. Hidden rather than
   // unmounted: they keep their own state and the row is whole again the moment
   // the field closes. `HyperSearch` never reports expanded on desktop.
-  div(className='flex items-center justify-between h-12 px-2 md:px-0.5 pb-2 pt-3 dark:bg-sunken dark:md:bg-surface')
+  div(className='flex items-center justify-between h-12 px-2 md:px-0.5 pb-2 pt-3 dark:bg-sunken dark:md:bg-surface md:pb-4')
     div(className={cn('flex items-center md:gap-0.75 gap-1', isSearchExpanded && 'hidden md:flex')})
       ColumnView(
         ~ cols={table.getAllLeafColumns()}

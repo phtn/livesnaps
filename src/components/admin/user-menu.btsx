@@ -1,10 +1,16 @@
-import { Menu as MenuPrimitive } from '@octanejs/base-ui/menu'
 import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'octane'
 import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { Avatar } from '@/components/ui'
+import Menu, { type MenuItem } from '@/components/ui/Menu.btsx'
 import { signOutUser } from '@/lib/firebase/auth'
 import { buildAppUrl } from '@/lib/routing/app-url'
+import { buildAdminHandoffUrl } from '@/lib/routing/admin-subdomain'
+import { useConvexAuth } from '@/hooks/use-convex'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { api } from '../../../convex/_generated/api'
+import { canUseAccount } from '@/lib/accounts/accounts'
+import type { User } from 'firebase/auth'
 
 module
   export interface UserMenuAction {
@@ -81,6 +87,8 @@ module
     hasGodAccess?: boolean
     /** The console this menu signs out of. Defaults to the admin app. */
     scope?: UserMenuScope
+    /** Firebase user used to hand Citadel members into their workspace. */
+    user?: User | null
     actions?: UserMenuAction[]
     onSignOut?: () => void
     className?: string
@@ -100,7 +108,7 @@ component CreditsMeter
     div(className='mt-2.5 h-2 w-full overflow-hidden rounded-full bg-muted')
       div(className='h-full rounded-full bg-lime-500 transition-[width] duration-300 ease-out dark:bg-lime-400' style={{ width: `${percent}%` }})
 
-props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compact = false, hasGodAccess = false, scope = 'admin', actions, onSignOut, className }: UserMenuProps
+props { name, email, photoUrl, creditsUsed, creditsTotal, isOnline = true, compact = false, hasGodAccess = false, scope = 'admin', user, actions, onSignOut, className }: UserMenuProps
 
 setup
   const triggerRef = useRef<HTMLElement | null>(null)
@@ -108,11 +116,19 @@ setup
   // mobile navigation. This preserves the drawer's focus boundary and prevents
   // the menu from being treated as outside content.
   // `undefined` (not `null`, which disables portalling) falls back to the body.
-  const [portalContainer, setPortalContainer] = useState<Element | undefined>(undefined)
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | undefined>(undefined)
   const [isLeaving, setIsLeaving] = useState(false)
   const [isSigningOut, setIsSigningOut] = useState(false)
+  const [isNavigatingToWorkspace, setIsNavigatingToWorkspace] = useState(false)
+  const convexAuth = useConvexAuth()
+  const accounts = useConvexQuery(
+    api.accounts.q.listMine,
+    scope === 'citadel' && convexAuth.isAuthenticated ? { limit: 250 } : 'skip',
+    convexAuth.userId ?? ''
+  )
   const displayName = useMemo(() => name?.trim() || email?.split('@')[0] || 'Account', [name, email])
   const showCredits = typeof creditsUsed === 'number' && typeof creditsTotal === 'number'
+  const hasWorkspace = scope === 'citadel' && (accounts?.some(account => canUseAccount(account.status)) ?? false)
   // No self-link: citadel already shows the citadel pages around this menu.
   const links = useMemo(
     () => (hasGodAccess && scope !== 'citadel' ? [...appLinks, ...godAppLinks] : appLinks),
@@ -132,7 +148,7 @@ setup
   }, [isLeaving, scope])
 
   useEffect(() => {
-    setPortalContainer(triggerRef.current?.closest('[data-drawer-content]') ?? undefined)
+    setPortalContainer(triggerRef.current?.closest<HTMLElement>('[data-drawer-content]') ?? undefined)
   }, [])
 
   const handleSignOut = useCallback(async () => {
@@ -151,12 +167,84 @@ setup
     }
   }, [isSigningOut, onSignOut, scope])
 
-MenuPrimitive.Root
-  MenuPrimitive.Trigger(
-    ~ ref={triggerRef}
-    ~ className={cn('group flex w-full cursor-pointer items-center rounded-xl text-left transition-colors select-none hover:bg-muted/60 data-popup-open:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20', compact ? 'justify-center p-1' : 'gap-3 px-2 py-2', className)}
-    ~ aria-label='Open account menu'
-    ~ )
+  const handleWorkspaceNavigation = useCallback(async () => {
+    if (!user || isNavigatingToWorkspace) return
+    setIsNavigatingToWorkspace(true)
+    try {
+      const idToken = await user.getIdToken(true)
+      window.location.assign(buildAdminHandoffUrl(new URL(window.location.href), idToken).toString())
+    } catch (error) {
+      console.error('Failed to navigate to the workspace.', error)
+      setIsNavigatingToWorkspace(false)
+    }
+  }, [isNavigatingToWorkspace, user])
+
+  const itemContent = (icon: IconName, label: string) => createElement(
+    'div',
+    { className: 'contents' },
+    createElement(Icon, { name: icon, className: 'size-4' }),
+    createElement('span', null, label)
+  )
+
+  const itemClassName = 'flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 text-sm text-foreground/80 outline-hidden select-none hover:bg-sidebar/60 data-highlighted:bg-muted data-highlighted:text-foreground'
+  const linkItemClassName = 'flex cursor-pointer items-center gap-3 rounded-sm p-3.5 text-sm text-foreground/80 outline-hidden select-none hover:bg-sidebar/60 data-highlighted:bg-muted data-highlighted:text-foreground'
+  const menuItems = useMemo<MenuItem[]>(() => [
+    ...links.map((link, index) => ({
+      id: link.id,
+      label: link.label,
+      href: toAppHref(link.path),
+      className: cn(linkItemClassName, index === 0 && 'mt-1'),
+      content: itemContent(link.icon, link.label)
+    })),
+    ...(hasWorkspace ? [{
+      id: 'workspace',
+      label: 'workspace',
+      disabled: isNavigatingToWorkspace,
+      onClick: () => void handleWorkspaceNavigation(),
+      className: cn(linkItemClassName, 'data-disabled:cursor-wait data-disabled:opacity-60'),
+      content: itemContent('admin', isNavigatingToWorkspace ? 'opening workspace…' : 'workspace')
+    }] : []),
+    ...(actions ?? []).map((action, index) => ({
+      id: action.id,
+      label: action.label,
+      onClick: action.onSelect,
+      className: cn(itemClassName, 'rounded-xl', index === 0 && 'mt-1'),
+      content: itemContent(action.icon as IconName, action.label)
+    })),
+    {
+      id: 'leave-console',
+      label: scopes[scope].exitLabel,
+      separatorBefore: true,
+      closeOnClick: false,
+      disabled: isLeaving,
+      onClick: () => void handleLeaveConsole(),
+      className: cn(itemClassName, 'data-disabled:cursor-wait data-disabled:opacity-60'),
+      content: itemContent('logoff', isLeaving ? scopes[scope].leavingLabel : scopes[scope].exitLabel)
+    },
+    {
+      id: 'sign-out',
+      label: 'sign out',
+      closeOnClick: false,
+      disabled: isSigningOut,
+      onClick: () => void handleSignOut(),
+      className: cn(itemClassName, 'data-disabled:cursor-wait data-disabled:opacity-60'),
+      content: itemContent('logout', isSigningOut ? 'signing out…' : 'sign out')
+    }
+  ], [actions, handleLeaveConsole, handleSignOut, handleWorkspaceNavigation, hasWorkspace, isLeaving, isNavigatingToWorkspace, isSigningOut, links, scope])
+
+Menu(
+  ~ items={menuItems}
+  ~ beforeItems={showCredits ? createElement(CreditsMeter, { used: creditsUsed as number, total: creditsTotal as number }) : undefined}
+  ~ portalContainer={portalContainer}
+  ~ triggerRef={triggerRef}
+  ~ triggerAriaLabel='Open account menu'
+  ~ side='top'
+  ~ align={compact ? 'start' : 'center'}
+  ~ sideOffset={20}
+  ~ triggerClassName={cn('group flex w-full cursor-pointer items-center rounded-xl border-0 text-left transition-colors select-none hover:bg-muted/60 data-popup-open:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20', compact ? 'justify-center p-1' : 'gap-3 px-2 py-2', className)}
+  ~ positionerClassName=''
+  ~ popupClassName='z-50 w-64 overflow-hidden rounded-md border border-border/40 bg-surface dark:bg-card/35 p-1 pb-1 text-popover-foreground shadow-2xl outline-hidden md:w-48'
+  ~ )
     div(className='relative shrink-0 overflow-hidden')
       Avatar(imageUrl={photoUrl} alt={displayName} size={'default'})
       if isOnline
@@ -167,54 +255,3 @@ MenuPrimitive.Root
           p(className='truncate text-xs font-medium text-foreground') #{displayName}
           if email
             p(className='truncate text-2xs text-foreground/60') #{email}
-
-  MenuPrimitive.Portal(container={portalContainer})
-    MenuPrimitive.Positioner(
-      ~ positionMethod='fixed'
-      ~ side='top'
-      ~ align={compact ? 'start' : 'center'}
-      ~ sideOffset={20}
-      ~ className='z-60 outline-hidden overflow-hidden bg-surface dark:bg-sunken/60 backdrop-blur-3xl rounded-md'
-      ~ )
-      MenuPrimitive.Popup(
-        ~ className='z-50 md:w-48 w-64 origin-(--transform-origin) rounded-md border border-border/40 bg-card/35 overflow-hidden p-1 text-popover-foreground shadow-2xl outline-hidden transition-[transform,scale,opacity] data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0'
-        ~ )
-        if showCredits
-          CreditsMeter(used={creditsUsed as number} total={creditsTotal as number})
-
-        div(className='mt-1 flex flex-col')
-          each link in links key link.id
-            MenuPrimitive.Item(
-              ~ render={createElement('a', { href: toAppHref(link.path) })}
-              ~ className='flex cursor-pointer items-center gap-3 rounded-sm p-3.5 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
-              ~ )
-              Icon(name={link.icon} className='size-4')
-              span #{link.label}
-
-        if actions && actions.length > 0
-          div(className='mt-1 flex flex-col')
-            each action in actions key action.id
-              MenuPrimitive.Item(
-                ~ onClick={action.onSelect}
-                ~ className='flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-highlighted:bg-muted data-highlighted:text-foreground'
-                ~ )
-                Icon(name={action.icon} className='size-4')
-                span #{action.label}
-
-        div(className='mt-1 flex flex-col border-t border-border/40 pt-1')
-          MenuPrimitive.Item(
-            ~ closeOnClick={false}
-            ~ disabled={isLeaving}
-            ~ onClick={() => void handleLeaveConsole()}
-            ~ className='flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-disabled:cursor-wait data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
-            ~ )
-            Icon(name='logoff' className='size-4')
-            span #{isLeaving ? scopes[scope].leavingLabel : scopes[scope].exitLabel}
-          MenuPrimitive.Item(
-            ~ closeOnClick={false}
-            ~ disabled={isSigningOut}
-            ~ onClick={() => void handleSignOut()}
-            ~ className='flex cursor-pointer items-center gap-3 rounded-sm px-3 py-2 hover:bg-sidebar/60 text-sm text-foreground/80 outline-hidden select-none data-disabled:cursor-wait data-disabled:opacity-60 data-highlighted:bg-muted data-highlighted:text-foreground'
-            ~ )
-            Icon(name='logout' className='size-4')
-            span #{isSigningOut ? 'signing out…' : 'sign out'}
