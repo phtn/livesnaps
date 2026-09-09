@@ -42,19 +42,16 @@ component ReportField
     }
   div(className='relative')
     label(className={cn('group/field flex min-h-12 cursor-pointer items-center gap-3 rounded-xl px-3 py-2 text-sm outline-none hover:bg-muted/65 focus-within:bg-muted/65', saving && 'cursor-wait', error && 'bg-destructive/5')})
-      input(type='checkbox' checked={checked} disabled={saving} onChange={change} aria-describedby={error ? `${fieldKey}-error` : undefined} className='peer sr-only')
-      span(
-        ~ aria-hidden={true}
-        ~ className={cn(
-        ~   'relative z-10 grid size-5 shrink-0 place-items-center rounded-full border-2 border-dashed bg-background',
-        ~   checked ? 'border-positive bg-positive text-white' : 'border-chart-warn text-chart-warn',
-        ~   saving && 'border-muted-foreground bg-background',
-        ~   error && 'border-destructive bg-background text-destructive',
-        ~   'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ring'
-        ~ )}
-        ~ )
+      input(type='checkbox' checked={checked} disabled={saving} onChange={change} className='hidden')
+      div(className='size-7 aspect-square flex items-center justify-center rounded-full overflow-hidden')
         if checked
-          Icon(name='check' size={13} className='stroke-3')
+          Icon(name='circle-check' className='size-6 text-brand animate-in zoom-in')
+        elseif saving
+          Icon(name='pending' className='size-6 text-orange-400 animate-spin duration-6000 ease-out')
+        elseif error
+          Icon(name='circle-alert' className='size-6 text-red-600/88 animate-in slide-in-from-top')
+        else
+          Icon(name='draft' className='size-6 text-mist-500 animate-in zoom-in')
       span(className={cn('min-w-0 flex-1 leading-5', !checked && 'text-foreground/80')}) #{label}
       span(className='min-w-12 text-right font-mono text-2xs uppercase tracking-[0.12em] text-muted-foreground' role='status') #{saving ? 'Saving' : saved ? 'Saved' : ''}
     if error
@@ -76,18 +73,18 @@ component ReportSettings
             span(className='shrink-0 font-mono text-sm tabular-nums text-muted-foreground' aria-label={`${group.fields.filter(field => !settings.excludedFields.includes(field.key)).length} of ${group.fields.length} fields included`}) #{group.fields.filter(field => !settings.excludedFields.includes(field.key)).length}/#{group.fields.length}
           if groupDescriptions[group.id]
             p(className='mt-1 max-w-2xl px-1 text-xs leading-5 text-muted-foreground') #{groupDescriptions[group.id]}
-          div(className='relative mt-4 space-y-1 pl-5 before:absolute before:inset-y-2 before:left-1 before:w-px before:bg-border/45')
+          div(className='relative mt-4 space-y-1 pl-5 before:absolute before:inset-y-2 before:left-2.5 before:w-px before:bg-border/45')
             each field in group.fields key field.key
               ReportField(fieldKey={field.key} label={field.label} included={!settings.excludedFields.includes(field.key)})
 
-main(className='mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-10')
-  section(className='rounded-2xl border border-border/35 bg-card/35 px-4 py-6 shadow-[0_18px_50px_-40px_rgba(0,0,0,0.45)] sm:px-8 sm:py-8')
+main(className='w-full px-4 py-8 sm:py-10')
+  section(className='bg-sunken/15 px-4 py-6 sm:px-8 sm:py-8')
     div(className='flex items-start justify-between gap-6 border-b border-border/30 pb-6')
       div
-        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Snap full report
-        h2(className='mt-2 font-poly text-2xl font-medium tracking-tight sm:text-3xl') Report checklist
-      span(className='mt-5 shrink-0 font-mono text-sm text-muted-foreground') Auto-saved
-    p(className='mt-6 max-w-2xl text-sm leading-6 text-muted-foreground') Choose the information included in every account report. Fields follow the PDF order and save as soon as you change them.
+        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Snaps Data
+        h2(className='mt-2 font-poly text-2xl font-medium tracking-tight sm:text-3xl') Report Checklist
+      span(className='mt-5 shrink-0 font-mono text-sm text-muted-foreground') auto-saved
+    p(className='mt-6 max-w-4xl text-sm leading-6 text-muted-foreground') Choose the information included in every account report. Fields follow the PDF order and save as soon as you change them.
     p(className='mt-1 max-w-2xl text-xs leading-5 text-muted-foreground') Empty sections are omitted. Existing downloaded files stay unchanged.
     try
       ReportSettings

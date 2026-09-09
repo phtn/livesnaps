@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'octane'
 import { useField, useForm } from '@octanejs/tanstack-form'
+import type { DateRange } from '@octanejs/day-picker'
 import { Link } from '@octanejs/tanstack-router'
 import type { FunctionReturnType } from 'convex/server'
 import { api } from '../../convex/_generated/api'
 import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
 import { workspaceJson } from '@/lib/accounts/link-client'
 import { Button } from '@/components/ui'
+import DateRangePicker from '@/components/ui/DateRangePicker.btsx'
 import { Icon } from '@/lib/icons'
 import { submissionLinkColorHex } from '@/lib/accounts/submission-links'
 
@@ -13,6 +15,14 @@ module
   type Analytics = FunctionReturnType<typeof api.submissionLinks.q.analytics>
   const cardClass = 'overflow-hidden rounded-lg border border-border/60 bg-surface shadow-[0_12px_40px_-32px_rgba(0,0,0,0.55)]'
   const utcDay = (timestamp: number) => new Date(timestamp).toISOString().slice(0, 10)
+  const calendarDate = (day: string) => {
+    const [year, month, date] = day.split('-').map(Number)
+    if (!year || !month || !date) return undefined
+    const value = new Date(year, month - 1, date)
+    return Number.isNaN(value.getTime()) ? undefined : value
+  }
+  const calendarDay = (date: Date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
   const percentage = (completed: number, started: number) => started ? `${Math.round(completed / started * 100)}%` : '—'
 
 setup
@@ -35,6 +45,13 @@ setup
   })
   const fromDay = useField({ form: dateForm, name: 'fromDay' })
   const toDay = useField({ form: dateForm, name: 'toDay' })
+  const selectedRange: DateRange | undefined = fromDay.state.value || toDay.state.value
+    ? { from: calendarDate(fromDay.state.value), to: calendarDate(toDay.state.value) }
+    : undefined
+  const selectRange = (nextRange: DateRange | undefined) => {
+    fromDay.handleChange(nextRange?.from ? calendarDay(nextRange.from) : '')
+    toDay.handleChange(nextRange?.to ? calendarDay(nextRange.to) : '')
+  }
 
   useEffect(() => {
     if (!account) return
@@ -76,12 +93,17 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
             p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Performance window
             h2(className='mt-1 text-base font-medium') All submission links
           form(className='flex flex-wrap items-end gap-2 md:gap-4' onSubmit={submitDates})
-            label(className='space-x-2 text-xs text-muted-foreground ')
-              span From · UTC
-              input(type='date' required value={fromDay.state.value} onInput={(event: Event) => fromDay.handleChange((event.currentTarget as HTMLInputElement).value)} className='h-8 rounded-sm border border-border/60 bg-surface px-2 text-xs')
-            label(className='space-x-2 text-xs text-muted-foreground')
-              span Through · UTC
-              input(type='date' required value={toDay.state.value} onInput={(event: Event) => toDay.handleChange((event.currentTarget as HTMLInputElement).value)} className='h-8 rounded-sm border border-border/60 bg-surface px-2 text-xs')
+            div(className='flex min-w-56 flex-col gap-1.5')
+              span(id='activity-date-range-label' className='font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground') Date range · UTC
+              DateRangePicker(
+                ~ id='activity-date-range'
+                ~ aria-labelledby='activity-date-range-label'
+                ~ value={selectedRange}
+                ~ onValueChange={selectRange}
+                ~ placeholder='Choose a date range'
+                ~ numberOfMonths={2}
+                ~ className='border border-border/60 bg-surface text-xs hover:bg-accent'
+                ~ )
             Button(type='submit' variant='ghost' size='sm' label='Apply')
         div(className='space-y-5 p-4')
           div(className='grid grid-cols-2 overflow-hidden rounded-sm border border-border/50 bg-sunken/30 md:grid-cols-4')
