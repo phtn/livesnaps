@@ -77,9 +77,9 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
       header(className='flex h-12 items-center justify-between')
         div(className='flex items-center gap-3')
           h2(className='font-poly font-medium tracking-tight') Staff
-          span(className='flex size-7 items-center justify-center rounded-full bg-table-head font-mono text-xs')
+          span(className='font-poly size-7 aspect-square flex items-center justify-center rounded-full bg-table-head')
             if rosterStatus === 'ready'
-              | #{members.length}
+              span(className='text-foreground') #{members.length}
             else
               Icon(name='spinner-ring' className='size-3')
           button(
