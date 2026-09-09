@@ -185,7 +185,7 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
             span(className='size-3 rounded-full ring-2 ring-background shadow-[0_0_0_1px_rgba(0,0,0,0.12)]' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
             h1(className='font-poly text-2xl font-medium tracking-tight capitalize') #{link.label}
           p(className='mt-1 max-w-2xl text-sm text-muted-foreground') Manage, share, and review the last 30 days for this intake link.
-        span(className={`rounded-full border px-2.5 py-1 font-mono text-2xs uppercase tracking-wider ${link.enabled ? 'border-positive/25 bg-positive/8 text-positive' : 'border-border/60 bg-muted/50 text-muted-foreground'}`}) #{link.enabled ? 'Enabled' : 'Disabled'}
+        span(className={`rounded-full border px-2.5 py-1 font-mono text-2xs uppercase tracking-wider ${link.enabled ? 'border-brand/25 bg-brand/8 text-brand' : 'border-border/60 bg-muted/50 text-muted-foreground'}`}) #{link.enabled ? 'Enabled' : 'Disabled'}
 
       div(className='mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(20rem,0.75fr)]')
         SharePanel(accountId={account.id} accountName={account.name} linkId={link._id} label={link.label} url={shareUrl})

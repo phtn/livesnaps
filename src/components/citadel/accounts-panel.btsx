@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'octane'
-import { Icon } from '@/lib/icons'
+import { Icon, type IconName } from '@/lib/icons'
 import { Badge, Button, Input } from '@/components/ui'
 import { Link } from '@octanejs/tanstack-router'
 import { cn, formatName } from '@/lib/utils'
@@ -46,6 +46,14 @@ module
   const actionButtonClassName =
     'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-2.5 font-mono text-muted-foreground text-xs uppercase tracking-wide transition-colors'
 
+  const ACCOUNT_STATUS_ICON: Record<AccountStatus, IconName> = {
+    pending: 'pending',
+    confirmed: 'circle-check',
+    active: 'circle-check',
+    suspended: 'alert-octagon-fill',
+    closed: 'circle-minus'
+  }
+
   interface TextFieldProps {
     form: AccountForm
     name: AccountTextField
@@ -75,7 +83,10 @@ module
 
 component StatusBadge
   props { status }: { status: AccountStatus }
-  Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[status])}) #{ACCOUNT_STATUS_LABEL[status]}
+  span(className={cn('inline-flex size-6 shrink-0 items-center justify-center rounded-xs border md:hidden', ACCOUNT_STATUS_TONE[status])} title={ACCOUNT_STATUS_LABEL[status]})
+    Icon(name={ACCOUNT_STATUS_ICON[status]} className='size-3.5')
+    span(className='sr-only') #{ACCOUNT_STATUS_LABEL[status]}
+  Badge(variant='plain' className={cn('hidden! rounded-xs border font-mono text-2xs uppercase tracking-wider md:inline-flex!', ACCOUNT_STATUS_TONE[status])}) #{ACCOUNT_STATUS_LABEL[status]}
 
 // One text control bound to one form field. Value, blur, and the error message
 // all come from the field's own state rather than from a second copy kept here.
@@ -670,9 +681,9 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
                   ~ className='flex flex-wrap items-center justify-between gap-3 md:px-3 px-1.5 py-4 transition-colors bg-table-head/50 hover:bg-accent'
                   ~ )
                   AccountIdentity(account={account})
-                  div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
+                  div(className='flex min-w-0 flex-1 items-center justify-end md:gap-4')
                     div(className='min-w-0 md:block')
-                      p(className='truncate text-sm text-foreground/80 capitalize') #{formatName(account.primaryContact.name)}
+                      // p(className='truncate text-sm text-foreground/80 capitalize') #{formatName(account.primaryContact.name)}
                     span(className='hidden truncate font-mono text-xs text-muted-foreground') #{account.primaryContact.email}
                     span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{ACCOUNT_PLAN_LABEL[account.plan]}
                     // span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatAccountDate(account.createdAt)}
