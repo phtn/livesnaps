@@ -143,7 +143,7 @@ export const snapVerificationStatus: Record<
 
 /**
  * Presentation for a `verificationEntries` row's `status`. An entry is created
- * as a `draft`, goes `active` while its email is being sent, and settles on
+ * as a `draft`, goes `active` once an operator starts working on it, and settles on
  * `submitted`, `cancelled`, or `failed`.
  */
 export const verificationEntryStatus: Record<
@@ -158,7 +158,7 @@ export const verificationEntryStatus: Record<
   active: {
     className: 'border-active/50 bg-active/8 text-active dark:active',
     icon: 'bolt',
-    label: 'Sending'
+    label: 'Active'
   },
   submitted: {
     className: 'border-emerald-500/25 bg-emerald-500/8 text-emerald-700 dark:text-emerald-300',

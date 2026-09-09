@@ -63,10 +63,10 @@ export function handleAdminSnapUpdate(request: Request, snapId: string, environm
       const body = parsed as Record<string, unknown>
       const stringFields = ['fullName', 'plateNumber', 'make', 'model', 'phone'] as const
       if (stringFields.some((field) => typeof body[field] !== 'string')) {
-        throw new AdminRequestError('Applicant name, plate number, make, model, and phone are required.')
+        throw new AdminRequestError('Applicant name, plate number, phone, make, and model must be strings.')
       }
-      if (typeof body.year !== 'number' || !(body.mileage === null || typeof body.mileage === 'number')) {
-        throw new AdminRequestError('Year and mileage must be numeric values.')
+      if (!(body.year === null || typeof body.year === 'number') || !(body.mileage === null || typeof body.mileage === 'number')) {
+        throw new AdminRequestError('Year and mileage must be numeric values when provided.')
       }
 
       return client.mutation(api.snaps.m.updateAdminDetails, {

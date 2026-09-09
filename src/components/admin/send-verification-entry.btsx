@@ -2,7 +2,6 @@ import { useForm, useSelector } from '@octanejs/tanstack-form'
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useRecipientDefaults } from '@/hooks/use-recipient-defaults'
 import { recipientChoices } from '@/lib/verifications/recipient-defaults'
-import RecipientInput from './recipient-input.btsx'
 import { useEffect, useLinkedState, useMemo, useRef, useState } from 'octane'
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
@@ -10,12 +9,13 @@ import AttachmentRow from '@/components/admin/attachment-row.btsx'
 import SnapOptionItem from '@/components/admin/snap-option-item.btsx'
 import { Badge, Button, Input } from '@/components/ui'
 import Step from '@/components/admin/verification-step.btsx'
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import { useMobile } from '@/hooks/use-mobile'
 import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { onError, onSuccess } from '@/lib/toast'
 import { cn } from '@/lib/utils'
-import { removeVerificationAttachment, sendVerificationEmail, uploadVerificationAttachment } from '@/lib/verifications/admin-writes'
+import { activateVerificationEntry, removeVerificationAttachment, sendVerificationEmail, uploadVerificationAttachment } from '@/lib/verifications/admin-writes'
 import { DEFAULT_VERIFICATION_ATTACHMENTS, isVerificationEmailAddress } from '@/lib/verifications/entries'
 import { attachmentSize, attachmentTotalLabel, formatBytes, CONTENT_BASE_CLASS, CONTENT_BOTTOM_CLASS, CONTENT_RIGHT_CLASS, ENTER_CLASS, fieldLabelClassName, ghostButtonClassName, readonlyFieldClassName, type StepState } from '@/lib/verifications/step-flow'
 import type { VerificationUpload } from '../../../convex/verificationEntries/d'
@@ -101,7 +101,11 @@ setup
   )
   const account = useWorkspace()
   const { settings: recipientDefaults } = useRecipientDefaults(account?.id, open)
+  const recipientValues = recipientChoices(recipientDefaults)
+  const recipientOptions = recipientValues.map((email) => ({ value: email, label: email }))
+  const menuPortalTarget = typeof document === 'undefined' ? undefined : document.body
   const recipientForm = useForm({
+    formId: entry ? `send-recipient-${entry._id}` : 'send-recipient-empty',
     defaultValues: { emailToAddress: entry?.emailToAddress ?? '' },
     validators: { onChange: ({ value }) => isVerificationEmailAddress(value.emailToAddress.trim()) ? undefined : 'Enter a valid recipient email.' },
     onSubmit: async ({ value, formApi }) => {
@@ -126,8 +130,30 @@ setup
   })
   const emailToAddress = useSelector(recipientForm.store, state => state.values.emailToAddress)
   const isPending = useSelector(recipientForm.store, state => state.isSubmitting)
-  useEffect(() => { recipientForm.reset({ emailToAddress: entry?.emailToAddress ?? '' }) }, [entry?._id])
   const isRecipientValid = isVerificationEmailAddress(emailToAddress.trim())
+  const savedRecipientValue = recipientValues.includes(emailToAddress) ? emailToAddress : ''
+  const handleRecipientInputChange = (value: string, meta: { action: string }) => {
+    if (meta.action === 'input-change') recipientForm.setFieldValue('emailToAddress', value)
+  }
+  const filterRecipientOption = (candidate: { label: string }, inputValue: string) =>
+    recipientValues.includes(emailToAddress) || candidate.label.toLowerCase().includes(inputValue.trim().toLowerCase())
+
+  useEffect(() => {
+    if (!open || entry?.status !== 'draft') return
+
+    let cancelled = false
+    void activateVerificationEntry(entry._id)
+      .then(() => {
+        if (!cancelled) onSent?.()
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) onError(errorMessage(error, 'Unable to activate the verification entry.'))
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, entry?._id, entry?.status])
 
   // The entry keeps a copy of the applicant's face, but the snap is what holds
   // the plate, the address and the evidence the attachments are weighed from.
@@ -314,7 +340,6 @@ if entry
                 if snap
                   div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
                     SnapOptionItem(snap={snap} isSelected={true})
-                    Badge(variant='outline' className='shrink-0 font-mono text-2xs font-normal capitalize') #{snap.status}
                 else
                   div(className={cn('flex items-center gap-3 rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
                     if entry.applicantImageUrl
@@ -347,7 +372,25 @@ if entry
                   div(className='grid gap-3 sm:grid-cols-2')
                     div(className='flex flex-col gap-1.5')
                       label(className={fieldLabelClassName} htmlFor='send-email-to') To
-                      RecipientInput(id='send-email-to' value={emailToAddress} options={recipientChoices(recipientDefaults)} disabled={isPending} invalid={!isRecipientValid} onChange={(value) => recipientForm.setFieldValue('emailToAddress', value)})
+                      SelectOctane(
+                        ~ inputId='send-email-to'
+                        ~ aria-label='To'
+                        ~ aria-invalid={!isRecipientValid}
+                        ~ className='w-full min-w-0'
+                        ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
+                        ~ filterOption={filterRecipientOption}
+                        ~ inputValue={emailToAddress}
+                        ~ isDisabled={isPending}
+                        ~ isSearchable={true}
+                        ~ menuPortalTarget={menuPortalTarget}
+                        ~ menuPosition='fixed'
+                        ~ noOptionsMessage={() => 'Type a recipient email'}
+                        ~ onChange={(value) => recipientForm.setFieldValue('emailToAddress', value)}
+                        ~ onInputChange={handleRecipientInputChange}
+                        ~ options={recipientOptions}
+                        ~ placeholder='recipient@example.com'
+                        ~ value={savedRecipientValue}
+                        ~ )
                     label(className='flex flex-col gap-1.5' htmlFor='send-email-cc')
                       span(className={fieldLabelClassName}) CC
                       div(id='send-email-cc' className={readonlyFieldClassName}) #{entry.ccEmailAddress ?? '—'}
@@ -413,7 +456,7 @@ if entry
                       ~ )
                   if pendingUploadCount > 0
                     div(className={cn('flex w-full items-center gap-3 rounded-lg px-1 py-1.5', ENTER_CLASS)})
-                      Icon(name='spinner-ring' className='size-5 shrink-0 animate-spin text-muted-foreground')
+                      Icon(name='spinner-ring' className='size-5 shrink-0 text-muted-foreground')
                       span(className='min-w-0 flex-1 truncate font-mono text-muted-foreground text-xs')
                         | Uploading #{pendingUploadCount} #{pendingUploadCount === 1 ? 'file' : 'files'}…
                 div(className='mt-3 flex items-center gap-2')

@@ -23,7 +23,7 @@ component AppWordmark
 
 component SidebarTrigger
   props { brand }: { brand: MobileSidebarBrand }
-  header(className='fixed inset-x-0 top-0 z-35 flex h-12 items-center justify-between border-b border-sidebar-border bg-sunken px-3')
+  header(className='fixed inset-x-0 top-0 z-35 flex h-14 dark:h-12 dark:md:h-14 items-center justify-between border-b border-sidebar-border bg-sunken px-3')
     if brand === 'citadel'
       Link(className='inline-flex items-center gap-2 font-poly font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
         Icon(name='re-up.ph' className='size-5')

@@ -131,7 +131,7 @@ module
   }
 
   const triggerClassName: ClassName =
-    'bg-background hover:border-indigo-500 hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
+    'bg-surface hover:border-indigo-500 hover:bg-indigo-600/5 dark:hover:bg-indigo-100/10 dark:hover:border-indigo-100/10 focus:outline-none focus:ring-1 focus:ring-indigo-400 dark:focus:ring-indigo-200/40 dark:focus:border-background border-2 border-border/25'
   const contentClassName: ClassName = 'dark:border-indigo-200/30 dark:bg-indigo-100/5 backdrop-blur-3xl'
   // A calendar grid sits over table rows, so it needs more cover than the
   // faceted lists do — those only ever overlap the filter panel itself.
@@ -227,9 +227,9 @@ component SnapNumberRangeFilter
       })
     }
     const numberInputClassName =
-      'h-7! bg-background! border-none w-10 font-sans text-xs text-center px-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
+      'h-7! bg-surface! border-none w-10 font-sans text-xs text-center px-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
 
-  div(aria-labelledby={fieldLabelId} className='flex h-8 items-center justify-between gap-1.5 rounded-sm border-2 border-border/25 bg-background ps-2 hover:bg-indigo-600/5')
+  div(aria-labelledby={fieldLabelId} className='flex h-8 items-center justify-between gap-1.5 rounded-sm border-2 border-border/25 bg-surface ps-2 hover:bg-indigo-600/5')
     label(htmlFor={minInputId} className='font-mono text-xs tracking-widest opacity-70') MIN
     Input(
       ~ id={minInputId}

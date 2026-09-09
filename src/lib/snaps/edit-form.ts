@@ -30,7 +30,7 @@ export const editSnapFormDefaults = (snap?: AdminSnapListItem | null): EditSnapF
 
 export function validateEditSnapForm(values: EditSnapFormValues) {
   const fields: Partial<Record<EditSnapFieldName, string>> = {}
-  const requiredTextFields = ['fullName', 'plateNumber', 'make', 'model', 'phone'] as const
+  const requiredTextFields = ['fullName', 'plateNumber', 'phone'] as const
   for (const field of requiredTextFields) {
     if (!values[field].trim()) fields[field] = 'This field is required.'
   }
@@ -46,9 +46,11 @@ export function validateEditSnapForm(values: EditSnapFormValues) {
   if (values.phone.trim().length > ACCOUNT_PHONE_MAX_LENGTH)
     fields.phone = `Keep this under ${ACCOUNT_PHONE_MAX_LENGTH} characters.`
 
-  const year = Number(values.year)
-  if (!values.year.trim() || !Number.isSafeInteger(year) || year < 1886 || year > new Date().getFullYear() + 1)
-    fields.year = 'Enter a valid vehicle model year.'
+  if (values.year.trim()) {
+    const year = Number(values.year)
+    if (!Number.isSafeInteger(year) || year < 1886 || year > new Date().getFullYear() + 1)
+      fields.year = 'Enter a valid vehicle model year.'
+  }
 
   if (values.mileage.trim()) {
     const mileage = normalizeMileage(values.mileage)
@@ -68,15 +70,22 @@ export function toUpdateAdminSnapInput(snap: AdminSnapListItem, values: EditSnap
     plateNumber: values.plateNumber.trim(),
     make: values.make.trim(),
     model: values.model.trim(),
-    year: Number(values.year),
+    year: values.year.trim() ? Number(values.year) : null,
     mileage: values.mileage.trim() ? normalizeMileage(values.mileage) : null,
     phone: values.phone.trim()
   }
 }
 
-export function useEditSnapForm(onSubmit: (values: EditSnapFormValues) => Promise<void>) {
+export function useEditSnapForm(
+  snap: AdminSnapListItem | null,
+  onSubmit: (values: EditSnapFormValues) => Promise<void>
+) {
   return useForm({
-    defaultValues: editSnapFormDefaults(),
+    // A form API is created synchronously for each selected snap. This gives
+    // every field its current value on the drawer's first render and prevents
+    // the previous row's values from flashing before an effect can reset it.
+    formId: snap ? `edit-snap-${snap._id}` : 'edit-snap-empty',
+    defaultValues: editSnapFormDefaults(snap),
     validators: { onChange: ({ value }) => validateEditSnapForm(value) },
     onSubmit: async ({ value, formApi }) => {
       try {

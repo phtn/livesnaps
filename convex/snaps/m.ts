@@ -632,7 +632,7 @@ export const updateAdminDetails = mutation({
       plateNumber: v.string(),
       make: v.string(),
       model: v.string(),
-      year: v.number(),
+      year: v.union(v.number(), v.null()),
       mileage: v.union(v.number(), v.null()),
       phone: v.string()
     })
@@ -655,13 +655,13 @@ export const updateAdminDetails = mutation({
     }
 
     const plateNumber = normalizeConfirmedPlateNumber(details.plateNumber)
-    const make = normalizeRequiredString(details.make, 'Make')
-    const model = normalizeRequiredString(details.model, 'Model')
+    const make = details.make.trim()
+    const model = details.model.trim()
     if (make.length > MAX_VEHICLE_NAME_LENGTH || model.length > MAX_VEHICLE_NAME_LENGTH) {
       throw new ConvexError(`Make and model must each be ${MAX_VEHICLE_NAME_LENGTH} characters or fewer.`)
     }
 
-    if (!Number.isSafeInteger(details.year) || details.year < 1886 || details.year > new Date().getFullYear() + 1) {
+    if (details.year !== null && (!Number.isSafeInteger(details.year) || details.year < 1886 || details.year > new Date().getFullYear() + 1)) {
       throw new ConvexError('Year must be a valid vehicle model year.')
     }
 
@@ -670,16 +670,25 @@ export const updateAdminDetails = mutation({
       throw new ConvexError('Mileage must be a valid non-negative kilometer reading.')
     }
 
+    const updatedAt = Date.now()
     await ctx.db.patch('snaps', snapId, {
       full_name: fullName,
       plate_number: plateNumber,
-      make,
-      model,
-      year: details.year,
+      make: make || undefined,
+      model: model || undefined,
+      year: details.year ?? undefined,
       mileage: mileage ?? undefined,
       phone,
-      updated_at: Date.now()
+      updated_at: updatedAt
     })
+
+    const verificationEntry = await ctx.db
+      .query('verificationEntries')
+      .withIndex('by_uploadId', (q) => q.eq('uploadId', snap.metadata.upload_id))
+      .unique()
+    if (verificationEntry?.status === 'draft' && verificationEntry.accountId === snap.accountId) {
+      await ctx.db.patch('verificationEntries', verificationEntry._id, { status: 'active', updatedAt })
+    }
 
     return null
   }

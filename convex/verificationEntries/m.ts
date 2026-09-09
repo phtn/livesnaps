@@ -63,6 +63,9 @@ const MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 const MAX_UPLOAD_COUNT = 10
 const MAX_UPLOAD_NAME_LENGTH = 160
 
+const activeStatus = (entry: VerificationEntryDoc) =>
+  entry.status === 'draft' ? ('active' as const) : entry.status
+
 /** Falls back to a stable name: a filename is what the recipient sees. */
 const normalizeUploadName = (value: string): string => {
   const name = value
@@ -269,8 +272,27 @@ export const updateAttachments = mutation({
       .filter((item: string): boolean => item.length > 0)
       .filter((item: string, index: number, arr: string[]): boolean => arr.indexOf(item) === index)
     if (normalized.length === 0) throw new ConvexError('At least one attachment is required.')
-    await ctx.db.patch(args.id, { attachments: normalized, updatedAt: Date.now() })
+    await ctx.db.patch(args.id, { attachments: normalized, status: activeStatus(entry), updatedAt: Date.now() })
     const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
+    if (!updated) throw new ConvexError('Unable to read updated entry.')
+    return updated
+  }
+})
+
+/** Marks a draft as being worked on without regressing any later status. */
+export const markActive = mutation({
+  args: { id: v.id('verificationEntries') },
+  returns: verificationEntryDocumentSchema,
+  handler: async (ctx: MutationCtx, { id }: { id: Id<'verificationEntries'> }): Promise<VerificationEntryDoc> => {
+    const entry: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', id)
+    if (!entry) throw new ConvexError('Entry not found.')
+    await requireVerificationEntryAccess(ctx, entry, 'member')
+
+    if (entry.status === 'draft') {
+      await ctx.db.patch(id, { status: 'active', updatedAt: Date.now() })
+    }
+
+    const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', id)
     if (!updated) throw new ConvexError('Unable to read updated entry.')
     return updated
   }
@@ -375,7 +397,11 @@ export const attachUpload = mutation({
       uploadedAt: Date.now()
     }
 
-    await ctx.db.patch(args.id, { uploads: [...uploads, upload], updatedAt: Date.now() })
+    await ctx.db.patch(args.id, {
+      uploads: [...uploads, upload],
+      status: activeStatus(entry),
+      updatedAt: Date.now()
+    })
     await ctx.db.patch(intent._id, { state: 'attached' })
 
     const updated: VerificationEntryDoc | null = await ctx.db.get('verificationEntries', args.id)
@@ -405,7 +431,7 @@ export const removeUpload = mutation({
     const remaining: VerificationUpload[] = uploads.filter((upload) => upload.storageId !== args.storageId)
 
     if (remaining.length !== uploads.length) {
-      await ctx.db.patch(args.id, { uploads: remaining, updatedAt: Date.now() })
+      await ctx.db.patch(args.id, { uploads: remaining, status: activeStatus(entry), updatedAt: Date.now() })
       // Storage is dropped after the reference is, so a failure here leaves an
       // orphaned blob rather than a row pointing at nothing.
       await ctx.storage.delete(args.storageId)

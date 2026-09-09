@@ -6,7 +6,7 @@ export interface UpdateAdminSnapInput {
   plateNumber: string
   make: string
   model: string
-  year: number
+  year: number | null
   mileage: number | null
   phone: string
 }

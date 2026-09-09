@@ -156,6 +156,25 @@ const savePhoto = (uploadId: number, slot = 1) =>
     photo: photo(uploadId, slot)
   })
 
+const insertVerificationEntry = (uploadId: number) =>
+  t.run((ctx) =>
+    ctx.db.insert('verificationEntries', {
+      accountId: org1,
+      applicant: 'Client',
+      attachments: ['photos'],
+      createdAt: Date.now(),
+      emailFromAddress: owner.email,
+      emailToAddress: 'recipient@example.com',
+      plateNumber: details.plate_number,
+      senderName: owner.name,
+      senderTokenIdentifier: owner.tokenIdentifier,
+      senderUid: owner.subject,
+      status: 'draft',
+      updatedAt: Date.now(),
+      uploadId: uid(uploadId)
+    })
+  )
+
 // Exercise the real functions and transactions, including direct-client calls.
 describe('Account submission links and immutable ownership', () => {
   test('resolves existing default routes without leaking Account private data', async () => {
@@ -276,6 +295,53 @@ describe('Account submission links and immutable ownership', () => {
       mileage: updated.mileage,
       phone: updated.phone
     })
+
+    await t.withIdentity(owner).mutation(api.snaps.m.updateAdminDetails, {
+      snapId,
+      details: { ...updated, make: '', model: '', year: null }
+    })
+    const cleared = await t.run((ctx) => ctx.db.get(snapId))
+    expect(cleared).not.toHaveProperty('make')
+    expect(cleared).not.toHaveProperty('model')
+    expect(cleared).not.toHaveProperty('year')
+  })
+
+  test('activates drafts when work starts without regressing later statuses', async () => {
+    const snapId = await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1))
+    const entryId = await insertVerificationEntry(1)
+
+    await expect(
+      t.withIdentity(viewer).mutation(api.verificationEntries.m.markActive, { id: entryId })
+    ).rejects.toThrow(/Unauthorized/)
+
+    await t.withIdentity(owner).mutation(api.verificationEntries.m.markActive, { id: entryId })
+    expect(await t.run((ctx) => ctx.db.get(entryId))).toMatchObject({ status: 'active' })
+
+    await t.run((ctx) => ctx.db.patch(entryId, { status: 'draft' }))
+    await t.withIdentity(owner).mutation(api.verificationEntries.m.updateAttachments, {
+      id: entryId,
+      attachments: ['full report']
+    })
+    expect(await t.run((ctx) => ctx.db.get(entryId))).toMatchObject({ status: 'active' })
+
+    await t.run((ctx) => ctx.db.patch(entryId, { status: 'draft' }))
+    await t.withIdentity(owner).mutation(api.snaps.m.updateAdminDetails, {
+      snapId,
+      details: {
+        fullName: 'Updated Applicant',
+        plateNumber: 'XYZ 9876',
+        make: '',
+        model: '',
+        year: null,
+        mileage: null,
+        phone: '09998887777'
+      }
+    })
+    expect(await t.run((ctx) => ctx.db.get(entryId))).toMatchObject({ status: 'active' })
+
+    await t.run((ctx) => ctx.db.patch(entryId, { status: 'submitted' }))
+    await t.withIdentity(owner).mutation(api.verificationEntries.m.markActive, { id: entryId })
+    expect(await t.run((ctx) => ctx.db.get(entryId))).toMatchObject({ status: 'submitted' })
   })
 
   test('disabled links block new starts while existing captures keep their attribution', async () => {

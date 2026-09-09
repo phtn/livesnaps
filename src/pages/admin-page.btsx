@@ -190,7 +190,7 @@ else
 
         div(className='flex items-center justify-start h-16 px-5')
           ThemeToggle
-        div(className={cn('py-3', isNavigationCompact ? 'px-2' : 'px-3')})
+        div(className={cn('py-4', isNavigationCompact ? 'px-2' : 'px-3')})
           UserMenu(
             ~ compact={isNavigationCompact}
             ~ name={user?.displayName}

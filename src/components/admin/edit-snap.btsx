@@ -1,7 +1,6 @@
 import { Drawer } from '@octanejs/vaul'
 import '@octanejs/vaul/style.css'
 import { useField, useSelector } from '@octanejs/tanstack-form'
-import { useEffect } from 'octane'
 import { Button, Input } from '@/components/ui'
 import Step from '@/components/admin/verification-step.btsx'
 import { useMobile } from '@/hooks/use-mobile'
@@ -65,17 +64,13 @@ props { onOpenChange, onUpdated, open, snap }: EditSnapDrawerProps
 setup
   const isMobile = useMobile()
   const direction = isMobile ? 'bottom' : 'right'
-  const form = useEditSnapForm(async (values) => {
+  const form = useEditSnapForm(snap, async (values) => {
     if (!snap) throw new Error('The snap could not be found.')
     await updateAdminSnap(toUpdateAdminSnapInput(snap, values))
     onSuccess(`Updated snap ${values.plateNumber.trim()}.`)
     onUpdated?.()
     onOpenChange(false)
   })
-
-  useEffect(() => {
-    if (open) form.reset(editSnapFormDefaults(snap))
-  }, [open, snap?._id, snap?.fullName, snap?.phone, snap?.plateNumber, snap?.make, snap?.model, snap?.year, snap?.mileage])
 
   const values = useSelector(form.store, (state) => state.values)
   const isSubmitting = useSelector(form.store, (state) => state.isSubmitting)
@@ -119,7 +114,7 @@ setup
   const handleOpenChange = (nextOpen: boolean) => {
     if (isSubmitting) return
     onOpenChange(nextOpen)
-    if (!nextOpen) form.reset(editSnapFormDefaults(snap))
+    if (!nextOpen) form.reset(editSnapFormDefaults())
   }
 
   const submit = (event: SubmitEvent) => {
@@ -153,9 +148,9 @@ Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
               div(className={cn('grid gap-3', ENTER_CLASS)})
                 EditSnapField(form={form} name='plateNumber' label='Plate number' maxLength={32} placeholder='Plate number')
                 div(className='grid gap-3 sm:grid-cols-2')
-                  EditSnapField(form={form} name='make' label='Make' maxLength={80} placeholder='Vehicle make')
-                  EditSnapField(form={form} name='model' label='Model' maxLength={80} placeholder='Vehicle model')
-                EditSnapField(form={form} name='year' label='Year' type='number' min={1886} max={new Date().getFullYear() + 1} step={1} placeholder='Model year')
+                  EditSnapField(form={form} name='make' label='Make (optional)' maxLength={80} placeholder='Vehicle make')
+                  EditSnapField(form={form} name='model' label='Model (optional)' maxLength={80} placeholder='Vehicle model')
+                EditSnapField(form={form} name='year' label='Year (optional)' type='number' min={1886} max={new Date().getFullYear() + 1} step={1} placeholder='Model year')
 
             Step(icon='car-odo' title='Odometer' state={mileageState} index={2} meta={values.mileage.trim() ? `${values.mileage} km` : 'optional'})
               div(className={ENTER_CLASS})
@@ -177,4 +172,4 @@ Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
             span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}
           div(className='flex shrink-0 items-center gap-2')
             Button(type='button' size='sm' variant='ghost' label='Cancel' disabled={isSubmitting} onClick={() => handleOpenChange(false)})
-            Button(type='submit' size='sm' variant='dark' icon='pencil-bold' label='Save changes' pending={isSubmitting} pendingLabel='Saving…' disabled={!canSubmit || !snap})
+            Button(type='submit' size='sm' variant='dark' icon='check' label='Save changes' pending={isSubmitting} pendingLabel='Saving…' disabled={!canSubmit || !snap})

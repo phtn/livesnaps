@@ -103,6 +103,27 @@ export function handleAdminVerificationEntryCreate(
   )
 }
 
+/** Idempotently moves a draft into the active work queue. */
+export function handleAdminVerificationEntryActivate(
+  request: Request,
+  environment: AdminVerificationRouteEnvironment = {}
+) {
+  return withAdminConvexWrite(
+    request,
+    environment,
+    async (client) => {
+      const body = await readJsonBody(request)
+      if (!body) throw new AdminRequestError('A valid JSON request body is required.')
+
+      const id = readString(body.id)
+      if (!id) throw new AdminRequestError('A verification entry ID is required.')
+
+      return client.mutation(api.verificationEntries.m.markActive, { id: id as Id<'verificationEntries'> })
+    },
+    'Unable to activate the verification entry.'
+  )
+}
+
 /**
  * The per-file ceiling the Worker enforces before it spends a Convex upload
  * URL. `attachUpload` checks it again against the recorded size — this one is

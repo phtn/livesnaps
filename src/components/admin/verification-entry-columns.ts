@@ -1,9 +1,9 @@
+import SelectOctane from '@/components/ui/SelectOctane.btsx'
+import PersonCell from '@/components/ui/table/person-cell.btsx'
 import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
 import { createElement, useState } from 'octane'
-import SelectOctane from '@/components/ui/SelectOctane.btsx'
-import PersonCell from '@/components/ui/table/person-cell.btsx'
 import StatusBadge from './badges.btsx'
 import { type VerificationEntryRow, verificationEntryStatus } from './data'
 import { useSnapHandlerContext } from './snap-handler-context'
@@ -30,7 +30,8 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   emailFromAddress: false,
   senderUid: false,
   updatedAt: false,
-  uploadId: false
+  uploadId: false,
+  handler: false
 }
 
 export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
@@ -114,7 +115,7 @@ export const verificationEntryColumns = columnHelper.columns([
   columnHelper.display({
     id: 'handler',
     header: createHeader('Handler'),
-    size: 240,
+    size: 220,
     cell: (info) =>
       createElement(VerificationHandlerCell, {
         handler: info.row.original.handler,

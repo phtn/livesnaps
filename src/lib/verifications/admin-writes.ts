@@ -31,6 +31,7 @@ export interface SendVerificationEmailInput {
 
 const VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
+const VERIFICATION_ENTRY_ACTIVE_PATH = '/api/admin/verification-entries/active'
 const VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entries/attachments'
 const VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification-entries/attachments/remove'
 
@@ -63,6 +64,9 @@ export const createVerificationEntry = <T>(input: CreateVerificationEntryInput):
 
 export const sendVerificationEmail = <T>(input: SendVerificationEmailInput): Promise<T> =>
   post<T>(VERIFICATION_ENTRY_SEND_PATH, input, 'Unable to send the verification email.')
+
+export const activateVerificationEntry = <T>(id: string): Promise<T> =>
+  post<T>(VERIFICATION_ENTRY_ACTIVE_PATH, { id }, 'Unable to activate the verification entry.')
 
 /**
  * Posts one browsed file. `content-type` is left unset on purpose: the browser

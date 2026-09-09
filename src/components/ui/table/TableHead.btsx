@@ -8,7 +8,7 @@ module
   }
 
   // const baseClassName = 'sticky top-0 z-[2] border-y border-r border-border/50 bg-slate-100/80 dark:bg-slate-100/2 py-0 text-left text-foreground backdrop-blur-sm'
-  const baseClassName = 'sticky top-0 z-[2] bg-table-head dark:bg-sunken/80 md:first:rounded-s-lg py-0 text-left text-[#71717B] backdrop-blur-xl'
+  const baseClassName = 'sticky top-0 z-[2] bg-table-head dark:bg-sunken/60 md:first:rounded-s-lg py-0 text-left text-[#71717B] backdrop-blur-xl'
 
 props { children, className, ...headProps }: Props
 
