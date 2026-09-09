@@ -613,18 +613,18 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
           ~ className={cn(addButtonClassName, { 'bg-[#1b1b1b]! dark:bg-[#f0f0f0]': filters.create })}
           ~ )
           Icon(name='add' className={cn('size-3.75 transition-transform duration-200 ease-out', {'rotate-68': filters.create})})
-    fragment
-      div(className='hidden _flex items-center w-full' role='group' aria-label='Account status')
-        each status in ACCOUNT_STATUS_FILTERS key status
-          button(
-            ~ type='button'
-            ~ aria-pressed={filters.status === status}
-            ~ onClick={() => void setFilters({ status })}
-            ~ className={cn(chipClassName, filters.status === status ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
-            ~ )
-            | #{ACCOUNT_STATUS_FILTER_LABEL[status]} #{counts[status]}
+    // fragment
+    //   div(className='hidden _flex items-center w-full' role='group' aria-label='Account status')
+    //     each status in ACCOUNT_STATUS_FILTERS key status
+    //       button(
+    //         ~ type='button'
+    //         ~ aria-pressed={filters.status === status}
+    //         ~ onClick={() => void setFilters({ status })}
+    //         ~ className={cn(chipClassName, filters.status === status ? 'border-active/40 bg-active/10 text-active' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+    //         ~ )
+    //         | #{ACCOUNT_STATUS_FILTER_LABEL[status]} #{counts[status]}
     div(className={cn('flex items-center justify-end w-full ', {'md:mx-auto gap-0': isSearchExpanded})})
-      HyperSearch( onChange={handleSearchInputChange} onClear={() => setFilters({q: ''})} onExpandedChanged={setIsSearchExpanded} autoComplete='off'
+      HyperSearch( onChange={handleSearchInputChange} onClear={() => setFilters({q: ''})} onExpandedChange={setIsSearchExpanded} autoComplete='off'
         ~ id='citadel-account-search'
         ~ value={filters.q}
         ~ placeholder='Search by name, slug, contact, or org'

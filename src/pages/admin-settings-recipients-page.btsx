@@ -19,7 +19,7 @@ component RecipientList
           span(className='grid size-6 shrink-0 place-items-center rounded-full bg-active/8 font-mono text-2xs text-active') #{index + 1}
           span(className='min-w-0 flex-1 truncate font-mono text-sm') #{email}
           if index === 0
-            span(className='shrink-0 rounded-full bg-positive/10 px-2 py-0.5 font-mono text-2xs uppercase tracking-wider text-positive') Default
+            span(className='shrink-0 rounded-full bg-brand/10 px-2 py-0.5 font-mono text-2xs uppercase tracking-wider text-brand') Default
   else
     div(className='mt-4 rounded-sm border border-dashed border-border/60 px-4 py-8 text-center')
       p(className='text-sm text-muted-foreground') No shared recipients yet.
@@ -67,10 +67,10 @@ setup
 
 section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
   header(className='flex flex-wrap items-end justify-between gap-4')
-    div
-      p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Delivery preferences
-      h1(className='mt-1 font-poly text-2xl font-medium tracking-tight') Email recipients
-      p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Prepare the recipient lists used when #{account?.name ?? 'your account'} creates or sends a verification. Personal choices override the shared list without changing it for anyone else.
+    div(className='py-4')
+      p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Delivery
+      h1(className='mt-1 font-poly text-xl font-medium tracking-tight') Email Service
+      p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Set your recipient lists used when #{account?.name ?? 'your account'} creates or sends a verification.
     div(className='hidden items-center gap-2 rounded-full border border-border/50 bg-sidebar/30 px-3 py-1.5 font-mono text-2xs uppercase tracking-wider text-muted-foreground sm:flex')
       Icon(name='email-body' className='size-3.5')
       span First address is default
@@ -90,8 +90,8 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
         header(className='border-b border-border/50 bg-sidebar/20 px-4 py-4')
           div(className='flex items-start justify-between gap-3')
             div
-              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Shared list
-              h2(className='mt-1 font-sans text-base font-medium') Account defaults
+              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Shared
+              h2(className='mt-1 font-sans text-base font-medium') #{account?.name ?? ' Account'} List
             span(className='rounded-full border border-border/50 bg-background px-2.5 py-1 font-mono text-2xs text-muted-foreground') #{settings.accountEmails.length}
           p(className='mt-1 text-xs leading-5 text-muted-foreground') Available to everyone in this account.
         div(className='p-4')

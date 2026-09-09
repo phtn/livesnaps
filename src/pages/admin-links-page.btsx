@@ -11,6 +11,7 @@ import SubmissionLinkColorPicker from '@/components/admin/submission-link-color-
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { onSuccess } from '@/lib/toast'
+import HyperSearch from "../components/ui/table/hyper/HyperSearch.btsx";
 
 module
   type LinkList = FunctionReturnType<typeof api.submissionLinks.q.list>
@@ -21,10 +22,11 @@ module
 component LinkIdentity
   props { link, accountSlug }: { link: LinkRecord; accountSlug: string }
   div(className='flex min-w-0 items-center gap-3')
-    span(className='grid size-7 shrink-0 place-items-center rounded-full text-white shadow-sm' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
-      Icon(name='link' className='size-3.5')
-    div(className='min-w-0')
-      p(className='truncate text-sm text-foreground') #{link.label}
+    span(className='grid size-6 shrink-0 place-items-center rounded-full text-white shadow-sm' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
+    div(className='min-w-0 whitespace-nowrap')
+      div(className='flex items-center gap-0.5')
+        p(className='truncate text-sm text-foreground') #{link.label}
+        Icon(name={link.enabled ? 'circle-check' : 'not-started'} className={cn('size-3.5 text-mist-500', {'text-emerald-500!': link.enabled})})
       p(className='truncate font-mono text-xs text-muted-foreground') #{submissionShareUrl(accountSlug, link.slug)}
 
 component CreateLinkForm
@@ -87,6 +89,7 @@ setup
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [query, setQuery] = useState('')
   const endpoint = accountEndpoint('/api/admin/submission-links', account?.id ?? '')
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
 
   useEffect(() => {
     if (!account) return
@@ -116,31 +119,38 @@ setup
     : linkRows
   const refresh = () => setReloadToken(token => token + 1)
   const handleCreated = () => { setIsCreateOpen(false); refresh() }
+  const handleOnSearchInputChange = (event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)
+  const handleClearSearch = () => setQuery('')
 
 section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
-  header(className='flex h-12 items-center justify-between gap-3')
-    div(className='flex items-center gap-3')
-      h2(className='font-poly font-medium tracking-tight') Submission links
-      span(className='font-poly size-7 flex items-center justify-center rounded-full bg-table-head')
-        if loading && !links
+  header(className={cn('flex h-12 items-center justify-between gap-3')})
+    div(className={cn('flex items-center gap-4', {'hidden! md:flex!': isSearchExpanded})})
+      h2(className='font-poly font-medium tracking-tight') Links
+      span(className='font-poly size-7 aspect-square flex items-center justify-center rounded-full bg-table-head')
+        if loading
           Icon(name='spinner-ring' className='size-3')
         else
-          | #{linkRows.length}
+          span(className='text-foreground') #{linkRows?.length}
       if links?.canManage
         button(type='button' aria-label={isCreateOpen ? 'Close create link form' : 'Create submission link'} aria-expanded={isCreateOpen} onClick={() => setIsCreateOpen(open => !open)} className={cn(addButtonClassName, isCreateOpen && 'bg-foreground! text-background!')})
           Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', isCreateOpen && 'rotate-45')})
-    div(className='flex items-center gap-2')
-      Link(to='/admin-settings/links/activity' className='inline-flex h-8 items-center gap-1.5 rounded-full border border-border/50 px-3 font-mono text-xs uppercase tracking-wide text-muted-foreground transition-colors hover:bg-accent hover:text-foreground')
-        Icon(name='velocity' className='size-3.5')
-        span(className='hidden sm:inline') Activity
-      button(type='button' aria-label='Refresh submission links' disabled={loading} onClick={refresh} className='group rounded-sm p-1 text-muted-foreground transition-colors hover:bg-sidebar hover:text-foreground disabled:opacity-50')
-        Icon(name='refresh' size='14' className='transition-transform duration-200 ease-out group-active:rotate-180')
+      div(className={cn('flex items-center justify-start gap-4', {'hidden!': isSearchExpanded})})
+        Link(to='/admin-settings/links/activity' className='flex items-center justify-center size-7 aspect-square rounded-full bg-table-head transition-colors text-foreground/70 hover:bg-accent hover:text-brand')
+          Icon(name='trend' className='size-3.5')
+        button(type='button' aria-label='Refresh submission links' disabled={loading} onClick={refresh} className='group  size-7 aspect-square rounded-full bg-table-head text-muted-foreground transition-colors hover:bg-sidebar hover:text-foreground disabled:opacity-50')
+          Icon(name='refresh' className='transition-transform duration-200 ease-out group-active:rotate-180')
+
+    div(className={cn('relative', {'w-full! mx-auto!': isSearchExpanded})})
+      HyperSearch( onChange={handleOnSearchInputChange} onClear={handleClearSearch} onExpandedChange={setIsSearchExpanded}
+        ~ id='submission-link-search'
+        ~ value={query}
+        ~ placeholder='Search links by label or slug'
+        ~ autoComplete='off'
+        ~ )
 
   if isCreateOpen && account
     CreateLinkForm(accountSlug={account.slug} endpoint={endpoint} onCreated={handleCreated} onCancel={() => setIsCreateOpen(false)})
 
-  div(className='relative mt-3')
-    Input(id='submission-link-search' type='search' value={query} autoComplete='off' placeholder='Search links by label or slug' onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)})
 
   if error
     p(role='alert' className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{error}
@@ -160,8 +170,7 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
       ul(className='divide-y divide-sidebar-border divide-dashed overflow-hidden rounded-lg border border-sidebar-border')
         each link in visibleLinks key link._id
           li
-            Link(to='/admin-settings/links/$linkId' params={{ linkId: String(link._id) }} className='flex flex-wrap items-center justify-between gap-3 border-l-4 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent' style={{ borderLeftColor: submissionLinkColorHex(link.color) }})
+            Link(to='/admin-settings/links/$linkId' params={{ linkId: String(link._id) }} className='flex items-center justify-between gap-3 border-l-4 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent' style={{ borderLeftColor: submissionLinkColorHex(link.color) }})
               LinkIdentity(link={link} accountSlug={account.slug})
-              div(className='flex min-w-0 flex-1 items-center justify-end gap-3')
-                span(className={`rounded-xs border px-2 py-0.5 font-mono text-2xs uppercase tracking-wider ${link.enabled ? 'border-positive/25 bg-positive/8 text-positive' : 'border-border/60 bg-muted/50 text-muted-foreground'}`}) #{link.enabled ? 'Enabled' : 'Disabled'}
+              div(className='flex min-w-0 flex-1 items-center justify-end ')
                 Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')

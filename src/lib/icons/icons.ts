@@ -732,7 +732,7 @@ export const icons = {
   },
   refresh: {
     symbol:
-      '<g transform="scale(0.063)"><path fill="currentColor" d="M224 48v48a8 8 0 0 1-8 8h-48a8 8 0 0 1 0-16h28.69l-14.63-14.63a79.56 79.56 0 0 0-56.13-23.43h-.45a79.52 79.52 0 0 0-55.89 22.77 8 8 0 0 1-11.18-11.44 96 96 0 0 1 135 .79L208 76.69V48a8 8 0 0 1 16 0m-37.59 135.29a80 80 0 0 1-112.47-.66L59.31 168H88a8 8 0 0 0 0-16H40a8 8 0 0 0-8 8v48a8 8 0 0 0 16 0v-28.69l14.63 14.63A95.43 95.43 0 0 0 130 222.06h.53a95.36 95.36 0 0 0 67.07-27.33 8 8 0 0 0-11.18-11.44Z" transform-origin="0 0"/></g>',
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 6H13a7 7 0 0 1 7 7v1M9.5 3.5 7 6l2.5 2.5m7 9.5H11a7 7 0 0 1-7-7v-1m10.5 10.5L17 18l-2.5-2.5"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
@@ -811,6 +811,12 @@ export const icons = {
   edit: {
     symbol:
       '<path fill="none" stroke="currentColor" stroke-linejoin="round" stroke-width="1.334" d="m12.582 5.784-2.358-2.358m-4.245 8.96 7.546-7.546a1.334 1.334 0 0 0 0-1.886l-.471-.471a1.334 1.334 0 0 0-1.886 0L3.62 10.029l-.707 3.066z"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  trend: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m3 16 6.5-6.5L14 14l6.5-6.5M17 7h4v4"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
   }
