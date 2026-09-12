@@ -6,6 +6,7 @@ module
   // One entry per child route under `citadelSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
     { id: 'settings', href: '/citadel/settings', label: 'Settings', shortLabel: 'Settings', icon: 'settings' },
+    { id: 'email', href: '/citadel/settings/email', label: 'Email', shortLabel: 'Email', icon: 'email-setting' },
     { id: 'gods', href: '/citadel/settings/gods', label: 'Gods', shortLabel: 'Gods', icon: 'cloud-fill' }
   ]
 

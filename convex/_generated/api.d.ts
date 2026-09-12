@@ -20,6 +20,7 @@ import type * as admin_d from "../admin/d.js";
 import type * as admin_m from "../admin/m.js";
 import type * as admin_q from "../admin/q.js";
 import type * as crons from "../crons.js";
+import type * as emailAdmin from "../emailAdmin.js";
 import type * as http from "../http.js";
 import type * as lib_any from "../lib/any.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -75,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   "admin/m": typeof admin_m;
   "admin/q": typeof admin_q;
   crons: typeof crons;
+  emailAdmin: typeof emailAdmin;
   http: typeof http;
   "lib/any": typeof lib_any;
   "lib/auth": typeof lib_auth;

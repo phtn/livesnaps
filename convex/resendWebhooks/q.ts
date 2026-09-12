@@ -1,8 +1,9 @@
-import { paginationOptsValidator } from 'convex/server'
+import { paginationOptsValidator, paginationResultValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
 import { countEmailSentEventsByTarget } from '../../src/lib/resend/webhooks/sent-counts'
 import { query } from '../_generated/server'
-import { trackedResendWebhookEventTypeValidator } from './d'
+import { isPlatformStaff } from '../lib/auth'
+import { resendWebhookEventSchema, trackedResendWebhookEventTypeValidator } from './d'
 
 const MAX_SENT_COUNT_EMAILS = 500
 
@@ -27,10 +28,11 @@ export const list = query({
     eventType: v.optional(trackedResendWebhookEventTypeValidator),
     paginationOpts: paginationOptsValidator
   },
+  returns: paginationResultValidator(v.object({ ...resendWebhookEventSchema.fields, _id: v.id('resendWebhooks'), _creationTime: v.number() })),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
 
-    if (identity?.admin !== true) {
+    if (!identity || !isPlatformStaff(identity)) {
       throw new ConvexError('Unauthorized')
     }
 

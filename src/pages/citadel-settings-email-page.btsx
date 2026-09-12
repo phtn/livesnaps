@@ -1,0 +1,145 @@
+import { useState } from 'octane'
+import { useForm, useSelector } from '@octanejs/tanstack-form'
+import { api } from '../../convex/_generated/api'
+import { useConvexAuth } from '@/hooks/use-convex'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { convexClient } from '@/lib/convex-client'
+import { emailTemplates, renderEmailTemplateSample, type EmailTemplateId } from '@/lib/email/templates'
+import { isAccountEmailAddress } from '@/lib/accounts/accounts'
+import { trackedResendWebhookEventTypes, type TrackedResendWebhookEventType } from '@/lib/resend/webhooks/events'
+import { Button } from '@/components/ui'
+
+module
+  const selectClass = 'h-10 w-full rounded-sm border border-border/60 bg-background px-3 text-sm'
+
+component TemplatePanel
+  setup
+    const [selected, setSelected] = useState<EmailTemplateId>('account-invite')
+    const [plainText, setPlainText] = useState(false)
+    const [compact, setCompact] = useState(false)
+    const [sent, setSent] = useState<string | null>(null)
+    const form = useForm({
+      defaultValues: { recipient: '' },
+      onSubmit: async ({ value, formApi }) => {
+        setSent(null)
+        try {
+          if (!convexClient) throw new Error('Email service is unavailable.')
+          await convexClient.action(api.emailAdmin.sendTest, { template: selected, recipient: value.recipient.trim() })
+          setSent(`Test accepted for sending to ${value.recipient.trim()}. Check webhook history for delivery updates.`)
+        } catch (error) {
+          formApi.setErrorMap({ onSubmit: error instanceof Error ? error.message : 'Unable to send the test email.' })
+        }
+      }
+    })
+    const recipient = useSelector(form.store, state => state.values.recipient)
+    const pending = useSelector(form.store, state => state.isSubmitting)
+    const error = useSelector(form.store, state => state.errorMap.onSubmit)
+    const preview = renderEmailTemplateSample(selected, recipient.trim() || undefined)
+    const submit = (event: SubmitEvent) => {
+      event.preventDefault()
+      if (!pending && isAccountEmailAddress(recipient.trim())) void form.handleSubmit()
+    }
+
+  div(className='grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]')
+    div(className='space-y-6')
+      div
+        h3(className='text-sm font-medium') Templates
+        div(className='mt-3 space-y-2')
+          each template in emailTemplates key template.id
+            button(type='button' disabled={pending} aria-pressed={selected === template.id} onClick={() => { setSelected(template.id); setSent(null) }} className={`w-full rounded-sm border p-3 text-left transition-colors disabled:opacity-60 ${selected === template.id ? 'border-active/50 bg-active/5' : 'border-border/60 hover:bg-accent'}`})
+              p(className='text-sm font-medium') #{template.name}
+              p(className='mt-1 text-xs leading-5 text-muted-foreground') #{template.description}
+        p(className='mt-3 text-xs leading-5 text-muted-foreground') Verification reports use a custom plain-text message and attachments, rather than an HTML template.
+      form(onSubmit={submit} className='space-y-3 border-t border-border/60 pt-5')
+        h3(className='text-sm font-medium') Send a test
+        label(htmlFor='email-test-recipient' className='block text-xs text-muted-foreground') Recipient email
+        input(className={selectClass} id='email-test-recipient' type='email' required value={recipient} disabled={pending} placeholder='you@example.com' onInput={(event: Event) => form.setFieldValue('recipient', (event.currentTarget as HTMLInputElement).value)})
+        p(className='text-xs leading-5 text-muted-foreground') Uses sample data and a [TEST] subject. Buttons link to an example page; no account access is granted.
+        Button(type='submit' variant='dark' size='sm' label='Send test email' pending={pending} pendingLabel='Sending…' disabled={!isAccountEmailAddress(recipient.trim()) || pending})
+        if error
+          p(role='alert' className='text-xs leading-5 text-destructive') #{String(error)}
+        if sent
+          p(role='status' className='text-xs leading-5 text-muted-foreground') #{sent}
+    div(className='min-w-0 rounded-sm border border-border/60')
+      div(className='flex flex-wrap items-center justify-between gap-3 border-b border-border/60 p-4')
+        div(className='min-w-0')
+          p(className='font-mono text-2xs uppercase tracking-wider text-muted-foreground') Subject
+          p(className='mt-1 text-sm font-medium break-words') #{preview.subject}
+        div(className='flex gap-2')
+          button(type='button' aria-pressed={plainText} className='rounded-sm border border-border/60 px-2 py-1 text-xs' onClick={() => setPlainText(!plainText)}) #{plainText ? 'Show HTML' : 'Show plain text'}
+          if !plainText
+            button(type='button' aria-pressed={compact} className='rounded-sm border border-border/60 px-2 py-1 text-xs' onClick={() => setCompact(!compact)}) #{compact ? 'Desktop width' : 'Mobile width'}
+      if plainText
+        pre(className='min-h-96 whitespace-pre-wrap break-words p-5 font-mono text-xs leading-6') #{preview.text}
+      else
+        div(className='overflow-hidden bg-muted/30 p-2 sm:p-4')
+          iframe(title='Email template preview' sandbox='' referrerPolicy='no-referrer' srcDoc={preview.html} className={`mx-auto h-[650px] max-w-full border-0 bg-white ${compact ? 'w-[375px]' : 'w-full'}`})
+
+component WebhookHistory
+  setup
+    const auth = useConvexAuth()
+    const [eventType, setEventType] = useState<TrackedResendWebhookEventType | ''>('')
+    const [cursors, setCursors] = useState<(string | null)[]>([null])
+    const cursor = cursors[cursors.length - 1]
+    const events = useConvexQuery(api.resendWebhooks.q.list, auth.isAuthenticated ? { eventType: eventType || undefined, paginationOpts: { numItems: 20, cursor } } : 'skip', auth.userId ?? '')
+    const changeFilter = (event: Event) => {
+      setEventType((event.currentTarget as HTMLSelectElement).value as TrackedResendWebhookEventType | '')
+      setCursors([null])
+    }
+
+  section(className='mt-8 border-t border-border/60 pt-6')
+    header(className='flex flex-wrap items-end justify-between gap-4')
+      div
+        h3(className='font-poly text-xl font-medium') Received webhooks
+        p(className='mt-1 text-xs leading-5 text-muted-foreground') Live Resend events, newest first. Expand an event to inspect its recorded details.
+      label(className='w-full space-y-1 sm:w-52')
+        span(className='text-xs text-muted-foreground') Event type
+        select(value={eventType} onChange={changeFilter} className={selectClass})
+          option(value='') All events
+          each type in trackedResendWebhookEventTypes key type
+            option(value={type}) #{type}
+    if !events
+      p(role='status' className='py-8 text-sm text-muted-foreground') Loading webhook history…
+    elseif events.page.length === 0
+      p(className='py-8 text-sm text-muted-foreground') No received webhooks match this view. Events appear after Resend delivers them to the configured webhook endpoint.
+    else
+      div(className='mt-4 divide-y divide-border/60')
+        each event in events.page key event._id
+          details(className='py-3')
+            summary(className='cursor-pointer rounded-sm text-sm marker:text-muted-foreground')
+              span(className='ml-2 font-mono text-xs') #{event.eventType}
+              span(className='ml-3 break-all text-muted-foreground') #{event.target || event.subject || event.resourceId}
+              time(className='ml-3 inline-block text-xs text-muted-foreground' dateTime={new Date(event.receivedAt).toISOString()}) #{new Date(event.receivedAt).toLocaleString()}
+            dl(className='mt-3 grid gap-2 rounded-sm bg-muted/30 p-4 text-xs sm:grid-cols-[110px_minmax(0,1fr)]')
+              dt(className='text-muted-foreground') Subject
+              dd(className='break-words') #{event.subject || '—'}
+              dt(className='text-muted-foreground') Recipient / target
+              dd(className='break-all') #{event.target || '—'}
+              dt(className='text-muted-foreground') Recipient count
+              dd #{event.recipientCount ?? '—'}
+              dt(className='text-muted-foreground') Source
+              dd(className='break-all') #{event.source || '—'}
+              dt(className='text-muted-foreground') Event created
+              dd #{event.eventCreatedAt}
+              dt(className='text-muted-foreground') Resource ID
+              dd(className='break-all font-mono') #{event.resourceId}
+              dt(className='text-muted-foreground') Webhook ID
+              dd(className='break-all font-mono') #{event.webhookId}
+              dt(className='text-muted-foreground') Detail
+              dd(className='whitespace-pre-wrap break-words') #{event.detail || '—'}
+    div(className='mt-4 flex items-center justify-end gap-3')
+      button(type='button' disabled={!events || cursors.length === 1} onClick={() => setCursors(current => current.slice(0, -1))} className='rounded-sm border border-border/60 px-3 py-1.5 text-xs disabled:opacity-40') Newer
+      span(className='text-xs text-muted-foreground') Page #{cursors.length}
+      button(type='button' disabled={!events || events.isDone} onClick={() => { if (events && !events.isDone) setCursors(current => [...current, events.continueCursor]) }} className='rounded-sm border border-border/60 px-3 py-1.5 text-xs disabled:opacity-40') Older
+
+section(className='p-5')
+  header(className='mb-6')
+    h2(className='font-poly text-2xl font-medium') Email
+    p(className='mt-1 text-sm text-muted-foreground') Preview templates, check inbox rendering, and follow delivery events.
+  TemplatePanel
+  try
+    WebhookHistory
+  catch error, reset
+    div(role='alert' className='mt-8 rounded-sm border border-destructive/30 p-4')
+      p(className='text-sm text-destructive') Unable to load webhook history.
+      button(type='button' onClick={reset} className='mt-2 text-xs underline') Try again

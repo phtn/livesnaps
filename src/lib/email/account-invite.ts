@@ -42,8 +42,9 @@ const brand = {
   actionInk: '#ffffff'
 }
 
+// Force PNG for email clients that cannot render WebP; avoid automatic format negotiation.
 export const EMAIL_WORDMARK_URL =
-  'https://res.cloudinary.com/dx0heqhhe/image/upload/v1788892525/livesnaps-wordmark_pnd1ts.webp'
+  'https://res.cloudinary.com/dx0heqhhe/image/upload/f_png/v1788892525/livesnaps-wordmark_pnd1ts.png'
 
 /** Email HTML is assembled by string, so every interpolated value is escaped. */
 function escapeHtml(value: string) {
