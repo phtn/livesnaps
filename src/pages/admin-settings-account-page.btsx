@@ -1,0 +1,206 @@
+import { useEffect, useRef, useState } from 'octane'
+import { useForm, useField, useSelector } from '@octanejs/tanstack-form'
+import { useWorkspace } from '@/hooks/use-workspace'
+import { Badge, Button, Input } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { onError, onSuccess } from '@/lib/toast'
+import { DEFAULT_IMAGE_CAPTURE_SETTINGS } from '@/lib/snaps/snap-settings'
+import { optimizeImageToWebp } from '@/lib/images/optimize-to-webp'
+import { ACCOUNT_LOGO_MAX_DIMENSION, ACCOUNT_LOGO_MAX_SOURCE_BYTES } from '@/lib/r2/account-logos'
+import { USER_IMAGE_ACCEPT, getUserImageFileError } from '@/lib/r2/user-images'
+import { isAccountEmailAddress, normalizeAccountWebsiteUrl } from '@/lib/accounts/accounts'
+import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, formatAccountDate } from '@/lib/citadel/accounts'
+import { EMPTY_ACCOUNT_PROFILE_VALUES, accountLogoUrl, fetchAccountProfile, saveAccountProfile, toAccountProfileValues, uploadAccountLogo, type AccountProfile, type AccountProfileValues } from '@/lib/admin/account-profile'
+
+module
+  type ProfileForm = ReturnType<typeof useProfileForm>
+  type ProfileFieldName = keyof AccountProfileValues
+  type LoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+  const cardClassName = 'overflow-hidden rounded-lg border border-border/60 bg-surface shadow-[0_12px_40px_-32px_rgba(0,0,0,0.55)]'
+  const labelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
+
+  const readError = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback
+  const useProfileForm = (accountId: string, onSaved: (profile: AccountProfile) => void) => useForm({
+    defaultValues: EMPTY_ACCOUNT_PROFILE_VALUES,
+    validators: { onChange: ({ value }) => {
+      if (!value.name.trim()) return 'Account name is required.'
+      if (!value.contactName.trim()) return 'Primary contact name is required.'
+      if (!isAccountEmailAddress(value.contactEmail.trim())) return 'Enter a valid primary contact email.'
+      if (value.billingEmail.trim() && !isAccountEmailAddress(value.billingEmail.trim())) return 'Enter a valid billing email.'
+      if (value.website.trim() && !normalizeAccountWebsiteUrl(value.website)) return 'Enter a valid website.'
+      return undefined
+    } },
+    onSubmit: async ({ value, formApi }) => {
+      try {
+        const profile = await saveAccountProfile(accountId, value)
+        onSaved(profile)
+        formApi.reset(toAccountProfileValues(profile.account))
+        onSuccess('Account details saved.')
+      } catch (error) {
+        const message = readError(error, 'Unable to save account details.')
+        formApi.setErrorMap({ onSubmit: message })
+        onError(message)
+      }
+    }
+  })
+
+component ProfileField
+  props { form, name, label, disabled, type = 'text', placeholder, className }: { form: ProfileForm; name: ProfileFieldName; label: string; disabled: boolean; type?: 'text' | 'email' | 'tel' | 'url'; placeholder?: string; className?: string }
+  setup
+    const field = useField({ form, name })
+    const id = `account-profile-${name}`
+  label(className={cn('flex flex-col gap-1.5', className)} htmlFor={id})
+    span(className={labelClassName}) #{label}
+    Input(id={id} type={type} value={field.state.value} disabled={disabled} placeholder={placeholder} onBlur={field.handleBlur} onInput={(event: Event) => field.handleChange((event.currentTarget as HTMLInputElement).value)})
+
+component SectionHeading
+  props { eyebrow, title, description }: { eyebrow: string; title: string; description: string }
+  header(className='border-b border-border/50 bg-sidebar/20 px-4 py-3.5')
+    p(className={labelClassName}) #{eyebrow}
+    h2(className='mt-1 font-sans text-base font-medium') #{title}
+    p(className='mt-1 font-mono text-muted-foreground text-xs leading-5') #{description}
+
+setup
+  const workspace = useWorkspace()
+  const [profile, setProfile] = useState<AccountProfile | null>(null)
+  const [status, setStatus] = useState<LoadStatus>('idle')
+  const [loadError, setLoadError] = useState('')
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+  const accountId = workspace?.id ?? ''
+  const form = useProfileForm(accountId, setProfile)
+  const isSubmitting = useSelector(form.store, state => state.isSubmitting)
+  const isDirty = useSelector(form.store, state => state.isDirty)
+  const canSubmit = useSelector(form.store, state => state.canSubmit)
+  const errors = useSelector(form.store, state => state.errors)
+  const notesValue = useSelector(form.store, state => state.values.notes)
+  const canEdit = profile?.canEdit === true
+
+  useEffect(() => {
+    if (!accountId) { setProfile(null); setStatus('idle'); return }
+    const controller = new AbortController()
+    setStatus('loading')
+    void fetchAccountProfile(accountId, controller.signal).then(result => {
+      if (controller.signal.aborted) return
+      setProfile(result)
+      form.reset(toAccountProfileValues(result.account))
+      setLoadError('')
+      setStatus('ready')
+    }).catch(error => {
+      if (controller.signal.aborted) return
+      setLoadError(readError(error, 'Unable to load account settings.'))
+      setStatus('error')
+    })
+    return () => controller.abort()
+  }, [accountId])
+
+  const handleLogo = async (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement
+    const file = input.files?.[0] ?? null
+    if (!file || !accountId || !canEdit) return
+    const validationError = file.size > ACCOUNT_LOGO_MAX_SOURCE_BYTES ? 'The image must be 4 MB or smaller.' : getUserImageFileError(file)
+    if (validationError) { onError(validationError); input.value = ''; return }
+    setIsUploadingLogo(true)
+    try {
+      const optimized = await optimizeImageToWebp(file, {
+        imageOptimizationTimeoutMs: DEFAULT_IMAGE_CAPTURE_SETTINGS.imageOptimizationTimeoutMs,
+        imageQuality: DEFAULT_IMAGE_CAPTURE_SETTINGS.imageQuality,
+        maxImageDimension: ACCOUNT_LOGO_MAX_DIMENSION
+      })
+      const updated = await uploadAccountLogo(accountId, optimized)
+      setProfile(updated)
+      onSuccess('Account logo updated.')
+    } catch (error) {
+      onError(readError(error, 'Unable to update the account logo.'))
+    } finally {
+      setIsUploadingLogo(false)
+      input.value = ''
+    }
+  }
+
+section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
+  header(className='flex flex-wrap items-end justify-between gap-4 py-4')
+    div
+      p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Workspace
+      h1(className='mt-1 font-poly text-xl font-medium tracking-tight') Account details
+      p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Manage the identity, contact information, and branding used across your account.
+    if profile
+      div(className='flex items-center gap-2')
+        span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_PLAN_LABEL[profile.account.plan]}
+        Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[profile.account.status])}) #{ACCOUNT_STATUS_LABEL[profile.account.status]}
+
+  if !workspace
+    p(className='rounded-lg border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground') Select an account to view its details.
+  elseif status === 'loading' || status === 'idle'
+    div(className='flex items-center gap-2 rounded-lg border border-border/60 p-6')
+      Icon(name='spinner-ferris' className='size-4')
+      p(className='text-sm text-muted-foreground') Loading account…
+  elseif status === 'error'
+    p(className='rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive' role='alert') #{loadError}
+  elseif profile
+    form(className='grid items-start gap-4 pb-36 lg:grid-cols-[minmax(0,1fr)_20rem]' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
+      div(className='grid gap-4')
+        section(className={cardClassName})
+          SectionHeading(eyebrow='Identity' title='Account specifics' description='The account slug, status, and billing plan remain managed separately.')
+          div(className='grid gap-4 p-4 sm:grid-cols-2')
+            ProfileField(form={form} name='name' label='Account name' disabled={!canEdit || isSubmitting} className='sm:col-span-2')
+            label(className='flex flex-col gap-1.5')
+              span(className={labelClassName}) Account slug
+              Input(value={profile.account.slug} disabled)
+            ProfileField(form={form} name='legalName' label='Legal name' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='website' label='Website' type='url' placeholder='https://example.com' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='industry' label='Industry' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='size' label='Organization size' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='taxId' label='Tax ID' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='billingEmail' label='Billing email' type='email' disabled={!canEdit || isSubmitting})
+
+        section(className={cardClassName})
+          SectionHeading(eyebrow='Primary contact' title='Account contact' description='This is the person LiveSnaps uses for account communication.')
+          div(className='grid gap-4 p-4 sm:grid-cols-2')
+            ProfileField(form={form} name='contactName' label='Name' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='contactTitle' label='Title' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='contactEmail' label='Email' type='email' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='contactPhone' label='Phone' type='tel' disabled={!canEdit || isSubmitting})
+
+        section(className={cardClassName})
+          SectionHeading(eyebrow='Organization' title='Address and notes' description='Optional details used for the account record.')
+          div(className='grid gap-4 p-4 sm:grid-cols-2')
+            ProfileField(form={form} name='addressLine1' label='Address line 1' disabled={!canEdit || isSubmitting} className='sm:col-span-2')
+            ProfileField(form={form} name='addressLine2' label='Address line 2' disabled={!canEdit || isSubmitting} className='sm:col-span-2')
+            ProfileField(form={form} name='city' label='City' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='region' label='State / region' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='postalCode' label='Postal code' disabled={!canEdit || isSubmitting})
+            ProfileField(form={form} name='country' label='Country' disabled={!canEdit || isSubmitting})
+            label(className='flex flex-col gap-1.5 sm:col-span-2' htmlFor='account-profile-notes')
+              span(className={labelClassName}) Notes
+              textarea(id='account-profile-notes' value={notesValue} maxLength={2000} disabled={!canEdit || isSubmitting} onInput={(event: Event) => form.setFieldValue('notes', (event.currentTarget as HTMLTextAreaElement).value)} className='min-h-28 resize-y rounded-sm border border-border/60 bg-sunken/60 p-3 text-sm outline-none focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60')
+
+        if errors.length
+          p(className='rounded-sm border border-destructive/35 bg-destructive/8 px-3 py-2 text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}
+        if canEdit
+          div(className='flex items-center justify-end gap-3')
+            Button(type='button' variant='ghost' size='sm' label='Discard changes' disabled={!isDirty || isSubmitting} onClick={() => form.reset(toAccountProfileValues(profile.account))})
+            Button(type='submit' variant='dark' size='sm' icon='check' label='Save account' pending={isSubmitting} pendingLabel='Saving…' disabled={!isDirty || !canSubmit})
+        else
+          p(className='rounded-sm border border-border/60 bg-sidebar/30 px-3 py-2 text-sm text-muted-foreground') Only account owners and administrators can edit these details.
+
+      aside(className={cn(cardClassName, 'lg:sticky lg:top-0')})
+        SectionHeading(eyebrow='Branding' title='Account logo' description='Up to 4 MB : PNG, JPEG, WebP, GIF.')
+        div(className='p-4')
+          div(className='grid aspect-square w-full place-items-center overflow-hidden rounded-lg border border-dashed border-border/70 bg-sunken/50')
+            if profile.account.logoR2Key
+              img(src={accountLogoUrl(accountId, profile.account.updatedAt)} alt={`${profile.account.name} logo`} className='size-full object-contain p-5')
+            else
+              div(className='grid place-items-center gap-2 text-center text-muted-foreground')
+                Icon(name='account' className='size-10 opacity-50')
+                p(className='text-xs') No logo uploaded
+          input(ref={logoInputRef} type='file' accept={USER_IMAGE_ACCEPT} className='sr-only' onChange={handleLogo})
+          Button(type='button' variant='ghost' size='sm' icon='livesnaps' label={profile.account.logoR2Key ? 'Replace logo' : 'Upload logo'} pending={isUploadingLogo} pendingLabel='Optimizing…' disabled={!canEdit || isUploadingLogo} className='mt-4 w-full' onClick={() => logoInputRef.current?.click()})
+          dl(className='mt-4 grid gap-3 border-t border-border/50 pt-4')
+            div
+              dt(className={labelClassName}) Created
+              dd(className='mt-1 text-sm') #{formatAccountDate(profile.account.createdAt)}
+            div
+              dt(className={labelClassName}) Last updated
+              dd(className='mt-1 text-sm') #{formatAccountDate(profile.account.updatedAt)}

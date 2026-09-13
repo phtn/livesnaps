@@ -109,7 +109,6 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
             ~ id='admin-member-search'
             ~ value={query}
             ~ placeholder='Search by name, email, title, or role'
-            ~ autoComplete='off'
             ~ )
 
       if isInviteOpen && canInvite

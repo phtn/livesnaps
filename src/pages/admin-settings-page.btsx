@@ -9,7 +9,7 @@ module
     { id: 'staff', href: '/admin-settings', label: 'Staff', shortLabel: 'Staff', icon: 'member' },
     { id: 'recipients', href: '/admin-settings/recipients', label: 'Email recipients', shortLabel: 'Recipients', icon: 'at' },
     { id: 'links', href: '/admin-settings/links', label: 'Submission links', shortLabel: 'Links', icon: 'link' },
-    { id: 'settings', href: '/admin-settings/#', label: 'Account', shortLabel: 'Account', icon: 'account'}
+    { id: 'account', href: '/admin-settings/account', label: 'Account', shortLabel: 'Account', icon: 'account' }
   ]
 
   // Longest href wins, otherwise the `/admin-settings` index would claim every

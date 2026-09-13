@@ -660,8 +660,6 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
     CreateAccountForm(onCreated={onAccountCreated} onCancel={() => void setFilters({ create: false })})
   else
     fragment
-      null
-
 
       if rosterError
         p(className='mt-4 rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive') #{rosterError}

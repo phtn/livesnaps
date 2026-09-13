@@ -44,6 +44,7 @@ export const accountSchema = v.object({
   organization: accountOrganizationSchema,
   primaryContact: accountPrimaryContactSchema,
   billingEmail: v.union(v.string(), v.null()),
+  logoR2Key: v.optional(v.string()),
   ownerTokenIdentifier: v.string(),
   notes: v.union(v.string(), v.null()),
   closedAt: v.union(v.number(), v.null()),

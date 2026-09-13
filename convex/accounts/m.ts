@@ -4,6 +4,7 @@ import {
   DEFAULT_ACCOUNT_PLAN,
   DEFAULT_ACCOUNT_STATUS
 } from '../../src/lib/accounts/accounts'
+import { isAccountLogoObjectKey } from '../../src/lib/r2/account-logos'
 import { internal } from '../_generated/api'
 import { internalMutation, mutation } from '../_generated/server'
 import { requireAccountAccess } from '../accountMembers/helpers'
@@ -130,7 +131,11 @@ export const update = mutation({
     if (args.plan !== undefined) patch.plan = args.plan
     if (args.organization !== undefined) patch.organization = normalizeOrganization(args.organization)
     if (args.primaryContact !== undefined) {
-      patch.primaryContact = (await normalizePrimaryContact(ctx, args.primaryContact)).contact
+      const normalized = (await normalizePrimaryContact(ctx, args.primaryContact)).contact
+      patch.primaryContact =
+        args.primaryContact.firebaseUid === undefined
+          ? { ...normalized, tokenIdentifier: existing.primaryContact.tokenIdentifier }
+          : normalized
     }
     if (args.billingEmail !== undefined) {
       patch.billingEmail = normalizeOptionalAccountEmail(args.billingEmail, 'Billing email')
@@ -145,6 +150,27 @@ export const update = mutation({
       throw new ConvexError('Account not found.')
     }
 
+    return updated
+  }
+})
+
+export const setLogo = mutation({
+  args: { id: v.id('accounts'), objectKey: v.string() },
+  returns: accountDocumentSchema,
+  handler: async (ctx, { id, objectKey }) => {
+    const actor = await requireAccountAccess(ctx, id, 'admin')
+    const existing = await ctx.db.get(id)
+    if (!existing) throw new ConvexError('Account not found.')
+    if (!isAccountLogoObjectKey(id, objectKey)) throw new ConvexError('The account logo path is invalid.')
+
+    await ctx.db.patch(id, {
+      logoR2Key: objectKey,
+      updatedAt: Date.now(),
+      updatedBy: actor.tokenIdentifier
+    })
+
+    const updated = await ctx.db.get(id)
+    if (!updated) throw new ConvexError('Account not found.')
     return updated
   }
 })

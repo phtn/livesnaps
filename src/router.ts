@@ -88,6 +88,12 @@ const adminSettingsInviteRoute = createRoute({
   component: lazyRoute(() => import('./pages/admin-settings-members-page.btsx'))
 })
 
+const adminSettingsAccountRoute = createRoute({
+  getParentRoute: () => adminSettingsRoute,
+  path: 'account',
+  component: lazyRoute(() => import('./pages/admin-settings-account-page.btsx'))
+})
+
 // `citadel-page.btsx` is a shell — nav plus an `Outlet` — so it only renders
 // content through its children below.
 const citadelRoute = createRoute({
@@ -220,7 +226,7 @@ const routeTree = rootRoute.addChildren([
   adminSnapsRoute,
   adminSnapsLabRoute,
   adminWorkspaceRoute,
-  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsRecipientsRoute, adminSettingsInviteRoute, adminLinksRoute, adminLinksActivityRoute, adminLinkDetailRoute]),
+  adminSettingsRoute.addChildren([adminSettingsIndexRoute, adminSettingsRecipientsRoute, adminSettingsInviteRoute, adminSettingsAccountRoute, adminLinksRoute, adminLinksActivityRoute, adminLinkDetailRoute]),
   citadelRoute.addChildren([
     citadelIndexRoute,
     citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),

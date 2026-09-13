@@ -1,4 +1,5 @@
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
+import { handleAdminAccount, handleAdminAccountLogo } from './server/admin-account-routes'
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import {
   handleAdminAccountMemberInvite,
@@ -68,6 +69,8 @@ const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
 const ADMIN_ACCOUNT_MEMBERS_PATH = '/api/admin/account-members'
 const ADMIN_USERS_PATH = '/api/admin/users'
+const ADMIN_ACCOUNT_PATH = '/api/admin/account'
+const ADMIN_ACCOUNT_LOGO_PATH = '/api/admin/account/logo'
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const ADMIN_VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
 const ADMIN_VERIFICATION_ENTRY_ACTIVE_PATH = '/api/admin/verification-entries/active'
@@ -135,6 +138,8 @@ export default {
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL
 
     if (pathname === '/api/admin/accounts') return handleWorkspaceAccounts(request, { convexUrl })
+    if (pathname === ADMIN_ACCOUNT_PATH) return handleAdminAccount(request, { convexUrl })
+    if (pathname === ADMIN_ACCOUNT_LOGO_PATH) return handleAdminAccountLogo(request, getSnapPhotoEnvironment(env))
     if (pathname === '/api/admin/submission-links') return handleSubmissionLinks(request, { convexUrl })
     if (pathname === '/api/admin/submission-links/email') return handleSubmissionLinkEmail(request, { convexUrl })
     if (pathname === '/api/admin/submission-analytics') return handleSubmissionAnalytics(request, { convexUrl })
