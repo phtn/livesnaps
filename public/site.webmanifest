@@ -2,14 +2,14 @@
   "id": "/",
   "name": "LiveSnapsNow",
   "short_name": "LiveSnapsNow",
-  "description": "Verify your vehicle with five simple snaps.",
+  "description": "LiveSnapsNow helps you verify your vehicle with a quick and easy to use photo-based workflow.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "orientation": "portrait-primary",
-  "background_color": "#070707",
-  "theme_color": "#070707",
+  "background_color": "#0A0A0A",
+  "theme_color": "#0A0A0A",
   "prefer_related_applications": false,
   "icons": [
     {

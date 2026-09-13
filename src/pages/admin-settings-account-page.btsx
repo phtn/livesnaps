@@ -40,7 +40,7 @@ module
         onSuccess('Account details saved.')
       } catch (error) {
         const message = readError(error, 'Unable to save account details.')
-        formApi.setErrorMap({ onSubmit: message })
+        formApi.setErrorMap({ onSubmit: { form: message, fields: {} } })
         onError(message)
       }
     }
