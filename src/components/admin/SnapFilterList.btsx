@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from 'octane'
 import type { DateRange } from '@octanejs/day-picker'
 import Faceted, { FacetedBadgeList, FacetedContent, FacetedEmpty, FacetedGroup, FacetedItem, FacetedList, FacetedTrigger } from '@/components/ui/table/hyper/Faceted.btsx'
-import Popover, { PopoverContent, PopoverTrigger } from '@/components/ui/Popover.btsx'
+import Popover, { PopoverContent } from '@/components/ui/Popover.btsx'
 import DateRangePicker from '@/components/ui/DateRangePicker.btsx'
 import { Button, Input } from '@/components/ui'
 import { getFilterValueLabel, getFilterValueToken } from '@/components/ui/table/hyper/filter-utils'

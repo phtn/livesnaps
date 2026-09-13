@@ -35,7 +35,6 @@ module
   export type { MenuItem, MenuProps }
 
 props { children, items, beforeItems, side = "bottom", align = "center", sideOffset = 8, portalContainer, triggerRef, triggerAriaLabel, triggerClassName, positionerClassName, popupClassName, separatorClassName }: MenuProps
-
 MenuPrimitive.Root
   MenuPrimitive.Trigger(
     ~ ref={triggerRef}

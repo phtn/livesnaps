@@ -1,7 +1,7 @@
-import { auth, isFirebaseConfigured } from '@/lib/firebase'
 import { GoogleAuthProvider, signInWithCredential } from 'firebase/auth'
-import { useEffect, useRef } from 'octane'
-import { canPromptGoogleOneTap } from './one-tap-rules'
+import { useCallback, useEffect } from 'octane'
+import { auth, isFirebaseConfigured } from '@/lib/firebase'
+import { canPromptGoogleOneTap, shouldFallbackFromGoogleOneTap } from './one-tap-rules'
 
 /**
  * Google One Tap, with `signInWithPopup` as the fallback.
@@ -17,6 +17,8 @@ import { canPromptGoogleOneTap } from './one-tap-rules'
 interface PromptMomentNotification {
   isNotDisplayed?: () => boolean
   isSkippedMoment?: () => boolean
+  isDismissedMoment?: () => boolean
+  getDismissedReason?: () => string
 }
 
 interface CredentialResponse {
@@ -33,7 +35,6 @@ interface GoogleIdentityApi {
         cancel_on_tap_outside?: boolean
         context?: 'signin' | 'signup' | 'use'
         itp_support?: boolean
-        use_fedcm_for_prompt?: boolean
       }) => void
       prompt: (listener?: (notification: PromptMomentNotification) => void) => void
       cancel: () => void
@@ -49,9 +50,6 @@ declare global {
 }
 
 const GSI_SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
-// One Tap immediately after a sign-out reads as the app refusing to let you
-// leave, so it stays down for the rest of the tab's life once that happens.
-const SUPPRESSION_KEY = 'livesnaps-one-tap-suppressed'
 
 export const googleClientId = import.meta.env.PUBLIC_GOOGLE_CLIENT_ID?.trim() ?? ''
 
@@ -87,23 +85,6 @@ function loadGoogleIdentityScript(): Promise<GoogleIdentityApi | null> {
   return scriptPromise
 }
 
-function isSuppressed() {
-  try {
-    return window.sessionStorage.getItem(SUPPRESSION_KEY) === 'true'
-  } catch {
-    return false
-  }
-}
-
-function suppressForSession() {
-  try {
-    window.sessionStorage.setItem(SUPPRESSION_KEY, 'true')
-  } catch {
-    // A browser that refuses session storage still gets a single prompt per
-    // page load, which is the behavior worth preserving here.
-  }
-}
-
 /**
  * A One Tap credential Firebase rejects is a configuration problem, not
  * something the visitor can fix, so the message sends them to the button rather
@@ -128,6 +109,87 @@ async function signInWithOneTapCredential(credential: string) {
   await signInWithCredential(auth, GoogleAuthProvider.credential(credential))
 }
 
+interface PresentGoogleOneTapOptions {
+  fallback?: () => Promise<unknown>
+  onError?: (message: string) => void
+}
+
+async function presentGoogleOneTap({ fallback, onError }: PresentGoogleOneTapOptions = {}): Promise<void> {
+  const runFallback = async () => {
+    if (!fallback) return
+    await fallback()
+  }
+
+  if (!isFirebaseConfigured || !googleClientId) {
+    await runFallback()
+    return
+  }
+
+  const google = await loadGoogleIdentityScript()
+  if (!google) {
+    await runFallback()
+    return
+  }
+
+  if (auth.currentUser) return
+
+  await new Promise<void>((resolve) => {
+    let finished = false
+
+    const finish = () => {
+      if (finished) return false
+      finished = true
+      resolve()
+      return true
+    }
+
+    const finishWithFallback = () => {
+      if (finished) return
+      finished = true
+      void runFallback()
+        .catch((error: unknown) => onError?.(describeOneTapFailure(error)))
+        .finally(resolve)
+    }
+
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      auto_select: false,
+      cancel_on_tap_outside: false,
+      itp_support: true,
+      context: 'signin',
+      callback: (response) => {
+        if (!response.credential || finished) return
+
+        void signInWithOneTapCredential(response.credential)
+          .then(() => finish())
+          .catch((error: unknown) => {
+            if (fallback) {
+              finishWithFallback()
+              return
+            }
+
+            onError?.(describeOneTapFailure(error))
+            finish()
+          })
+      }
+    })
+
+    google.accounts.id.prompt((notification) => {
+      if (shouldFallbackFromGoogleOneTap(notification)) {
+        finishWithFallback()
+        return
+      }
+
+      if (
+        notification.isDismissedMoment?.() === true &&
+        notification.getDismissedReason?.() !== 'credential_returned'
+      ) {
+        finish()
+      }
+    })
+  })
+}
+
 export interface GoogleOneTapOptions {
   /** True while nobody is signed in - the only time a prompt makes sense. */
   isSignedOut: boolean
@@ -137,22 +199,21 @@ export interface GoogleOneTapOptions {
 }
 
 export function useGoogleOneTap({ isSignedOut, isLoading, onError }: GoogleOneTapOptions) {
-  const wasSignedInRef = useRef(false)
+  const promptWithFallback = useCallback(
+    async (fallback: () => Promise<unknown>) => {
+      await presentGoogleOneTap({ fallback, onError })
+    },
+    [onError]
+  )
 
   useEffect(() => {
     if (isLoading) return
 
-    // A signed-out state that follows a signed-in one is a sign-out. Prompting
-    // through it would fight the user, so One Tap stands down for this tab.
+    // Once a real session exists, allow a future signed-out state to offer One
+    // Tap again. This keeps the once-per-visit guard for route changes and
+    // dismissals without persisting a sign-out suppression across refreshes.
     if (!isSignedOut) {
-      wasSignedInRef.current = true
-      return
-    }
-
-    if (wasSignedInRef.current) {
-      suppressForSession()
-      window.google?.accounts.id.disableAutoSelect()
-      wasSignedInRef.current = false
+      hasPrompted = false
       return
     }
 
@@ -162,45 +223,14 @@ export function useGoogleOneTap({ isSignedOut, isLoading, onError }: GoogleOneTa
       isAuthLoading: isLoading,
       hasClientId: Boolean(googleClientId),
       isConfigured: isFirebaseConfigured,
-      isSuppressed: isSuppressed(),
       hasPrompted
     })
 
     if (!allowed) return
 
     hasPrompted = true
-    let cancelled = false
-
-    void loadGoogleIdentityScript().then((google) => {
-      if (!google || cancelled || auth.currentUser) return
-
-      google.accounts.id.initialize({
-        client_id: googleClientId,
-        // FedCM is how Chrome renders One Tap now; without it the prompt is
-        // simply never shown in current browsers.
-        use_fedcm_for_prompt: true,
-        // Sign-in stays a deliberate act: the prompt offers an account, it does
-        // not pick one on the user's behalf.
-        auto_select: false,
-        cancel_on_tap_outside: false,
-        itp_support: true,
-        context: 'signin',
-        callback: (response) => {
-          if (!response.credential) return
-
-          void signInWithOneTapCredential(response.credential).catch((error: unknown) => {
-            // The popup button is still on screen and still works, so this
-            // reports rather than retries.
-            onError?.(describeOneTapFailure(error))
-          })
-        }
-      })
-
-      google.accounts.id.prompt()
-    })
-
-    return () => {
-      cancelled = true
-    }
+    void presentGoogleOneTap({ onError })
   }, [isLoading, isSignedOut, onError])
+
+  return promptWithFallback
 }

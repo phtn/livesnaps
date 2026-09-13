@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'octane'
-import { Icon } from '@/lib/icons'
+import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import ThemeToggle from '../components/theme-toggle.btsx'
 import { Link, useLocation } from '@octanejs/tanstack-router'
@@ -66,7 +66,7 @@ component AdminNavigation
             ~ activeProps={{ className: activeNavClassName }}
             ~ className={cn(navLinkClassName, compact ? 'justify-center h-12!' : 'gap-4 px-3')}
             ~ )
-            Icon(name={item.icon} className='size-6')
+            Icon(name={item.icon as IconName} className='size-6')
             if !compact
               span #{item.label}
 

@@ -831,6 +831,12 @@ export const icons = {
       '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m7 15 5 5 5-5M7 9l5-5 5 5"/></g>',
     viewBox: '0 0 16 16',
     set: 'lucide'
+  },
+  plus: {
+    symbol:
+      '<path fill-rule="evenodd" d="M8.004 2.335a1 1 0 0 1 1 1v3.669h3.669a1 1 0 0 1 0 2H9.004v3.669a1 1 0 0 1-2 0V9.004H3.335a1 1 0 0 1 0-2h3.669V3.335a1 1 0 0 1 1-1" clip-rule="evenodd" fill="currentColor"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

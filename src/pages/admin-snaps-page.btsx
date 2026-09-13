@@ -4,7 +4,6 @@ import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
 import { useAdminPages } from '@/hooks/use-admin-pages'
 import { workspaceJson } from '@/lib/accounts/link-client'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
-import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
 import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
 import DataTable from '@/components/ui/table/DataTable.btsx'
@@ -13,8 +12,6 @@ import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
 import PhotoViewer from '@/components/photo-viewer.btsx'
 import ErrorPage from '@/components/error.btsx'
 import { Icon } from '@/lib/icons'
-import Icon from "../lib/icons/icon.btsx";
-import {cn} from '@/lib/utils'
 import Container from "../components/admin/container.btsx";
 import Loading from "../components/loading.btsx";
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
@@ -125,7 +122,7 @@ Container(className='md:py-0')
                 div(className='flex items-center gap-1')
                   span(className='font-mono') #{freshnessLabel}
               button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
-                Icon(name='refresh' size='12' className='group-active:rotate-180 transition-transform duration-200 ease-out')
+                Icon(name='refresh' size={12} className='-rotate-6 group-active:rotate-180 transition-transform duration-200 ease-out')
               if hasMore
                 button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
   if gallery

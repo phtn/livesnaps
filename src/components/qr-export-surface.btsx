@@ -27,17 +27,17 @@ module
 
 
 module
-  interface QRExportSurfaceProps {
-    itemName: string;
-    itemTitle: string;
-    itemLabel: string;
+  export interface QRExportSurfaceProps {
+    itemName?: string;
+    itemTitle?: string;
+    itemLabel?: string;
     brand: string
     qrCodeImageUrl?: string | null;
     qrSvg: string | null;
     ref?: Ref<HTMLDivElement>;
   }
 
-props { itemName, itemTitle, itemLabel, qrCodeImageUrl = null, qrSvg, ref }: QRExportSurfaceProps
+props { itemName, itemTitle, itemLabel, brand, qrCodeImageUrl = null, qrSvg, ref }: QRExportSurfaceProps
 
 div(className="overflow-hidden bg-white" ref={ref} data-ticket-export-root)
   div(className="flex min-w-0 flex-col items-center px-6 py-4 text-center sm:px-7 sm:py-7")
@@ -61,7 +61,7 @@ div(className="overflow-hidden bg-white" ref={ref} data-ticket-export-root)
           ~ )
       else
         div(className="flex flex-col items-center gap-2 text-slate-300")
-          Icon(name="qrcode" className="size-12")
+          Icon(name="cloud" className="size-12")
           span(className="font-ios text-[8px] uppercase tracking-[0.18em]") QR unavailable
     div(className="flex items-center")
       p(className="font-ios text-[8px] tracking-wide text-slate-500") #{brand}

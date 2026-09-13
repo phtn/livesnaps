@@ -1,5 +1,4 @@
-import { Icon } from '@/lib/icons'
-import type { IconName } from '@/lib/icons'
+import { Icon, type IconName } from '@/lib/icons'
 import { STEP_FLOW_MS, STEP_TILE_CLASS, STEP_TITLE_CLASS, type StepState } from '@/lib/verifications/step-flow'
 import { cn } from '@/lib/utils'
 

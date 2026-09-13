@@ -613,7 +613,7 @@ setup
 
   const handleSearchInputChange = (e: Event) => {
     e.preventDefault()
-    void setFilters({ q: e.currentTarget.value })
+    void setFilters({ q: (e.currentTarget)?.value as string })
   }
 
 section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
@@ -648,7 +648,6 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
         ~ id='citadel-account-search'
         ~ value={filters.q}
         ~ placeholder='Search by name, slug, contact, or org'
-        ~ autoComplete='off'
         ~ )
 
 
@@ -661,7 +660,8 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
   if filters.create
     CreateAccountForm(onCreated={onAccountCreated} onCancel={() => void setFilters({ create: false })})
   else
-    null
+    fragment
+      null
 
 
       if rosterError

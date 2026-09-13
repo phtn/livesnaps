@@ -11,14 +11,14 @@ article(className="w-full max-w-2xl overflow-hidden rounded-[2.5rem] border bord
 
     div(className="relative z-10 flex flex-col w-full max-w-sm gap-5")
     div(className="flex items-center justify-center size-16 rounded-2xl bg-foreground text-background shadow-lg sm:size-20")
-      Icon(name='key' className="size-8 sm:size-10 text-background" strokeWidth={1.7} aria-hidden="true")
+      Icon(name='key' className="size-8 sm:size-10 text-background" aria-hidden="true")
 
     div(className="absolute bottom-8 right-8 z-10 rotate-[-8deg] border-2 border-sidebar-border rounded-sm px-3 py-2 font-mono text-[0.65rem] font-bold uppercase tracking-[0.22em] text-accent-foreground sm:right-12")
       span Key required
 
   div( className="border-t border-border/70 px-6 py-9 sm:px-10 sm:py-11")
     div( className="flex items-start gap-4")
-      Icon(name='key' className="mt-1 size-7 shrink-0 text-muted-foreground" strokeWidth={1.6} aria-hidden="true")
+      Icon(name='key' className="mt-1 size-7 shrink-0 text-muted-foreground" aria-hidden="true")
       div
         h1(className="text-xl font-sans font-medium tracking-[0.01em] text-foreground sm:text-3xl") Admin Access Role
         p(className="mt-1 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-[1.35rem]") #{name} #{email}

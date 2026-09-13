@@ -14,9 +14,9 @@ setup
   const [signInError, setSignInError] = useState<string | null>(null)
   const inSession = user !== null
 
-  // One Tap offers the account; the button below is the fallback and stays the
-  // only guaranteed path, since a browser can decline to show the prompt.
-  useGoogleOneTap({ isSignedOut: !inSession, isLoading, onError: setSignInError })
+  // One Tap is offered automatically and by the person button. The manual flow
+  // falls back to Firebase popup sign-in only when One Tap is unavailable.
+  const promptGoogleOneTap = useGoogleOneTap({ isSignedOut: !inSession, isLoading, onError: setSignInError })
 
   const handleSignIn = async () => {
     if (isSigningIn) return
@@ -24,7 +24,7 @@ setup
     setSignInError(null)
     setIsSigningIn(true)
     try {
-      await signInWithGoogle()
+      await promptGoogleOneTap(signInWithGoogle)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to sign in right now.'
       setSignInError(message)

@@ -93,7 +93,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
               h2(className='mt-1 font-sans text-base font-medium') #{account?.name ?? ' Account'} List
 
           p(className='text-xs leading-5 text-muted-foreground') available to everyone
-        div(className='p-0')
+        div(className={account.role !== 'owner' ? 'p-0': 'p-4'})
           if settings.canManageAccount
             RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
           else
@@ -107,8 +107,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
             div
               p(className='font-mono text-2xs uppercase tracking-[0.18em] text-active') Personal override
               h2(className='mt-1 font-sans text-base font-medium') My defaults
-            span(className='rounded-full border border-active/20 bg-background px-2.5 py-1 font-mono text-2xs text-active') #{settings.memberEmails.length}
-          p(className='mt-1 text-xs leading-5 text-muted-foreground') Used only for you; everyone else keeps their own choices.
+            p(className='mt-1 text-xs leading-5 text-muted-foreground') for your eyes only
         div(className='p-4')
           RecipientDefaultsForm(accountId={account.id} scope='member' emails={settings.memberEmails} onSaved={refresh})
 

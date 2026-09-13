@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
-import { canPromptGoogleOneTap, type OneTapPromptConditions } from './one-tap-rules'
+import { canPromptGoogleOneTap, type OneTapPromptConditions, shouldFallbackFromGoogleOneTap } from './one-tap-rules'
 
 const allowed: OneTapPromptConditions = {
   hostname: 'livesnapsnow.com',
@@ -8,7 +8,6 @@ const allowed: OneTapPromptConditions = {
   isAuthLoading: false,
   hasClientId: true,
   isConfigured: true,
-  isSuppressed: false,
   hasPrompted: false
 }
 
@@ -34,8 +33,14 @@ describe('google one tap prompt rules', () => {
     assert.equal(canPromptGoogleOneTap({ ...allowed, isConfigured: false }), false)
   })
 
-  test('honors the sign-out suppression and the once-per-session guard', () => {
-    assert.equal(canPromptGoogleOneTap({ ...allowed, isSuppressed: true }), false)
+  test('honors the once-per-visit guard', () => {
     assert.equal(canPromptGoogleOneTap({ ...allowed, hasPrompted: true }), false)
+  })
+
+  test('falls back only when One Tap cannot be displayed or is skipped', () => {
+    assert.equal(shouldFallbackFromGoogleOneTap({ isNotDisplayed: () => true }), true)
+    assert.equal(shouldFallbackFromGoogleOneTap({ isSkippedMoment: () => true }), true)
+    assert.equal(shouldFallbackFromGoogleOneTap({ isNotDisplayed: () => false, isSkippedMoment: () => false }), false)
+    assert.equal(shouldFallbackFromGoogleOneTap({}), false)
   })
 })

@@ -1,4 +1,4 @@
-import { createQR, PaymentQRExportSurface } from "/qrcode-export-surface";
+import QRExportSurface, { createQR } from "./qr-export-surface.btsx";
 import { Button } from "@/components/ui";
 import { Icon } from "@/lib/icons";
 import { createPngFilename, downloadElementAsPng } from "@/lib/download-helper";
@@ -18,7 +18,7 @@ module
   }
 props { account }: QRCodeProps
 setup
-  const exportRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement | null>(null);
   const exportLockRef = useRef(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -49,7 +49,7 @@ setup
     void handleDownload()
   }
 div(className="mx-auto grid w-full max-w-sm gap-3")
-  PaymentQRExportSurface(
+  QRExportSurface(
     ~ ref={exportRef}
     ~ itemName={account.group}
     ~ itemTitle={account.code}
@@ -64,7 +64,7 @@ div(className="mx-auto grid w-full max-w-sm gap-3")
     ~ disabled={isDownloading || (!qrSvg && !account.qrCodeImageUrl)}
     ~ onClick={triggerDownload}
     ~ )
-    Icon(name={isDownloading ? "spinner-ring" : "down-to-line"} className="size-4")
+    Icon(name={isDownloading ? "spinner-ring" : "download"} className="size-4")
     span
       if isDownloading
         | #{"Creating QR"}

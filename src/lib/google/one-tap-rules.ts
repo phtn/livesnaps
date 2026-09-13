@@ -7,8 +7,12 @@ export interface OneTapPromptConditions {
   isAuthLoading: boolean
   hasClientId: boolean
   isConfigured: boolean
-  isSuppressed: boolean
   hasPrompted: boolean
+}
+
+export interface OneTapPromptMoment {
+  isNotDisplayed?: () => boolean
+  isSkippedMoment?: () => boolean
 }
 
 /**
@@ -31,10 +35,14 @@ export function canPromptGoogleOneTap({
   isAuthLoading,
   hasClientId,
   isConfigured,
-  isSuppressed,
   hasPrompted
 }: OneTapPromptConditions) {
   if (isAdminSubdomainHostname(hostname) || isGodsSubdomainHostname(hostname)) return false
   if (isAuthLoading || !isSignedOut) return false
-  return isConfigured && hasClientId && !isSuppressed && !hasPrompted
+  return isConfigured && hasClientId && !hasPrompted
+}
+
+/** A skipped or undisplayable One Tap prompt may continue to popup sign-in. */
+export function shouldFallbackFromGoogleOneTap(notification: OneTapPromptMoment) {
+  return notification.isNotDisplayed?.() === true || notification.isSkippedMoment?.() === true
 }

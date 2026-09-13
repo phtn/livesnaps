@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'octane'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
-import type {ClassValue} from '@octanejs/jsx-runtime'
+import type {ClassValue} from 'octane/jsx-runtime'
 import { Icon } from '@/lib/icons'
 import { Badge } from '@/components/ui'
 import { cn } from '@/lib/utils'
