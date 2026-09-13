@@ -17,7 +17,7 @@ module
   type NavItem = {
     icon: IconName
     label: string
-    path: '/citadel' | '/citadel/accounts' | '/citadel/settings'
+    path: '/citadel' | '/citadel/accounts' | '/citadel/vision' | '/citadel/settings'
     /**
      * Index routes match by prefix like every other link, so `/citadel` would
      * stay lit on every page beneath it. Only those need an exact match.
@@ -27,6 +27,7 @@ module
   const navs: NavItem[] = [
     { icon: 'folder', label: 'Overview', path: '/citadel', exact: true },
     { icon: 'account', label: 'Accounts', path: '/citadel/accounts' },
+    { icon: 'ocr', label: 'Vision', path: '/citadel/vision' },
     { icon: 'settings', label: 'Settings', path: '/citadel/settings' },
   ]
 

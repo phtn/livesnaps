@@ -1,3 +1,4 @@
+import { handleVisionTestRequest } from './lib/meta/file-api-route'
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
 import { handleAdminAccount, handleAdminAccountLogo } from './server/admin-account-routes'
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
@@ -64,6 +65,7 @@ const GODS_ACCOUNTS_PATH = '/api/gods/accounts'
 const GODS_ACCOUNT_DETAIL_PATH = /^\/api\/gods\/accounts\/([^/]+)$/
 const GODS_USERS_PATH = '/api/gods/users'
 const GODS_USER_CLAIMS_PATH = '/api/gods/users/claims'
+const GODS_VISION_TEST_PATH = '/api/gods/vision-test'
 const PHOTO_PATH = '/api/proofs'
 const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
@@ -133,6 +135,10 @@ export default {
 
     if (pathname === GODS_USERS_PATH) {
       return handleGodsUsers(request)
+    }
+
+    if (pathname === GODS_VISION_TEST_PATH) {
+      return handleVisionTestRequest(request)
     }
 
     const convexUrl = env.CONVEX_URL || env.PUBLIC_CONVEX_URL

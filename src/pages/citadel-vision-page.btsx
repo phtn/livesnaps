@@ -1,0 +1,3 @@
+import VisionBench from '@/components/citadel/vision-bench.btsx'
+
+VisionBench

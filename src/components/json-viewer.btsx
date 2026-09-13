@@ -1,0 +1,56 @@
+import Button from '@/components/ui/button.btsx'
+import type { OctaneNode } from 'octane'
+import { useMemo, useState } from 'octane'
+
+module
+  export interface JsonViewerProps {
+    data: unknown
+    maxHeight?: string
+    withToolbar?: boolean
+    children?: OctaneNode
+  }
+
+  const formatJson = (data: unknown) => {
+    if (typeof data === 'string') {
+      try {
+        return JSON.stringify(JSON.parse(data), null, 2)
+      } catch {
+        return data
+      }
+    }
+
+    try {
+      return JSON.stringify(data, null, 2) ?? String(data)
+    } catch {
+      return String(data)
+    }
+  }
+
+props { data, maxHeight = 'max-h-96', withToolbar = true, children }: JsonViewerProps
+setup
+  const formattedJson = useMemo(() => formatJson(data), [data])
+  const [copied, setCopied] = useState(false)
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(formattedJson)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1_500)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+section(className='min-w-0')
+  if withToolbar
+    div(className='mb-2 flex min-h-8 items-center justify-between gap-3')
+      div(className='min-w-0 text-xs text-muted-foreground')
+        | #{children}
+      Button(
+        ~ type='button'
+        ~ variant='ghost'
+        ~ size='sm'
+        ~ icon={copied ? 'check' : 'copy'}
+        ~ label={copied ? 'Copied' : 'Copy JSON'}
+        ~ onClick={() => void copyJson()}
+        ~ )
+  pre(className={`${maxHeight} overflow-auto rounded-lg border border-border/60 bg-sunken/55 p-4 font-mono text-xs leading-6 text-foreground whitespace-pre-wrap wrap-break-word`}) #{formattedJson}

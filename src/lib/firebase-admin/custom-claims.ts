@@ -165,6 +165,9 @@ export function hasFirebaseGodAccess(claims: FirebaseCustomClaims): boolean {
   return claims.god === true
 }
 
+export function hasFirebaseAdminAccess(claims: FirebaseCustomClaims): boolean {
+  return claims.admin === true
+}
 export function getFirebaseCustomClaimsByteLength(claims: FirebaseCustomClaims): number {
   return new TextEncoder().encode(JSON.stringify(claims)).byteLength
 }

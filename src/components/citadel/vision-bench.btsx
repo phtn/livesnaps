@@ -1,0 +1,356 @@
+import JsonViewer from '@/components/json-viewer.btsx'
+import Badge from '@/components/ui/badge.btsx'
+import Button from '@/components/ui/button.btsx'
+import { Icon } from '@/lib/icons'
+import { CUSTOM_VISION_TEST_PROMPT_ID, DEFAULT_VISION_TEST_PROMPT, DEFAULT_VISION_TEST_PROMPT_ID, getVisionTestFileError, getVisionTestPromptError, getVisionTestPromptLabel, getVisionTestPromptPreset, isVisionTestPromptId, isVisionTestProvider, VISION_TEST_ACCEPT, VISION_TEST_MAX_PROMPT_CHARACTERS, VISION_TEST_PROMPT_PRESETS, type ResolvedVisionTestProvider, type VisionTestPromptId, type VisionTestProvider, type VisionTestResult, type VisionTestStatus } from '@/lib/llm/vision-test-contract'
+import { cn } from '@/lib/utils'
+import { useEffect, useRef, useState } from 'octane'
+
+module
+  type SelectedImage = {
+    file: File
+    previewUrl: string
+  }
+
+  const PROVIDER_LABELS: Record<VisionTestProvider, string> = {
+    configured: 'Configured provider',
+    cohere: 'Cohere',
+    meta: 'Meta Muse Spark'
+  }
+
+  const PROVIDER_OPTIONS: readonly { value: VisionTestProvider; label: string }[] = [
+    { value: 'configured', label: 'Configured provider' },
+    { value: 'cohere', label: 'Cohere' },
+    { value: 'meta', label: 'Meta Muse Spark' }
+  ]
+
+  const formatBytes = (bytes: number) => {
+    if (bytes < 1_024) return `${bytes} B`
+    if (bytes < 1_024 * 1_024) return `${(bytes / 1_024).toFixed(1)} KB`
+    return `${(bytes / (1_024 * 1_024)).toFixed(1)} MB`
+  }
+
+  const readResponseError = (value: unknown) => {
+    if (!value || typeof value !== 'object') return 'The vision test failed.'
+    const response = value as Record<string, unknown>
+    const error = typeof response.error === 'string' ? response.error : 'The vision test failed.'
+    const details = typeof response.details === 'string' ? response.details : null
+    return details ? `${error} ${details}` : error
+  }
+
+  const readVisionTestResult = (value: unknown): VisionTestResult | null => {
+    if (!value || typeof value !== 'object') return null
+    const result = (value as { result?: unknown }).result
+    if (!result || typeof result !== 'object') return null
+    const candidate = result as Partial<VisionTestResult>
+    return typeof candidate.output === 'string' &&
+      typeof candidate.model === 'string' &&
+      isVisionTestPromptId(candidate.promptId)
+      ? candidate as VisionTestResult
+      : null
+  }
+
+  const readVisionTestStatus = (value: unknown): VisionTestStatus | null => {
+    if (!value || typeof value !== 'object') return null
+    const candidate = value as Partial<VisionTestStatus>
+    if (
+      (candidate.defaultProvider !== 'cohere' && candidate.defaultProvider !== 'meta') ||
+      !candidate.providers ||
+      typeof candidate.providers.cohere !== 'boolean' ||
+      typeof candidate.providers.meta !== 'boolean'
+    ) return null
+    return candidate as VisionTestStatus
+  }
+
+  const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
+
+component ProviderStatus
+  props { status }: { status: VisionTestStatus | null }
+  div(className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground')
+    if status
+      fragment
+        Badge(variant={status.providers.cohere ? 'outline' : 'destructive'}) Cohere #{status.providers.cohere ? 'ready' : 'not configured'}
+        Badge(variant={status.providers.meta ? 'outline' : 'destructive'}) Meta #{status.providers.meta ? 'ready' : 'not configured'}
+        span(className='font-mono') Default: #{PROVIDER_LABELS[status.defaultProvider]}
+    else
+      span Reading provider configuration…
+
+component ResultPlaceholder
+  div(className='grid min-h-80 place-items-center rounded-xl border border-dashed border-border/70 bg-sunken/20 p-8 text-center')
+    div(className='max-w-sm')
+      span(className='mx-auto grid size-12 place-items-center rounded-full bg-muted text-muted-foreground')
+        Icon(name='ocr' className='size-6')
+      h3(className='mt-4 font-poly text-lg font-medium') Vision output appears here
+      p(className='mt-2 text-sm leading-6 text-muted-foreground') Choose an image and run a provider test to inspect its structured response, timing, and token use.
+
+component VisionTestResultPanel
+  props { result }: { result: VisionTestResult }
+  div(className='space-y-5' aria-live='polite')
+    div(className='flex flex-wrap items-center gap-2')
+      Badge(variant='secondary') #{PROVIDER_LABELS[result.provider]}
+      Badge(variant='outline') #{result.model}
+      Badge(variant='outline') #{result.durationMs.toLocaleString('en-US')} ms
+      Badge(variant='outline') #{result.finishReason}
+      Badge(variant='outline') #{getVisionTestPromptLabel(result.promptId)}
+    JsonViewer(data={result.car})
+      | Structured vehicle recognition
+    dl(className='grid gap-2 text-xs text-muted-foreground sm:grid-cols-2')
+      div(className='flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3 py-2')
+        dt Input tokens
+        dd(className='font-mono text-foreground') #{result.usage.inputTokens?.toLocaleString('en-US') ?? '—'}
+      div(className='flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3 py-2')
+        dt Output tokens
+        dd(className='font-mono text-foreground') #{result.usage.outputTokens?.toLocaleString('en-US') ?? '—'}
+      div(className='flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3 py-2')
+        dt Reasoning tokens
+        dd(className='font-mono text-foreground') #{result.usage.reasoningTokens?.toLocaleString('en-US') ?? '—'}
+      div(className='flex items-center justify-between gap-3 rounded-lg border border-dashed border-border/60 px-3 py-2')
+        dt Total tokens
+        dd(className='font-mono text-foreground') #{result.usage.totalTokens?.toLocaleString('en-US') ?? '—'}
+
+setup
+  const inputRef = useRef<HTMLInputElement>(null)
+  const selectedImageRef = useRef<SelectedImage | null>(null)
+  const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null)
+  const [provider, setProvider] = useState<VisionTestProvider>('configured')
+  const [promptId, setPromptId] = useState<VisionTestPromptId>(DEFAULT_VISION_TEST_PROMPT_ID)
+  const [prompt, setPrompt] = useState(DEFAULT_VISION_TEST_PROMPT)
+  const [status, setStatus] = useState<VisionTestStatus | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [result, setResult] = useState<VisionTestResult | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    fetch('/api/gods/vision-test', { credentials: 'same-origin', signal: controller.signal })
+      .then(async (response) => {
+        const body: unknown = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(readResponseError(body))
+        const nextStatus = readVisionTestStatus(body)
+        if (!nextStatus) throw new Error('The server returned invalid provider configuration.')
+        setStatus(nextStatus)
+        setStatusError(null)
+      })
+      .catch((error: unknown) => {
+        if (isAbortError(error)) return
+        setStatusError(error instanceof Error ? error.message : 'Could not read provider configuration.')
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => () => {
+    if (selectedImageRef.current) URL.revokeObjectURL(selectedImageRef.current.previewUrl)
+  }, [])
+
+  const selectImage = (file: File | null) => {
+    const fileError = getVisionTestFileError(file)
+    if (fileError || !file) {
+      setErrorMessage(fileError ?? 'Choose an image to test.')
+      if (inputRef.current) inputRef.current.value = ''
+      return
+    }
+
+    const nextImage = { file, previewUrl: URL.createObjectURL(file) }
+    if (selectedImageRef.current) URL.revokeObjectURL(selectedImageRef.current.previewUrl)
+    selectedImageRef.current = nextImage
+    setSelectedImage(nextImage)
+    setErrorMessage(null)
+    setResult(null)
+  }
+
+  const clearImage = () => {
+    if (selectedImageRef.current) URL.revokeObjectURL(selectedImageRef.current.previewUrl)
+    selectedImageRef.current = null
+    setSelectedImage(null)
+    setResult(null)
+    setErrorMessage(null)
+    if (inputRef.current) inputRef.current.value = ''
+  }
+
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    setIsDragging(false)
+    selectImage(event.dataTransfer.files.item(0))
+  }
+
+  const selectPrompt = (value: string) => {
+    if (!isVisionTestPromptId(value)) return
+    setPromptId(value)
+    if (value !== CUSTOM_VISION_TEST_PROMPT_ID) setPrompt(getVisionTestPromptPreset(value).prompt)
+    setErrorMessage(null)
+    setResult(null)
+  }
+
+  const handleSubmit = async (event: Event) => {
+    event.preventDefault()
+    const fileError = getVisionTestFileError(selectedImage?.file ?? null)
+    const promptError = getVisionTestPromptError(prompt)
+    if (fileError || promptError) {
+      setErrorMessage(fileError ?? promptError ?? 'Complete the vision test fields.')
+      return
+    }
+
+    const formData = new FormData()
+    formData.set('file', selectedImage!.file)
+    formData.set('prompt', prompt.trim())
+    formData.set('promptId', promptId)
+    formData.set('provider', provider)
+    setIsRunning(true)
+    setErrorMessage(null)
+    setResult(null)
+
+    try {
+      const response = await fetch('/api/gods/vision-test', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+      })
+      const body: unknown = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(readResponseError(body))
+      const nextResult = readVisionTestResult(body)
+      if (!nextResult) throw new Error('The server returned an invalid vision test result.')
+      setResult(nextResult)
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'The vision test failed.')
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+main(className='w-full px-4 py-7 sm:px-6 sm:py-10')
+  header(className='mb-7 flex flex-col gap-3 border-b border-dotted border-border/60 pb-6')
+    div(className='flex items-center gap-3')
+      span(className='grid size-10 place-items-center rounded-full bg-active/10 text-active')
+        Icon(name='camera-enhance' className='size-5')
+      div
+        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Citadel · Model diagnostics
+        h1(className='font-poly text-2xl font-medium tracking-tight sm:text-3xl') Vision bench
+    p(className='max-w-3xl text-sm leading-6 text-muted-foreground') Compare Cohere inline vision with Meta Muse Spark’s temporary Files API upload using the same image, prompt, and structured vehicle schema.
+    ProviderStatus(status={status})
+    if statusError
+      p(className='text-xs text-destructive' role='alert') #{statusError}
+
+  form(className='grid max-w-7xl gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]' onSubmit={handleSubmit})
+    section(className='min-w-0 rounded-xl border border-border/60 bg-sunken/15 p-4 sm:p-6')
+      div(className='grid gap-5 sm:grid-cols-2')
+        label(className='block text-sm')
+          span(className='font-medium') Provider
+          select(
+            ~ id='vision-test-provider'
+            ~ value={provider}
+            ~ disabled={isRunning}
+            ~ onChange={(event: Event) => {
+            ~   const value = (event.currentTarget as HTMLSelectElement).value;
+            ~   if (isVisionTestProvider(value)) setProvider(value);
+            ~ }}
+            ~ className='mt-2 h-10 w-full rounded-sm border border-border/60 bg-background px-3 text-sm outline-none focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60'
+            ~ )
+            each option in PROVIDER_OPTIONS key option.value
+              option(
+                ~ value={option.value}
+                ~ disabled={option.value !== 'configured' && status ? !status.providers[option.value as ResolvedVisionTestProvider] : false}
+                ~ ) #{option.label}
+          span(className='mt-1.5 block text-xs leading-5 text-muted-foreground') “Configured” resolves the server’s active vision provider.
+        label(className='block text-sm')
+          span(className='font-medium') Prompt preset
+          select(
+            ~ id='vision-test-prompt-preset'
+            ~ value={promptId}
+            ~ disabled={isRunning}
+            ~ onChange={(event: Event) => selectPrompt((event.currentTarget as HTMLSelectElement).value)}
+            ~ className='mt-2 h-10 w-full rounded-sm border border-border/60 bg-background px-3 text-sm outline-none focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60'
+            ~ )
+            each preset in VISION_TEST_PROMPT_PRESETS key preset.id
+              option(value={preset.id}) #{preset.label}
+            option(value={CUSTOM_VISION_TEST_PROMPT_ID}) Custom prompt
+          span(className='mt-1.5 block text-xs leading-5 text-muted-foreground') #{promptId === CUSTOM_VISION_TEST_PROMPT_ID ? 'Uses the edited prompt below.' : getVisionTestPromptPreset(promptId).description}
+
+      label(className='mt-5 block text-sm' htmlFor='vision-test-prompt')
+        span(className='font-medium') Prompt
+        textarea(
+          ~ id='vision-test-prompt'
+          ~ value={prompt}
+          ~ maxLength={VISION_TEST_MAX_PROMPT_CHARACTERS}
+          ~ disabled={isRunning}
+          ~ onInput={(event: Event) => {
+          ~   setPrompt((event.currentTarget as HTMLTextAreaElement).value);
+          ~   setPromptId(CUSTOM_VISION_TEST_PROMPT_ID);
+          ~   setErrorMessage(null);
+          ~   setResult(null);
+          ~ }}
+          ~ className='mt-2 min-h-28 w-full resize-y rounded-sm border border-border/60 bg-background p-3 text-sm leading-6 outline-none focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60'
+          ~ )
+        span(className='mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground')
+          span Tell the model what to inspect or transcribe.
+          span(className='shrink-0 font-mono') #{prompt.length.toLocaleString('en-US')} / 4,000
+
+      div(className='mt-5')
+        label(className='text-sm font-medium' htmlFor='vision-test-file') Test image
+        input#vision-test-file.sr-only(
+          ~ ref={inputRef}
+          ~ type='file'
+          ~ accept={VISION_TEST_ACCEPT}
+          ~ disabled={isRunning}
+          ~ onChange={(event: Event) => selectImage((event.currentTarget as HTMLInputElement).files?.item(0) ?? null)}
+          ~ )
+        if selectedImage
+          div(className='mt-2 overflow-hidden rounded-xl border border-border/60 bg-background')
+            div(className='grid aspect-video place-items-center overflow-hidden bg-muted/35')
+              img(src={selectedImage.previewUrl} alt={`Preview of ${selectedImage.file.name}`} className='size-full object-contain')
+            div(className='flex min-w-0 items-center justify-between gap-3 border-t border-border/60 p-3')
+              div(className='min-w-0')
+                p(className='truncate text-sm font-medium' title={selectedImage.file.name}) #{selectedImage.file.name}
+                p(className='text-xs text-muted-foreground') #{selectedImage.file.type} · #{formatBytes(selectedImage.file.size)}
+              div(className='flex shrink-0 gap-2')
+                Button(type='button' variant='secondary' label='Replace' disabled={isRunning} onClick={() => inputRef.current?.click()})
+                Button(type='button' variant='ghost' label='Remove' disabled={isRunning} onClick={clearImage})
+        else
+          div(
+            ~ className={cn('mt-2 grid min-h-48 place-items-center rounded-xl border border-dashed border-border/70 bg-muted/15 p-6 text-center transition-colors', isDragging && 'border-active bg-active/5')}
+            ~ onDragEnter={(event) => {
+            ~   event.preventDefault();
+            ~   setIsDragging(true);
+            ~ }}
+            ~ onDragOver={(event) => {
+            ~   event.preventDefault();
+            ~   event.dataTransfer.dropEffect = 'copy';
+            ~ }}
+            ~ onDragLeave={() => setIsDragging(false)}
+            ~ onDrop={handleDrop}
+            ~ )
+            div
+              span(className='mx-auto grid size-11 place-items-center rounded-full bg-muted text-muted-foreground')
+                Icon(name='images' className='size-5')
+              p(className='mt-3 text-sm font-medium') Drop an image here
+              p(className='mt-1 text-xs text-muted-foreground') JPEG, PNG, or WebP up to 10 MB
+              Button(type='button' className='mt-4' variant='secondary' label='Browse files' disabled={isRunning} onClick={() => inputRef.current?.click()})
+
+      if errorMessage
+        div(className='mt-5 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive' role='alert')
+          Icon(name='alert-triangle' className='mt-0.5 size-4 shrink-0')
+          p #{errorMessage}
+
+      footer(className='mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-dotted border-border/60 pt-5')
+        p(className='text-xs text-muted-foreground') God-only · Cohere stays inline · Meta files are deleted after inference
+        Button(
+          ~ type='submit'
+          ~ variant='dark'
+          ~ size='md'
+          ~ icon='play'
+          ~ label='Run vision test'
+          ~ pending={isRunning}
+          ~ pendingLabel='Running test…'
+          ~ disabled={isRunning || !selectedImage}
+          ~ )
+
+    section(className='min-w-0 rounded-xl border border-border/60 bg-sunken/15 p-4 sm:p-6')
+      div(className='mb-5 border-b border-dotted border-border/60 pb-4')
+        h2(className='font-poly text-xl font-medium') Model response
+        p(className='mt-1 text-sm text-muted-foreground') Structured output and diagnostics from the selected provider.
+      if result
+        VisionTestResultPanel(result={result})
+      else
+        ResultPlaceholder
