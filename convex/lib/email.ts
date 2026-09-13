@@ -1,6 +1,17 @@
 import { ConvexError } from 'convex/values'
 
-const DEFAULT_FROM_ADDRESS = 'LiveSnapsNow <hq@livesnapsnow.com>'
+const FROM_NAME = 'LiveSnapsNow'
+const DEFAULT_FROM_ADDRESS = 'hq@livesnapsnow.com'
+
+/**
+ * Every Resend send goes out as "LiveSnapsNow <address>". `RESEND_FROM` may
+ * swap the address (a bare address gets the name applied); only an override
+ * that already carries its own display name is used verbatim.
+ */
+export function getResendFromAddress() {
+  const address = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
+  return address.includes('<') ? address : `${FROM_NAME} <${address}>`
+}
 
 export interface OutboundEmail {
   to: string
@@ -33,7 +44,7 @@ export async function sendTransactionalEmail({ to, subject, html, text }: Outbou
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS,
+      from: getResendFromAddress(),
       to: [to],
       subject,
       html,
@@ -54,7 +65,7 @@ export async function sendTransactionalEmailBatch(emails: OutboundEmail[]) {
 
   const apiKey = (process.env.RESEND_API_KEY ?? process.env.RESEND ?? '').trim()
   if (!apiKey) throw new ConvexError('Resend is not configured for this deployment. Set RESEND_API_KEY.')
-  const from = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
+  const from = getResendFromAddress()
   const response = await fetch('https://api.resend.com/emails/batch', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },

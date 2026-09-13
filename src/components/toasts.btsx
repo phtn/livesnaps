@@ -12,12 +12,13 @@ module
   }
 
 setup
+  // The store replaces `records` on every change, so the snapshot is already a new array.
   const [toasts, setToasts] = useState(getToasts)
-  const visibleToasts = toasts.filter((item) => !item.dismissed)
-  useEffect(() => subscribeToToasts(() => setToasts([...getToasts()])), [])
+  useEffect(() => subscribeToToasts(() => setToasts(getToasts())), [])
 
 div(className='pointer-events-none fixed inset-x-0 top-4 z-50 flex flex-col items-center gap-1 px-4' aria-live='polite' aria-atomic='false')
-  each item in visibleToasts key item.id
-    div(role={item.kind === 'error' ? 'alert' : 'status'} className={cn('pointer-events-auto flex min-h-8 items-center gap-3 rounded-md bg-black px-2.5 py-1 text-xs tracking-[-0.025em] shadow-lg transition-opacity', kindClasses[item.kind])})
+  // Dismissed toasts stay mounted briefly so they can fade before the store removes them.
+  each item in toasts key item.id
+    div(role={item.kind === 'error' ? 'alert' : 'status'} aria-hidden={item.dismissed || undefined} className={cn('flex min-h-8 items-center gap-3 rounded-md bg-black px-2.5 py-1 text-xs tracking-[-0.025em] shadow-lg transition-opacity duration-180 ease-out', item.dismissed ? 'opacity-0' : 'pointer-events-auto opacity-100', kindClasses[item.kind])})
       span #{item.message}
       button(type='button' className='text-white/60 hover:text-white' aria-label='Dismiss notification' onClick={() => dismissToast(item.id)}) ×

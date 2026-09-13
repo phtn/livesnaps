@@ -53,7 +53,7 @@ component Navigation
               span(className='font-sans') #{item.label}
 
 setup
-  const { hasGodAccess, user } = useFirebaseUser()
+  const { hasGodAccess, isLoading: isAuthLoading, user } = useFirebaseUser()
   // `useMobile` returns the boolean itself, not a wrapper object.
   const isMobile = useMobile()
   const isGodsHost = typeof window !== 'undefined' && isGodsSubdomainHostname(window.location.hostname)
@@ -75,6 +75,10 @@ setup
 
     const openCitadel = async () => {
       if (!isGodsHost) {
+        // Firebase restores the session and claims asynchronously; judging
+        // before then flashes the unauthorized block for signed-in gods.
+        if (isAuthLoading) return
+
         if (!user || !hasGodAccess) {
           setFailure('unauthorized')
           return
@@ -133,7 +137,7 @@ setup
     return () => {
       cancelled = true
     }
-  }, [hasGodAccess, isGodsHost, user])
+  }, [hasGodAccess, isAuthLoading, isGodsHost, user])
 
 if isMobile
   div(className='min-h-screen bg-background dark:bg-card/5')

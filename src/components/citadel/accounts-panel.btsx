@@ -10,6 +10,7 @@ import { ACCOUNT_PLAN_VALUES, isAccountEmailAddress, toAccountSlug, type Account
 import Step from '@/components/admin/verification-step.btsx'
 import { ENTER_CLASS, errorTextClassName, fieldLabelClassName, type StepState } from '@/lib/verifications/step-flow'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
+import { onError, onSuccess } from '@/lib/toast'
 import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, resolveAccountSlug, useAccountDraft, useAccountForm, validateAccountForm, validateAccountSlug, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
 import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, checkAccountSlugAvailability, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
 import Container from "../admin/container.btsx";
@@ -167,7 +168,15 @@ component CreateAccountForm
         void setDraft(values)
       },
       onSubmit: async (input) => {
-        const response = await createAccount(input)
+        let response: Awaited<ReturnType<typeof createAccount>>
+        try {
+          response = await createAccount(input)
+        } catch (error) {
+          onError(readErrorMessage(error, 'Could not create the account.'))
+          // Rethrown so `useAccountForm` still writes it into the form's error map.
+          throw error
+        }
+        onSuccess(`Account “${input.name}” created.`)
         await setDraft(null, IMMEDIATE_URL_UPDATE)
         accountForm.reset(ACCOUNT_FORM_DEFAULTS)
         onCreated(response.accounts)

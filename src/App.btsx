@@ -22,7 +22,6 @@ module
   const LazyTop = lazy(() => import('./components/topbar.btsx'))
   const LazyHero = lazy(() => import('./components/hero.btsx'))
   const LazyFooter = lazy(() => import('./components/footer.btsx'))
-  const LazyToast = lazy(() => import('./components/toasts.btsx'))
   const runtimeMode = getSnapRuntimeMode()
   const readApiError = async (response: Response, fallback: string) => {
     const result = (await response.json().catch(() => null)) as { error?: unknown } | null
@@ -326,4 +325,3 @@ div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen 
       LazyFooter(scrollPct={scrollPct})
 
   Expander(key={sessionUploadId ?? 'inactive-snap-session'} cancelSession={cancelVerificationSession} completeSession={completeVerificationSession} endCompletedSession={endCompletedSession} getCurrentIdToken={getCurrentIdToken} getCurrentLocation={getCurrentLocation} isDebugMode={runtimeMode.debug} isExpanded={isExpanded} isLocationPrecise={isLocationPrecise} locationAccuracyMeters={locationAccuracyMeters} sessionUploadId={sessionUploadId})
-  LazyToast

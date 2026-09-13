@@ -10,7 +10,7 @@ import { Button, Input } from '@/components/ui'
 import SubmissionLinkColorPicker from '@/components/admin/submission-link-color-picker.btsx'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import { onSuccess } from '@/lib/toast'
+import { onError, onSuccess } from '@/lib/toast'
 import HyperSearch from "../components/ui/table/hyper/HyperSearch.btsx";
 
 module
@@ -43,7 +43,9 @@ component CreateLinkForm
           onSuccess('Submission link created.')
           onCreated()
         } catch (failure) {
-          setError(failure instanceof Error ? failure.message : 'Unable to create link.')
+          const message = failure instanceof Error ? failure.message : 'Unable to create link.'
+          setError(message)
+          onError(message)
         }
       }
     })

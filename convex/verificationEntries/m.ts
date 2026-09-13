@@ -10,6 +10,7 @@ import { internal } from '../_generated/api'
 import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, env, mutation } from '../_generated/server'
+import { getResendFromAddress } from '../lib/email'
 import { toBase64 as bytesToBase64, getR2ObjectBytes, isR2Configured } from '../lib/r2'
 import { requireSnapAccess, requireVerificationEntryAccess } from '../lib/submissionAccess'
 import { createVerificationEntrySchema, type VerificationUpload, verificationEntryDocumentSchema } from './d'
@@ -38,13 +39,6 @@ type ResendAttachmentPayload = {
   content: string
   content_type?: string
 }
-
-/**
- * Resend rejects any sender outside a verified domain, so this default tracks
- * the domain the account actually owns. `RESEND_FROM` overrides it without a
- * deploy, which is how a second verified domain would be adopted.
- */
-const DEFAULT_FROM_ADDRESS = 'hq@livesnapsnow.com'
 
 /**
  * Resend caps a whole message at 40MB. Snap photos run to roughly 2MB each and
@@ -630,7 +624,7 @@ export const sendEmail = action({
         `Hello,\n\nVerification for ${entry.applicant}.\n\nPlease find attached: ${finalAttachments.join(', ')}.\n\nPlate: ${entry.plateNumber}\nUpload ID: ${entry.uploadId}\n\nRegards,\n${entry.senderName}`
 
       const resendApiKey: string = (process.env.RESEND_API_KEY ?? process.env.RESEND ?? '').trim()
-      const resendFrom: string = process.env.RESEND_FROM?.trim() || DEFAULT_FROM_ADDRESS
+      const resendFrom: string = getResendFromAddress()
 
       // A missing key used to log and fall through, which marked the entry
       // submitted even though nothing was sent. Refusing here keeps the entry's

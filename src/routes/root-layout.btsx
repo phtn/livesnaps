@@ -11,6 +11,7 @@ module
   // Lazy: the admin shell (resizable panels, vaul drawer, etc.) only matters
   // on the admin subdomain and shouldn't ship in the main visitor bundle.
   const LazyAdminPage = lazy(() => import('@/pages/admin-page.btsx'))
+  const LazyToasts = lazy(() => import('@/components/toasts.btsx'))
 
 setup
   const isAdminHost = typeof window !== 'undefined' && isAdminSubdomainHostname(window.location.hostname)
@@ -22,3 +23,5 @@ if (isAdminHost || isWorkspacePath) && !isUngatedPath
     LazyAdminPage
 else
   Outlet
+// Mounted once here so every route, admin and citadel included, can show toasts.
+LazyToasts
