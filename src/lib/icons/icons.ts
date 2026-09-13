@@ -837,6 +837,18 @@ export const icons = {
       '<path fill-rule="evenodd" d="M8.004 2.335a1 1 0 0 1 1 1v3.669h3.669a1 1 0 0 1 0 2H9.004v3.669a1 1 0 0 1-2 0V9.004H3.335a1 1 0 0 1 0-2h3.669V3.335a1 1 0 0 1 1-1" clip-rule="evenodd" fill="currentColor"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  message: {
+    symbol:
+      '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M8 9h8m-8 4h3m-3.667 5H19a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14.5a.25.25 0 0 0 .4.2l3.333-2.5a1 1 0 0 1 .6-.2Z"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  copy: {
+    symbol:
+      '<g transform="scale(0.667)"><g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M7 9.667A2.667 2.667 0 0 1 9.667 7h8.666A2.667 2.667 0 0 1 21 9.667v8.666A2.667 2.667 0 0 1 18.333 21H9.667A2.667 2.667 0 0 1 7 18.333z"/><path d="M4.012 16.737A2 2 0 0 1 3 15V5c0-1.1.9-2 2-2h10c.75 0 1.158.385 1.5 1"/></g></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

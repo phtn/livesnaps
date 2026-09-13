@@ -4,7 +4,7 @@ import type { Ref } from "octane";
 
 module
   export const QR_SOURCE_SIZE = 512;
-  export async function createQR(content: string){
+  export function createQR(content: string){
     const normalizedContent = content?.trim() ?? "";
 
     if (!normalizedContent) {

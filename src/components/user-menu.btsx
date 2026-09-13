@@ -22,12 +22,12 @@ module
   interface ItemProps {
     label: string
     icon: IconName
-    onClick: (path: string) => void
+    onClick: () => Promise<void>
     disabled?: boolean
   }
 
   interface RouteItemProps {
-    to: '/account' | '/snaps'
+    to: '/account' | '/snaps' | '/citadel'
     label: string
     icon: IconName
   }
@@ -52,7 +52,7 @@ setup
   const hasWorkspace = accounts?.some(account => canUseAccount(account.status)) ?? false
   const [isNavigatingToAdmin, setIsNavigatingToAdmin] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const profileImageUrl = user?.photoURL ? resolveAccountProfileImageUrl(user.photoURL) : null
   const navigate = (path: string) => {
     setIsOpen(false)
@@ -93,14 +93,14 @@ setup
 
 div(ref={menuRef} className='relative z-100!')
   button(type='button' aria-haspopup='menu' aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
-    div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/60 backdrop-blur-2xl transition hover:bg-beach/80 dark:bg-lime-200/10 dark:hover:bg-lime-200/80 md:size-12')
+    div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/10 backdrop-blur-3xl transition hover:bg-beach/80 dark:bg-lime-200/10 dark:hover:bg-lime-200/80 md:size-12')
       Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
   if isOpen
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})
       RouteItem(to='/snaps' label='my snaps' icon='snap' onNavigate={() => setIsOpen(false)})
       if hasWorkspace
-        Item(role='menuitem' label='workspace' icon='admin' onNavigate={() => setIsOpen(false)} onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
+        Item(label='workspace' icon='admin'onClick={handleAdminNavigation} disabled={isNavigatingToAdmin})
       if hasGodAccess
         RouteItem(to='/citadel' label='citadel' icon='re-up.ph' onNavigate={() => setIsOpen(false)})
       div(className='-mx-1 my-1 h-px bg-input' role='separator')

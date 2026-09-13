@@ -60,6 +60,11 @@ export default {
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.btsx', '.mdx'],
+    // qrcode-svg exposes a Node-only `save()` helper from the same CommonJS
+    // entry as its browser-safe `svg()` renderer. The client only uses `svg()`.
+    fallback: {
+      fs: false
+    },
     // `@octanejs/day-picker` ships TypeScript sources that import with explicit
     // `.js` extensions (NodeNext style). Without this mapping those specifiers
     // resolve against the non-existent emitted files and the package fails.

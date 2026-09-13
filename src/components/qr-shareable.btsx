@@ -5,25 +5,24 @@ import { createPngFilename, downloadElementAsPng } from "@/lib/download-helper";
 import { useCallback, useMemo, useRef, useState } from "octane";
 module
   "use client";
-  interface Account {
-    id: string
-    slug?: string
-    code?: string
-    group?: string
-    qrCodeImageUrl?: string
-    qrCodeContent?: string
+  export interface QRShareableProps {
+    brand?: string;
+    content: string;
+    filename?: string;
+    itemLabel?: string;
+    itemName: string;
+    itemTitle: string;
+    qrCodeImageUrl?: string;
   }
-  interface QRCodeProps {
-    account: Account;
-  }
-props { account }: QRCodeProps
+props { brand = "LiveSnapsNow", content, filename, itemLabel, itemName, itemTitle, qrCodeImageUrl }: QRShareableProps
 setup
   const exportRef = useRef<HTMLDivElement | null>(null);
   const exportLockRef = useRef(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const qrCodeContent = account.qrCodeContent?.trim() ?? "";
+  const qrCodeContent = content.trim();
   const qrSvg = useMemo(() => createQR(qrCodeContent), [qrCodeContent]);
+  const downloadFilename = createPngFilename(filename ?? `${itemName}-${itemTitle}-qr`, "qr-code");
 
   const handleDownload = useCallback(async () => {
       if (!exportRef.current || exportLockRef.current || isDownloading) {
@@ -33,17 +32,17 @@ setup
       exportLockRef.current = true;
       setIsDownloading(true);
       try {
-          await downloadElementAsPng(exportRef.current, createPngFilename(`group-${account.group}-${account.code}`, `account-${account.slug}`));
+          await downloadElementAsPng(exportRef.current, downloadFilename);
       }
       catch (error) {
-          console.error("Unable to export the payment QR code.", error);
-          setDownloadError("Unable to download this payment QR. Please try again.");
+          console.error("Unable to export the QR code.", error);
+          setDownloadError("Unable to download this QR code. Please try again.");
       }
       finally {
           exportLockRef.current = false;
           setIsDownloading(false);
       }
-  }, [isDownloading, account.id, account.group, account.code, account.slug]);
+  }, [downloadFilename, isDownloading]);
 
   const triggerDownload = () => {
     void handleDownload()
@@ -51,17 +50,18 @@ setup
 div(className="mx-auto grid w-full max-w-sm gap-3")
   QRExportSurface(
     ~ ref={exportRef}
-    ~ itemName={account.group}
-    ~ itemTitle={account.code}
-    ~ itemLabel={account.id}
-    ~ qrCodeImageUrl={account.qrCodeImageUrl}
+    ~ itemName={itemName}
+    ~ itemTitle={itemTitle}
+    ~ itemLabel={itemLabel}
+    ~ brand={brand}
+    ~ qrCodeImageUrl={qrCodeImageUrl}
     ~ qrSvg={qrSvg}
     ~ )
   Button(
     ~ type="button"
     ~ variant="ghost"
     ~ className="h-11 w-full justify-center"
-    ~ disabled={isDownloading || (!qrSvg && !account.qrCodeImageUrl)}
+    ~ disabled={isDownloading || (!qrSvg && !qrCodeImageUrl)}
     ~ onClick={triggerDownload}
     ~ )
     Icon(name={isDownloading ? "spinner-ring" : "download"} className="size-4")

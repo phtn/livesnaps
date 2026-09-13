@@ -79,7 +79,7 @@ setup
     (state) => state.canSubmit && validateEditSnapForm(state.values) === undefined
   )
   const submitError = useSelector(form.store, (state) => {
-    const error = state.errorMap.onSubmit
+    const error: unknown = state.errorMap.onSubmit
     if (typeof error === 'string') return error
     if (error && typeof error === 'object' && 'form' in error && typeof error.form === 'string') return error.form
     return null

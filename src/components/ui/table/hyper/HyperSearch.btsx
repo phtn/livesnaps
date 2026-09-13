@@ -14,8 +14,10 @@ module
   type RefObject<T> = { current: T | null }
 
   interface Props {
+    id?: string
     col?: Column<typeof features, RowData, unknown>
     onChange: NonNullable<InputProps['onInput']>
+    placeholder?: string;
     onClear?: () => void
     /**
      * Reports the mobile expanded state so the toolbar can stand its other
@@ -27,7 +29,7 @@ module
     value: string
   }
 
-props { col, value, onChange, onClear, onExpandedChange, ref }: Props
+props { col, value, onChange, onClear, onExpandedChange, placeholder, ref }: Props
 setup
   const id = useId()
   const isMobile = useMobile()
@@ -116,7 +118,7 @@ else
       ~ onInput={onChange}
       ~ onBlur={handleBlur}
       ~ maxLength={TABLE_QUERY_LIMITS.searchCharacters}
-      ~ placeholder='Search'
+      ~ placeholder={placeholder ?? 'Search'}
       ~ type='search'
       ~ inputMode='search'
       ~ aria-label='Search'

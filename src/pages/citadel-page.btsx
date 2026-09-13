@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'octane'
-import { Icon } from '@/lib/icons'
+import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useFirebaseUser } from '@/lib/firebase/auth'
 import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
@@ -7,14 +7,15 @@ import { buildGodsHandoffUrl, isGodsSubdomainHostname } from '@/lib/routing/gods
 import { useMobile } from '@/hooks/use-mobile'
 import UserMenu from '../components/admin/user-menu.btsx'
 import { Link, Outlet } from '@octanejs/tanstack-router'
-import { Group, Panel, Separator } from '@octanejs/resizable-panels'
+import { Group, Panel, Separator, usePanelRef } from '@octanejs/resizable-panels'
+import { parseAsBoolean, useQueryState } from '@octanejs/nuqs'
 import ThemeToggle from '@/components/theme-toggle.btsx'
-import Container from "../components/admin/container.btsx";
+import Container from '../components/admin/container.btsx'
 import Sidebar from '@/components/ui/sidebar.btsx'
 
 module
   type NavItem = {
-    icon: string
+    icon: IconName
     label: string
     path: '/citadel' | '/citadel/accounts' | '/citadel/settings'
     /**
@@ -32,25 +33,28 @@ module
   // The router sets `data-status="active"` on a matching Link, so the active
   // route is read off the link itself rather than by comparing paths here.
   const navLinkClassName =
-    'relative flex h-14 items-center text-foreground/70 transition-colors md:data-[status=active]:rounded-e-lg data-[status=active]:bg-foreground/6 data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
+    'relative flex h-14 items-center text-foreground/80 transition-colors rounded-lg'
+  const activeNavClassName =
+    'bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4]'
 
 component Navigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className='flex flex-col space-y-2 py-0')
+    ul(className={cn('flex flex-col space-y-1', compact && 'space-y-2.5!')})
       each item in navs key item.path
-        li(className='w-full font-sans text-foreground/70 hover:text-foreground md:rounded-e-lg hover:bg-foreground/8 tracking-tight transition-colors duration-200 ease-out')
+        li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
           Link(
             ~ to={item.path}
             ~ onClick={onNavigate}
             ~ aria-label={item.label}
             ~ title={compact ? item.label : undefined}
             ~ activeOptions={{ exact: item.exact ?? false, includeSearch: false }}
-            ~ className={cn(navLinkClassName, compact ? 'justify-center px-0' : 'gap-3 px-6')}
+            ~ activeProps={{ className: activeNavClassName }}
+            ~ className={cn(navLinkClassName, compact ? 'justify-center h-12!' : 'gap-4 px-3')}
             ~ )
-            Icon(name={item.icon} className='size-6 md:size-5')
+            Icon(name={item.icon} className='size-6')
             if !compact
-              span(className='font-sans') #{item.label}
+              span #{item.label}
 
 setup
   const { hasGodAccess, isLoading: isAuthLoading, user } = useFirebaseUser()
@@ -58,13 +62,32 @@ setup
   const isMobile = useMobile()
   const isGodsHost = typeof window !== 'undefined' && isGodsSubdomainHostname(window.location.hostname)
   const [email, setEmail] = useState<string | null>(null)
-  const [isNavigationCompact, setIsNavigationCompact] = useState(false)
+  const [isNavigationCompact, setIsNavigationCompact] = useQueryState(
+    'compact',
+    parseAsBoolean.withDefault(false).withOptions({ history: 'replace' })
+  )
+  const navigationPanelRef = usePanelRef()
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
 
   // Adopts the cookie'd session into the Firebase client on this origin, so the
   // menu can show a real name and photo instead of a bare fallback.
   useConsoleFirebaseSession('citadel', status === 'ready')
+
+  useEffect(() => {
+    const panel = navigationPanelRef.current
+    if (!panel) return
+
+    const targetSize = isNavigationCompact ? 64 : 216
+    if (Math.abs(panel.getSize().inPixels - targetSize) > 1) {
+      panel.resize(`${targetSize}px`)
+    }
+  }, [isNavigationCompact])
+
+  const handleNavigationResize = (size: { inPixels: number }) => {
+    const nextCompact = size.inPixels <= 80
+    if (nextCompact !== isNavigationCompact) void setIsNavigationCompact(nextCompact)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -140,22 +163,24 @@ setup
   }, [hasGodAccess, isAuthLoading, isGodsHost, user])
 
 if isMobile
-  div(className='min-h-screen bg-background dark:bg-card/5')
-    Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Citadel navigation' brand='citadel')
-      Navigation(onNavigate={() => setIsMobileNavOpen(false)})
-      div(className='flex items-center justify-start h-16 px-5')
-        ThemeToggle
-      div(className='px-3 py-3')
-        UserMenu(
-          ~ scope='citadel'
-          ~ name={user?.displayName}
-          ~ email={email ?? user?.email}
-          ~ photoUrl={user?.photoURL}
-          ~ hasGodAccess={hasGodAccess}
-          ~ user={user}
-          ~ onSignOut={() => setIsMobileNavOpen(false)}
-          ~ )
-    main(className='min-h-screen bg-background dark:bg-card/1 pt-11')
+  div(className='min-h-screen bg-sunken')
+    Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Citadel navigation' brand='citadel' className='bg-sunken')
+      div(className='flex min-h-0 flex-1 flex-col px-4')
+        Navigation(onNavigate={() => setIsMobileNavOpen(false)})
+        div(className='mt-auto shrink-0 border-t border-sidebar-border/70 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2')
+          div(className='flex h-14 items-center px-4')
+            ThemeToggle
+          div(className='px-2 py-2')
+            UserMenu(
+              ~ scope='citadel'
+              ~ name={user?.displayName}
+              ~ email={email ?? user?.email}
+              ~ photoUrl={user?.photoURL}
+              ~ hasGodAccess={hasGodAccess}
+              ~ user={user}
+              ~ onSignOut={() => setIsMobileNavOpen(false)}
+              ~ )
+    main(className='min-h-screen bg-sunken pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(90vh)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your administrator session…
@@ -171,12 +196,17 @@ if isMobile
           p(className='text-sm text-destructive') We could not verify your administrator session. Please try again.
 else
   Group(className='min-h-screen h-dvh')
-    Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col pe-6 dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)] bg-sunken')
-
-        // div(className='absolute top-0 left-0 flex size-full min-h-0 flex-col dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)] p-4 text-[#f6f6f2] shadow-[0_22px_36px_rgba(15,16,14,0.18)]')
-        div(className={cn('flex h-32 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
-
+    Panel(
+      ~ id='navigation'
+      ~ panelRef={navigationPanelRef}
+      ~ defaultSize={isNavigationCompact ? '64px' : '216px'}
+      ~ minSize='64px'
+      ~ maxSize='216px'
+      ~ groupResizeBehavior='preserve-pixel-size'
+      ~ onResize={handleNavigationResize}
+      ~ )
+      aside(className={cn('flex h-full min-w-0 w-full flex-col px-4 bg-sunken dark:bg-sunken/40', isNavigationCompact && 'px-1.5!')})
+        div(className={cn('flex h-20 items-center', isNavigationCompact ? 'justify-center px-2' : '')})
           Link(className='inline-flex items-center gap-2 text-[clamp(1rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
             if isNavigationCompact
               Icon(name='re-up.ph')
@@ -185,11 +215,10 @@ else
                 Icon(name='re-up.ph')
                 h1(className='')
                   span(className='dark:text-lime-200') Citadel
-
         Navigation(compact={isNavigationCompact})
-        div(className='flex items-center justify-start h-16 px-6')
+        div(className={cn('flex items-center justify-start h-16 px-3', isNavigationCompact && 'px-3!')})
           ThemeToggle
-        div(className={cn('py-3', isNavigationCompact ? 'px-2' : 'px-3')})
+        div(className={cn('flex items-center justify-center py-1', isNavigationCompact && 'px-2')})
           UserMenu(
             ~ scope='citadel'
             ~ compact={isNavigationCompact}
@@ -199,13 +228,14 @@ else
             ~ hasGodAccess={hasGodAccess}
             ~ user={user}
             ~ )
-    Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
-      span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
+    Separator(aria-label='Resize Citadel navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
+      span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-active dark:group-hover:bg-lime-200')
     Panel(id='content' minSize='40%')
-      main(className='min-h-screen bg-sunken dark:bg-[radial-gradient(circle_at_88%_10%,rgba(10,10,11,0.8),transparent_28rem),linear-gradient(145deg,#121213,#101011_64%)]')
+      main(className='min-h-[calc(100vh-160px)] bg-background')
         if status === 'loading'
-          div(className='flex items-center justify-center gap-2 h-[calc(90vh)]')
-            Icon(name='spinner-ferris' className='size-8 opacity-60')
+          div(className='flex items-center justify-center gap-2 min-h-screen')
+            Icon(name='spinner-ferris')
+            p(className='text-sm md:text-base text-muted-foreground') Verifying your administrator session
         elseif status === 'ready'
           Container
             Outlet

@@ -39,7 +39,7 @@ module
       case 'enabling-camera': return { ariaLabel: 'Starting camera', icon: 'spinner-ferris', label: 'Starting camera…' }
       case 'waiting-to-capture': return { ariaLabel: 'Waiting for precise location before capturing' }
       case 'ready-to-capture': return { ariaLabel: `Capture ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured` }
-      case 'capturing': return { ariaLabel: `Capturing ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured`, icon: 'spinner-ferries' }
+      case 'capturing': return { ariaLabel: `Capturing ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured`, icon: 'spinner-ferris' }
       case 'complete': return { ariaLabel: 'All five photos captured' }
     }
   }

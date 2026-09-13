@@ -13,8 +13,8 @@ import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
 import { onError, onSuccess } from '@/lib/toast'
 import { ACCOUNT_FORM_DEFAULTS, readValidationMessage, resolveAccountSlug, useAccountDraft, useAccountForm, validateAccountForm, validateAccountSlug, type AccountForm, type AccountTextField } from '@/lib/citadel/account-form'
 import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_FILTER_LABEL, ACCOUNT_STATUS_FILTERS, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, checkAccountSlugAvailability, countAccountsByStatus, createAccount, fetchAccounts, formatAccountDate, getAccountInitials, matchesAccountQuery, type AccountRow } from '@/lib/citadel/accounts'
-import Container from "../admin/container.btsx";
 import HyperSearch from "../ui/table/hyper/HyperSearch.btsx";
+import MembersSkeleton from '@/components/admin/members-skeleton.btsx'
 
 module
   type RosterStatus = 'loading' | 'ready' | 'error'
@@ -613,7 +613,7 @@ setup
 
   const handleSearchInputChange = (e: Event) => {
     e.preventDefault()
-    void setFilters({ q: (e.currentTarget)?.value as string })
+    void setFilters({ q: (e.currentTarget as HTMLInputElement).value })
   }
 
 section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
@@ -644,8 +644,7 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
     //         ~ )
     //         | #{ACCOUNT_STATUS_FILTER_LABEL[status]} #{counts[status]}
     div(className={cn('flex items-center justify-end w-full ', {'md:mx-auto gap-0': isSearchExpanded})})
-      HyperSearch( onChange={handleSearchInputChange} onClear={() => setFilters({q: ''})} onExpandedChange={setIsSearchExpanded} autoComplete='off'
-        ~ id='citadel-account-search'
+      HyperSearch( onChange={handleSearchInputChange} onClear={() => setFilters({q: ''})} onExpandedChange={setIsSearchExpanded}
         ~ value={filters.q}
         ~ placeholder='Search by name, slug, contact, or org'
         ~ )
@@ -669,9 +668,7 @@ section(className='p-4 h-[calc(100vh-64px)] overflow-y-auto')
 
       div(className='mt-4')
         if rosterStatus === 'loading'
-          div(className='flex items-center gap-2 py-6')
-            Icon(name='spinner-ferris' className='size-4')
-            p(className='text-sm text-muted-foreground') Loading accounts…
+          MembersSkeleton
         elseif rosterStatus === 'error'
           button(type='button' onClick={() => setReloadToken((token) => token + 1)} className={actionButtonClassName}) Try again
         elseif accounts.length === 0
