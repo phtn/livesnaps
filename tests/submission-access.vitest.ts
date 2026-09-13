@@ -100,7 +100,7 @@ test('raw object keys, route IDs and applicant histories stay inside the owning 
   await expect(user.query(api.snaps.q.getApplicantProfileForAdminBySnapId, { snapId: snapB })).rejects.toThrow('Unauthorized')
 })
 
-test('clients can access only their open capture and a redacted receipt after submission', async () => {
+test('clients can access their open capture and review a completed submission', async () => {
   const { t, as, snapA, snapB } = await fixture()
   const client = as('client')
   const draft = await client.query(api.snaps.q.getByUploadId, { upload_id: uploadB })
@@ -108,10 +108,23 @@ test('clients can access only their open capture and a redacted receipt after su
   expect((await client.query(api.snaps.q.getCaptureAnalysisState, { upload_id: uploadB })).vehicle.make).toBe('Private Make')
   expect(await client.query(api.snaps.q.getMinePhotoObjectKey, { proofId: snapB, slot: 1 })).toBe(buildSnapObjectKey(uploadB, 1, captureId))
   const receipt = await client.query(api.snaps.q.getMineByRouteId, { snapId: snapA })
-  expect(receipt).toMatchObject({ status: 'completed', address: '', photos: [], make: '', model: '', plateNumber: '', mileage: null })
-  expect((await client.query(api.snaps.q.listMine, {}))).toHaveLength(2)
-  await expect(client.query(api.snaps.q.getMinePhotoObjectKey, { proofId: snapA, slot: 1 })).rejects.toThrow('Unauthorized')
-  await expect(client.query(api.snaps.q.getByUploadId, { upload_id: uploadA })).rejects.toThrow('Unauthorized')
+  expect(receipt).toMatchObject({
+    status: 'completed',
+    address: 'Private address',
+    make: 'Private Make',
+    model: 'Private Model',
+    plateNumber: 'ABC123',
+    mileage: 100,
+    photos: [{ capturedAt: 1, label: 'front', size: 123, slot: 1 }]
+  })
+  expect((await client.query(api.snaps.q.listMine, {}))).toEqual([
+    expect.objectContaining({ _id: snapB, plateNumber: 'ABC123', make: 'Private Make', model: 'Private Model' }),
+    expect.objectContaining({ _id: snapA, plateNumber: 'ABC123', make: 'Private Make', model: 'Private Model' })
+  ])
+  expect(await client.query(api.snaps.q.listMine, { limit: 1 })).toHaveLength(1)
+  expect(await client.query(api.snaps.q.getMinePhotoObjectKey, { proofId: snapA, slot: 1 })).toBe(buildSnapObjectKey(uploadA, 1, captureId))
+  expect(await client.query(api.snaps.q.getByUploadId, { upload_id: uploadA })).toBeNull()
+  expect(await as('outsider').query(api.snaps.q.getMinePhotoObjectKey, { proofId: snapA, slot: 1 })).toBeNull()
   await expect(as('admin-a', true).query(api.snaps.q.getByUploadId, { upload_id: uploadB })).rejects.toThrow('Unauthorized')
   await expect(t.query(api.snaps.q.getCaptureAnalysisState, { upload_id: uploadB })).rejects.toThrow('Unauthorized')
 })

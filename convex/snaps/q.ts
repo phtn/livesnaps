@@ -2,10 +2,16 @@ import { paginationOptsValidator, paginationResultValidator } from 'convex/serve
 import { ConvexError, v } from 'convex/values'
 import { getSnapSlot, isSnapObjectKey, isSnapUploadId, SNAP_STORAGE_PREFIX } from '../../src/lib/r2/snap-images'
 import { prepareSnapLocation } from '../../src/lib/snaps/snap-location'
-import { type QueryCtx, query } from '../_generated/server'
 import type { Doc, Id } from '../_generated/dataModel'
+import { type QueryCtx, query } from '../_generated/server'
+import {
+  isApplicantReadableSnap,
+  isDraftSnap,
+  requireOwnDraftSnap,
+  requireOwnReadableSnap,
+  requireSnapAccess
+} from '../lib/submissionAccess'
 import { workspaceAccess } from '../lib/workspaceAccess'
-import { isDraftSnap, requireOwnDraftSnap, requireSnapAccess } from '../lib/submissionAccess'
 import {
   snapDocumentSchema,
   snapHandlerSchema,
@@ -19,7 +25,8 @@ import {
 const DEFAULT_LIST_LIMIT = 100
 const MAX_LIST_LIMIT = 250
 const APPLICANT_PROFILE_SNAP_LIMIT = 100
-const LATEST_SNAP_SUBMISSION_LIMIT = 3
+const DEFAULT_LATEST_SNAP_SUBMISSION_LIMIT = 3
+const MAX_LATEST_SNAP_SUBMISSION_LIMIT = 6
 
 const latestSnapSubmissionSchema = v.object({
   _id: v.id('snaps'),
@@ -164,33 +171,42 @@ const normalizeListLimit = (limit: number | undefined) => {
 }
 
 export const listMine = query({
-  args: {},
+  args: { limit: v.optional(v.number()) },
   returns: v.array(latestSnapSubmissionSchema),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
 
     if (!identity) {
       throw new ConvexError('Sign in to view your proof submissions.')
     }
 
+    const limit = args.limit === undefined || !Number.isFinite(args.limit)
+      ? DEFAULT_LATEST_SNAP_SUBMISSION_LIMIT
+      : Math.min(Math.max(Math.floor(args.limit), 1), MAX_LATEST_SNAP_SUBMISSION_LIMIT)
     const snaps = await ctx.db
       .query('snaps')
       .withIndex('by_applicant_token_identifier_and_session_started_at', (query) =>
         query.eq('metadata.applicant_token_identifier', identity.tokenIdentifier)
       )
       .order('desc')
-      .take(LATEST_SNAP_SUBMISSION_LIMIT)
+      .take(MAX_LIST_LIMIT)
 
-    return snaps.filter(snap => !!snap.accountId).map((snap) => ({
-      _id: snap._id,
-      make: isDraftSnap(snap) ? snap.make ?? '' : '',
-      model: isDraftSnap(snap) ? snap.model ?? '' : '',
-      photoCount: snap.metadata.photos.length,
-      plateNumber: isDraftSnap(snap) ? snap.plate_number ?? '' : '',
-      startedAt: snap.location_session?.started_at ?? snap._creationTime,
-      status: snap.location_session?.status ?? ('pending' as const),
-      year: isDraftSnap(snap) ? snap.year ?? null : null
-    }))
+    return snaps
+      .filter((snap) => !!snap.accountId)
+      .slice(0, limit)
+      .map((snap) => {
+        const readable = isApplicantReadableSnap(snap)
+        return {
+          _id: snap._id,
+          make: readable ? (snap.make ?? '') : '',
+          model: readable ? (snap.model ?? '') : '',
+          photoCount: snap.metadata.photos.length,
+          plateNumber: readable ? (snap.plate_number ?? '') : '',
+          startedAt: snap.location_session?.started_at ?? snap._creationTime,
+          status: snap.location_session?.status ?? ('pending' as const),
+          year: readable ? (snap.year ?? null) : null
+        }
+      })
   }
 })
 
@@ -218,9 +234,9 @@ export const getMineByRouteId = query({
       return null
     }
 
-    const draft = isDraftSnap(snap)
-    const session = draft ? snap.location_session : undefined
-    const location = draft ? snap.location : undefined
+    const readable = isApplicantReadableSnap(snap)
+    const session = readable ? snap.location_session : undefined
+    const location = readable ? snap.location : undefined
 
     return {
       _id: snap._id,
@@ -230,22 +246,22 @@ export const getMineByRouteId = query({
       createdAt: snap._creationTime,
       endedAt: snap.location_session?.ended_at ?? null,
       invalidationReason: session?.invalidation_reason ?? '',
-      make: draft ? snap.make ?? '' : '',
-      mileage: draft ? snap.mileage ?? null : null,
-      model: draft ? snap.model ?? '' : '',
+      make: readable ? (snap.make ?? '') : '',
+      mileage: readable ? (snap.mileage ?? null) : null,
+      model: readable ? (snap.model ?? '') : '',
       photoCount: snap.metadata.photos.length,
-      photos: (draft ? snap.metadata.photos : []).map((photo) => ({
+      photos: (readable ? snap.metadata.photos : []).map((photo) => ({
         capturedAt: photo.captured_at,
         label: photo.label,
         size: photo.size,
         slot: photo.slot
       })),
-      plateNumber: draft ? snap.plate_number ?? '' : '',
+      plateNumber: readable ? (snap.plate_number ?? '') : '',
       startedAt: session?.started_at ?? snap._creationTime,
       status: snap.location_session?.status ?? ('pending' as const),
       updatedAt: snap.updated_at,
       uploadId: snap.metadata.upload_id,
-      year: draft ? snap.year ?? null : null
+      year: readable ? (snap.year ?? null) : null
     }
   }
 })
@@ -276,7 +292,7 @@ export const getMinePhotoObjectKey = query({
       return null
     }
 
-    await requireOwnDraftSnap(ctx, snap)
+    await requireOwnReadableSnap(ctx, snap)
     return snap.metadata.photos.find((photo) => photo.slot === normalizedSlot.index)?.r2_key ?? null
   }
 })

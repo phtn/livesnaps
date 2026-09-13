@@ -20,6 +20,7 @@ module
     heading?: string
     isAuthenticated: boolean
     isAuthLoading: boolean
+    limit?: number
   }
   const dateFormatter = new Intl.DateTimeFormat('en-PH', { dateStyle: 'medium', timeStyle: 'short' })
   const statusPresentation: Record<SnapSubmissionStatus, { badge: string; icon: string; iconFrame: string }> = {
@@ -70,7 +71,7 @@ component EmptyState
     div(className='max-w-sm')
       p(className='mt-4 font-poly text-lg font-medium') #{isAuthenticated ? 'No snaps yet.' : 'Sign in to view your snaps'}
       p(className='mt-2 text-sm leading-6 text-muted-foreground text-balance') #{isAuthenticated ? 'Completed and in-progress vehicle verifications will appear here.' : 'Use the account button above to continue with the Google account that owns your submissions.'}
-props { authenticatedUserId, className, eyebrow = 'Activity', heading = 'Your snaps', isAuthenticated, isAuthLoading }: SubmitListProps
+props { authenticatedUserId, className, eyebrow = 'Activity', heading = 'Your snaps', isAuthenticated, isAuthLoading, limit }: SubmitListProps
 
 setup
   const convexAuth = useConvexAuth()
@@ -78,7 +79,7 @@ setup
     convexAuth.isAuthenticated && convexAuth.userId === authenticatedUserId
   // Keep one subscription while this account is visible. Wait for Convex to
   // accept its token, and never reuse another account's cached snapshot.
-  const submissions = useConvexQuery(listMineQuery, canRead ? {} : 'skip', authenticatedUserId ?? '')
+  const submissions = useConvexQuery(listMineQuery, canRead ? (limit === undefined ? {} : { limit }) : 'skip', authenticatedUserId ?? '')
   const isLoading = isAuthLoading || (isAuthenticated && (convexAuth.isLoading || (canRead && submissions === undefined)))
 
 section(aria-labelledby='proof-submissions-title' className={cn('h-full pb-12 pt-4', className)})

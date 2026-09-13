@@ -30,4 +30,5 @@ div(className={cn(viewportStyles.root, 'relative min-h-screen min-w-[320px] over
         ~ heading='All snaps'
         ~ isAuthenticated={Boolean(user)}
         ~ isAuthLoading={isLoading}
+        ~ limit={6}
         ~ )
