@@ -21,8 +21,9 @@ module
   const labelClassName = 'font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground'
 
   const readError = (error: unknown, fallback: string) => error instanceof Error && error.message ? error.message : fallback
-  const useProfileForm = (accountId: string, onSaved: (profile: AccountProfile) => void) => useForm({
-    defaultValues: EMPTY_ACCOUNT_PROFILE_VALUES,
+  const useProfileForm = (accountId: string, formId: string, defaultValues: AccountProfileValues, onSaved: (profile: AccountProfile) => void) => useForm({
+    formId,
+    defaultValues,
     validators: { onChange: ({ value }) => {
       if (!value.name.trim()) return 'Account name is required.'
       if (!value.contactName.trim()) return 'Primary contact name is required.'
@@ -69,13 +70,19 @@ setup
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const logoInputRef = useRef<HTMLInputElement | null>(null)
   const accountId = workspace?.id ?? ''
-  const form = useProfileForm(accountId, setProfile)
+  const activeProfile = profile?.account._id === accountId ? profile : null
+  const form = useProfileForm(
+    accountId,
+    `${accountId}:${activeProfile ? 'ready' : 'loading'}`,
+    activeProfile ? toAccountProfileValues(activeProfile.account) : EMPTY_ACCOUNT_PROFILE_VALUES,
+    setProfile
+  )
   const isSubmitting = useSelector(form.store, state => state.isSubmitting)
   const isDirty = useSelector(form.store, state => state.isDirty)
   const canSubmit = useSelector(form.store, state => state.canSubmit)
   const errors = useSelector(form.store, state => state.errors)
   const notesValue = useSelector(form.store, state => state.values.notes)
-  const canEdit = profile?.canEdit === true
+  const canEdit = activeProfile?.canEdit === true
 
   useEffect(() => {
     if (!accountId) { setProfile(null); setStatus('idle'); return }
@@ -84,7 +91,6 @@ setup
     void fetchAccountProfile(accountId, controller.signal).then(result => {
       if (controller.signal.aborted) return
       setProfile(result)
-      form.reset(toAccountProfileValues(result.account))
       setLoadError('')
       setStatus('ready')
     }).catch(error => {
@@ -125,10 +131,10 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
       p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Workspace
       h1(className='mt-1 font-poly text-xl font-medium tracking-tight') Account details
       p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Manage the identity, contact information, and branding used across your account.
-    if profile
+    if activeProfile
       div(className='flex items-center gap-2')
-        span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_PLAN_LABEL[profile.account.plan]}
-        Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[profile.account.status])}) #{ACCOUNT_STATUS_LABEL[profile.account.status]}
+        span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_PLAN_LABEL[activeProfile.account.plan]}
+        Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_STATUS_TONE[activeProfile.account.status])}) #{ACCOUNT_STATUS_LABEL[activeProfile.account.status]}
 
   if !workspace
     p(className='rounded-lg border border-dashed border-border/60 px-4 py-10 text-center text-sm text-muted-foreground') Select an account to view its details.
@@ -138,7 +144,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
       p(className='text-sm text-muted-foreground') Loading account…
   elseif status === 'error'
     p(className='rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive' role='alert') #{loadError}
-  elseif profile
+  elseif activeProfile
     form(className='grid items-start gap-4 pb-36 lg:grid-cols-[minmax(0,1fr)_20rem]' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
       div(className='grid gap-4')
         section(className={cardClassName})
@@ -147,7 +153,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
             ProfileField(form={form} name='name' label='Account name' disabled={!canEdit || isSubmitting} className='sm:col-span-2')
             label(className='flex flex-col gap-1.5')
               span(className={labelClassName}) Account slug
-              Input(value={profile.account.slug} disabled)
+              Input(value={activeProfile.account.slug} disabled)
             ProfileField(form={form} name='legalName' label='Legal name' disabled={!canEdit || isSubmitting})
             ProfileField(form={form} name='website' label='Website' type='url' placeholder='https://example.com' disabled={!canEdit || isSubmitting})
             ProfileField(form={form} name='industry' label='Industry' disabled={!canEdit || isSubmitting})
@@ -180,7 +186,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
           p(className='rounded-sm border border-destructive/35 bg-destructive/8 px-3 py-2 text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}
         if canEdit
           div(className='flex items-center justify-end gap-3')
-            Button(type='button' variant='ghost' size='sm' label='Discard changes' disabled={!isDirty || isSubmitting} onClick={() => form.reset(toAccountProfileValues(profile.account))})
+            Button(type='button' variant='ghost' size='sm' label='Discard changes' disabled={!isDirty || isSubmitting} onClick={() => form.reset(toAccountProfileValues(activeProfile.account))})
             Button(type='submit' variant='dark' size='sm' icon='check' label='Save account' pending={isSubmitting} pendingLabel='Saving…' disabled={!isDirty || !canSubmit})
         else
           p(className='rounded-sm border border-border/60 bg-sidebar/30 px-3 py-2 text-sm text-muted-foreground') Only account owners and administrators can edit these details.
@@ -189,18 +195,18 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
         SectionHeading(eyebrow='Branding' title='Account logo' description='Up to 4 MB : PNG, JPEG, WebP, GIF.')
         div(className='p-4')
           div(className='grid aspect-square w-full place-items-center overflow-hidden rounded-lg border border-dashed border-border/70 bg-sunken/50')
-            if profile.account.logoR2Key
-              img(src={accountLogoUrl(accountId, profile.account.updatedAt)} alt={`${profile.account.name} logo`} className='size-full object-contain p-5')
+            if activeProfile.account.logoR2Key
+              img(src={accountLogoUrl(accountId, activeProfile.account.updatedAt)} alt={`${activeProfile.account.name} logo`} className='size-full object-contain p-5')
             else
               div(className='grid place-items-center gap-2 text-center text-muted-foreground')
                 Icon(name='account' className='size-10 opacity-50')
                 p(className='text-xs') No logo uploaded
           input(ref={logoInputRef} type='file' accept={USER_IMAGE_ACCEPT} className='sr-only' onChange={handleLogo})
-          Button(type='button' variant='ghost' size='sm' icon='livesnaps' label={profile.account.logoR2Key ? 'Replace logo' : 'Upload logo'} pending={isUploadingLogo} pendingLabel='Optimizing…' disabled={!canEdit || isUploadingLogo} className='mt-4 w-full' onClick={() => logoInputRef.current?.click()})
+          Button(type='button' variant='ghost' size='sm' icon='livesnaps' label={activeProfile.account.logoR2Key ? 'Replace logo' : 'Upload logo'} pending={isUploadingLogo} pendingLabel='Optimizing…' disabled={!canEdit || isUploadingLogo} className='mt-4 w-full' onClick={() => logoInputRef.current?.click()})
           dl(className='mt-4 grid gap-3 border-t border-border/50 pt-4')
             div
               dt(className={labelClassName}) Created
-              dd(className='mt-1 text-sm') #{formatAccountDate(profile.account.createdAt)}
+              dd(className='mt-1 text-sm') #{formatAccountDate(activeProfile.account.createdAt)}
             div
               dt(className={labelClassName}) Last updated
-              dd(className='mt-1 text-sm') #{formatAccountDate(profile.account.updatedAt)}
+              dd(className='mt-1 text-sm') #{formatAccountDate(activeProfile.account.updatedAt)}
