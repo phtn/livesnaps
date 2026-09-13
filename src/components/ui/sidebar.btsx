@@ -13,6 +13,7 @@ module
     children?: OctaneNode
     title: string
     brand?: MobileSidebarBrand
+    triggerLabel?: string
     className?: string
   }
 
@@ -23,12 +24,14 @@ component AppWordmark
     span(className='text-sand dark:text-foreground') Now
 
 component SidebarTrigger
-  props { brand }: { brand: MobileSidebarBrand }
+  props { brand, label }: { brand: MobileSidebarBrand; label?: string }
   header(className='fixed inset-x-0 top-0 z-35 flex h-12 md:h-14 items-center justify-between border-b border-sidebar-border bg-sunken px-3')
     if brand === 'citadel'
       Link(className='inline-flex items-center gap-2 font-poly font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
         Icon(name='re-up.ph' className='size-5')
         span(className='dark:text-lime-200') Citadel
+    elseif label
+      h1(className='font-poly text-lg font-medium tracking-tight text-foreground') #{label}
     else
       Link(to='/' aria-label='App home')
         AppWordmark
@@ -37,7 +40,7 @@ component SidebarTrigger
 
 component SidebarHeader
   props { brand }: { brand: MobileSidebarBrand }
-  div(className='shrink-0 border-b border-border/70')
+  div(className='shrink-0')
     div(className='flex h-16 items-center justify-between gap-3 px-5')
       if brand === 'citadel'
         Link(className='inline-flex items-center gap-3 font-poly text-xl font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
@@ -49,8 +52,8 @@ component SidebarHeader
       DrawerClose(type='button' aria-label='Close navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-2xl leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
         Icon(name='sidebar' className='size-6')
 
-props { children, open, onOpenChange, title, brand = 'admin', className }: SidebarProps
-setup const trigger = createElement(SidebarTrigger, { brand })
+props { children, open, onOpenChange, title, brand = 'admin', triggerLabel, className }: SidebarProps
+setup const trigger = createElement(SidebarTrigger, { brand, label: triggerLabel })
 
 Drawer(
   ~ open={open}

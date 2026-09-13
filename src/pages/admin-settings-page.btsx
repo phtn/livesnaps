@@ -28,7 +28,7 @@ setup
   }
 
 Container
-  div(className='flex items-end h-12 md:h-16 border-b border-border/70')
+  div(className='flex items-end h-12 border-b border-border/70')
     Tabs(
       ~ activeId={activeId}
       ~ items={panelRoutes}

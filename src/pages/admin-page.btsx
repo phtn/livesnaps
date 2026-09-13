@@ -2,8 +2,9 @@ import { useEffect, useState } from 'octane'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import ThemeToggle from '../components/theme-toggle.btsx'
-import { Link } from '@octanejs/tanstack-router'
-import { Group, Panel, Separator } from '@octanejs/resizable-panels'
+import { Link, useLocation } from '@octanejs/tanstack-router'
+import { Group, Panel, Separator, usePanelRef } from '@octanejs/resizable-panels'
+import { parseAsBoolean, useQueryState } from '@octanejs/nuqs'
 import { useMobile } from '@/hooks/use-mobile'
 import { useFirebaseUser } from '@/lib/firebase/auth'
 import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
@@ -13,6 +14,7 @@ import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import { useWorkspaceAccounts } from '@/hooks/use-workspace-accounts'
 import Sidebar from '@/components/ui/sidebar.btsx'
 import type { ClassValue } from 'octane'
+import Switcher from '@/components/ui/switcher.btsx'
 
 module
   type NavItem = {
@@ -33,6 +35,9 @@ module
     // { icon: 'play', label: 'Sandbox', path: '/admin-snaps-lab'}
   ]
 
+  const resolveAdminNavLabel = (pathname: string) =>
+    navs.find(item => item.exact ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`))?.label ?? 'Admin'
+
   // The router sets `data-status="active"` on a matching Link, so the active
   // route is read off the link itself rather than by comparing paths here.
   type AccountPickerProps = {
@@ -43,12 +48,13 @@ module
   }
 
   const navLinkClassName =
-    'relative flex h-14 items-center text-foreground/80 transition-colors md:data-[status=active]:rounded-e-lg data-[status=active]:bg-sidebar-border data-[status=active]:text-foreground dark:data-[status=active]:text-lime-200'
+    'relative flex h-14 items-center text-foreground/80 transition-colors rounded-lg'
+  const activeNavClassName = "bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4]"
 
 component AdminNavigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className='flex flex-col space-y-0.5')
+    ul(className={cn('flex flex-col space-y-1', compact && 'space-y-2.5!')})
       each item in navs key item.path
         li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
           Link(
@@ -57,9 +63,10 @@ component AdminNavigation
             ~ aria-label={item.label}
             ~ title={compact ? item.label : undefined}
             ~ activeOptions={{ exact: item.exact ?? false, includeSearch: false }}
-            ~ className={cn(navLinkClassName, compact ? 'justify-center px-0' : 'gap-3 px-6')}
+            ~ activeProps={{ className: activeNavClassName }}
+            ~ className={cn(navLinkClassName, compact ? 'justify-center h-12!' : 'gap-4 px-3')}
             ~ )
-            Icon(name={item.icon} className='size-5')
+            Icon(name={item.icon} className='size-6')
             if !compact
               span #{item.label}
 
@@ -68,7 +75,7 @@ component AccountPicker
   // The compact rail is 64px wide, so the picker steps aside rather than
   // rendering a control too narrow to read an Account name in.
   if !compact
-    div(className='p-4')
+    div(className='px-4')
       label(className='mb-1.5 block font-mono text-2xs uppercase tracking-[0.14em] text-muted-foreground sr-only' htmlFor='admin-account-picker') Account
       SelectOctane(
         ~ inputId='admin-account-picker'
@@ -92,14 +99,35 @@ setup
   const { hasGodAccess, user } = useFirebaseUser()
   const [email, setEmail] = useState<string | null>(null)
   const [sessionUid, setSessionUid] = useState('')
-  const [isNavigationCompact, setIsNavigationCompact] = useState(false)
+  const [isNavigationCompact, setIsNavigationCompact] = useQueryState(
+    'compact',
+    parseAsBoolean.withDefault(false).withOptions({ history: 'replace' })
+  )
+  const navigationPanelRef = usePanelRef()
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
   const isMobile = useMobile()
+  const location = useLocation()
+  const activeNavLabel = resolveAdminNavLabel(location.pathname)
   const workspace = useWorkspaceAccounts(sessionUid)
   // Adopts the cookie'd session into the Firebase client on this origin, so the
   // menu can show a real name, photo, and god-only links.
   useConsoleFirebaseSession('admin', status === 'ready')
+
+  useEffect(() => {
+    const panel = navigationPanelRef.current
+    if (!panel) return
+
+    const targetSize = isNavigationCompact ? 64 : 216
+    if (Math.abs(panel.getSize().inPixels - targetSize) > 1) {
+      panel.resize(`${targetSize}px`)
+    }
+  }, [isNavigationCompact])
+
+  const handleNavigationResize = (size: { inPixels: number }) => {
+    const nextCompact = size.inPixels <= 80
+    if (nextCompact !== isNavigationCompact) void setIsNavigationCompact(nextCompact)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -134,29 +162,40 @@ setup
       cancelled = true
     }
   }, [])
-
 if isMobile
   div(className='min-h-screen bg-sunken')
-    Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Admin navigation' brand='admin' className='bg-sunken')
-      AccountPicker(onChange={workspace.selectAccount} options={workspace.options} value={workspace.selectedId})
-      AdminNavigation(onNavigate={() => setIsMobileNavOpen(false)})
+    Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Admin navigation' brand='admin' triggerLabel={activeNavLabel} className='bg-sunken')
+      div(className='flex min-h-0 flex-1 flex-col px-4')
+        div(className='space-y-2')
+          div(className='h-14 flex items-center')
+            Switcher(
+              ~ items={workspace.options.map(account => ({ id: account.value, label: account.label }))}
+              ~ title='Accounts'
+              ~ activeId={workspace.selectedId}
+              ~ compact={false}
+              ~ emptyLabel={workspace.error || 'Select account'}
+              ~ busy={workspace.accounts === null && !workspace.error}
+              ~ onSelect={(account) => workspace.selectAccount(account.id)}
+              ~ )
+          AdminNavigation(onNavigate={() => setIsMobileNavOpen(false)})
 
-      div(className='flex items-center justify-start h-16 px-5')
-        ThemeToggle
-      div(className='_border-t border-border px-3 py-3')
-        UserMenu(
-          ~ name={user?.displayName}
-          ~ email={email ?? user?.email}
-          ~ photoUrl={user?.photoURL}
-          ~ hasGodAccess={hasGodAccess}
-          ~ onSignOut={() => setIsMobileNavOpen(false)}
-          ~ )
+        div(className='mt-auto shrink-0 border-t border-sidebar-border/70 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2')
+          div(className='flex h-14 items-center px-4')
+            ThemeToggle
+          div(className='px-2 py-2')
+            UserMenu(
+              ~ name={user?.displayName}
+              ~ email={email ?? user?.email}
+              ~ photoUrl={user?.photoURL}
+              ~ hasGodAccess={hasGodAccess}
+              ~ onSignOut={() => setIsMobileNavOpen(false)}
+              ~ )
     main(className='min-h-screen bg-sunken pt-11')
       if status === 'loading'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
           p(className='text-sm text-muted-foreground') Verifying your Account session…
       elseif status === 'ready'
-        WorkspaceProvider(key={sessionUid} uid={sessionUid} account={workspace.account} accounts={workspace.accounts} error={workspace.error} onRetry={workspace.retry})
+        WorkspaceProvider(key={sessionUid} uid={sessionUid} account={workspace.account} accounts={workspace.accounts} error={workspace.error} onSelect={workspace.selectAccount} onRetry={workspace.retry})
       elseif status === 'unauthorized'
         div(className='grid min-h-[calc(100vh-4rem)] place-items-center px-6 text-center')
           div(className='max-w-md')
@@ -167,9 +206,17 @@ if isMobile
           p(className='text-sm text-destructive') We could not verify your Account session. Please try again.
 else
   Group(className='min-h-screen h-dvh')
-    Panel(id='navigation' defaultSize='216px' minSize='64px' maxSize='216px' groupResizeBehavior='preserve-pixel-size' onResize={(size) => setIsNavigationCompact(size.inPixels <= 80)})
-      aside(className='flex h-full min-w-0 w-full flex-col pe-6 bg-sunken dark:bg-sunken/40')
-        div(className={cn('flex h-30 items-center', isNavigationCompact ? 'justify-center px-0' : 'px-6')})
+    Panel(
+      ~ id='navigation'
+      ~ panelRef={navigationPanelRef}
+      ~ defaultSize={isNavigationCompact ? '64px' : '216px'}
+      ~ minSize='64px'
+      ~ maxSize='216px'
+      ~ groupResizeBehavior='preserve-pixel-size'
+      ~ onResize={handleNavigationResize}
+      ~ )
+      aside(className={cn('flex h-full min-w-0 w-full flex-col px-4 bg-sunken dark:bg-sunken/40', isNavigationCompact && 'px-1.5!')})
+        div(className={cn('hidden _flex h-28 items-center', isNavigationCompact ? 'justify-center px-2' : '')})
           Link(className='inline-flex items-center gap-2 text-[clamp(0.8rem,3vw,1.2rem)] font-poly font-medium text-foreground/90 tracking-tight' to='/' aria-label='App home')
             if isNavigationCompact
               Icon(name='livesnaps')
@@ -178,8 +225,16 @@ else
                 span(className='uppercase text-beach dark:text-foreground') Live
                 span(className='uppercase dark:text-lime-200') Snaps
                 span(className='text-sand dark:text-foreground') Now
-
-        AccountPicker(compact={isNavigationCompact} onChange={workspace.selectAccount} options={workspace.options} value={workspace.selectedId})
+        div(className='h-20 flex items-center')
+          Switcher(
+            ~ items={workspace.options.map(account => ({ id: account.value, label: account.label }))}
+            ~ title='Accounts'
+            ~ activeId={workspace.selectedId}
+            ~ compact={isNavigationCompact}
+            ~ emptyLabel={workspace.error || 'Select account'}
+            ~ busy={workspace.accounts === null && !workspace.error}
+            ~ onSelect={(account) => workspace.selectAccount(account.id)}
+            ~ )
         AdminNavigation(compact={isNavigationCompact})
         // No `user !== null` gate here. Firebase auth state is per-origin and the
         // handoff only hands this origin a session cookie, so the client SDK never
@@ -187,9 +242,9 @@ else
         // every admin, while the mobile drawer below rendered it unconditionally.
         // The session email carries the identity; the theme toggle lives in the popup.
 
-        div(className='flex items-center justify-start h-16 px-5')
+        div(className={cn('flex items-center justify-start h-16 px-3', isNavigationCompact && 'px-3!')})
           ThemeToggle
-        div(className={cn('py-4', isNavigationCompact ? 'px-2' : 'px-3')})
+        div(className={cn('flex items-center justify-center py-4 py-1', isNavigationCompact && 'px-2')})
           UserMenu(
             ~ compact={isNavigationCompact}
             ~ name={user?.displayName}
@@ -198,7 +253,7 @@ else
             ~ hasGodAccess={hasGodAccess}
             ~ )
     Separator(aria-label='Resize admin navigation' className='group relative -ml-1.5 w-1.5 shrink-0')
-      span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-blue-500 dark:group-hover:bg-lime-200 group-focus-visible:bg-sand')
+      span(className='pointer-events-none absolute inset-y-0 -left-1.5 -right-1.5 -translate-x-1 transition-colors duration-180 ease-out group-hover:bg-active dark:group-hover:bg-lime-200')
     Panel(id='content' minSize='40%')
       main(className='min-h-[calc(100vh-160px)] bg-background')
         if status === 'loading'
@@ -206,7 +261,7 @@ else
             Icon(name='spinner-ferris')
             p(className='text-sm md:text-base text-muted-foreground') Verifying your Account session
         elseif status === 'ready'
-          WorkspaceProvider(key={sessionUid} uid={sessionUid} account={workspace.account} accounts={workspace.accounts} error={workspace.error} onRetry={workspace.retry})
+          WorkspaceProvider(key={sessionUid} uid={sessionUid} account={workspace.account} accounts={workspace.accounts} error={workspace.error} onSelect={workspace.selectAccount} onRetry={workspace.retry})
         elseif status === 'unauthorized'
           div(className='grid min-h-screen place-items-center px-6 text-center')
             div(className='max-w-md')

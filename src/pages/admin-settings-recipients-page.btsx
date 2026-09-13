@@ -6,6 +6,7 @@ import { parseRecipientDefaults } from '@/lib/verifications/recipient-defaults'
 import { onSuccess } from '@/lib/toast'
 import { Button } from '@/components/ui'
 import { Icon } from '@/lib/icons'
+import EmailRecipientsSkeleton from "../components/admin/email-recipients-skeleton.btsx";
 
 module
   const cardClassName = 'overflow-hidden rounded-lg border border-border/60 bg-surface shadow-[0_12px_40px_-32px_rgba(0,0,0,0.55)]'
@@ -65,7 +66,7 @@ setup
   const account = useWorkspace()
   const { settings, error, refresh } = useRecipientDefaults(account?.id)
 
-section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
+section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
   header(className='flex flex-wrap items-end justify-between gap-4')
     div(className='py-4')
       p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Delivery
@@ -81,26 +82,25 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
       p(className='text-sm text-destructive') #{error}
       button(type='button' onClick={refresh} className='mt-2 text-sm underline') Retry
   elseif !settings
-    div(className='mt-6 flex items-center gap-2 rounded-lg border border-border/50 p-4' role='status')
-      Icon(name='spinner-ferris' className='size-4')
-      p(className='text-sm text-muted-foreground') Loading recipient defaults…
+    EmailRecipientsSkeleton(className={cardClassName})
   else
     div(className='mt-5 grid items-start gap-4 lg:grid-cols-2')
       section(className={cardClassName})
-        header(className='border-b border-border/50 bg-sidebar/20 px-4 py-4')
-          div(className='flex items-start justify-between gap-3')
+        header(className='flex items-center justify-between border-b border-brand/40 bg-sidebar/20 px-4 py-4')
+          div(className='flex items-start justify-between')
             div
               p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Shared
               h2(className='mt-1 font-sans text-base font-medium') #{account?.name ?? ' Account'} List
-            span(className='rounded-full border border-border/50 bg-background px-2.5 py-1 font-mono text-2xs text-muted-foreground') #{settings.accountEmails.length}
-          p(className='mt-1 text-xs leading-5 text-muted-foreground') Available to everyone in this account.
-        div(className='p-4')
+
+          p(className='text-xs leading-5 text-muted-foreground') available to everyone
+        div(className='p-0')
           if settings.canManageAccount
             RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
           else
             fragment
-              div(className='rounded-sm border border-border/50 bg-sunken/40 px-3 py-2 text-xs leading-5 text-muted-foreground') An account owner or administrator can update this list.
-              RecipientList(emails={settings.accountEmails})
+              div(className='bg-brand/8 px-3 py-2 text-xs leading-5 text-foreground/70') An account owner or administrator can update this list.
+              div(className='p-4 bg-brand/8')
+                RecipientList(emails={settings.accountEmails})
       section(className={cardClassName})
         header(className='border-b border-active/15 bg-active/5 px-4 py-4')
           div(className='flex items-start justify-between gap-3')
@@ -111,3 +111,5 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-3 md:p-5')
           p(className='mt-1 text-xs leading-5 text-muted-foreground') Used only for you; everyone else keeps their own choices.
         div(className='p-4')
           RecipientDefaultsForm(accountId={account.id} scope='member' emails={settings.memberEmails} onSaved={refresh})
+
+      div(className='h-36 w-full')

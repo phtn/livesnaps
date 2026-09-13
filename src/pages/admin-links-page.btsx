@@ -12,6 +12,7 @@ import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { onError, onSuccess } from '@/lib/toast'
 import HyperSearch from "../components/ui/table/hyper/HyperSearch.btsx";
+import LinksSkeleton from "../components/admin/links-skeleton.btsx";
 
 module
   type LinkList = FunctionReturnType<typeof api.submissionLinks.q.list>
@@ -124,8 +125,8 @@ setup
   const handleOnSearchInputChange = (event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)
   const handleClearSearch = () => setQuery('')
 
-section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
-  header(className={cn('flex h-12 items-center justify-between gap-3')})
+section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
+  header(className={cn('sticky -top-4 bg-surface flex h-12 items-center justify-between gap-3')})
     div(className={cn('flex items-center gap-4', {'hidden! md:flex!': isSearchExpanded})})
       h2(className='font-poly font-medium tracking-tight') Links
       span(className='font-poly size-7 aspect-square flex items-center justify-center rounded-full bg-table-head')
@@ -159,9 +160,7 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
 
   div(className='mt-4')
     if loading && !links
-      div(className='flex items-center gap-2 py-6')
-        Icon(name='spinner-ferris' className='size-4')
-        p(className='text-sm text-muted-foreground') Loading submission links…
+      LinksSkeleton
     elseif linkRows.length === 0
       div(className='rounded-sm border border-dashed border-border/60 px-4 py-10 text-center')
         p(className='text-sm text-muted-foreground') No submission links yet.
@@ -176,3 +175,5 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
               LinkIdentity(link={link} accountSlug={account.slug})
               div(className='flex min-w-0 flex-1 items-center justify-end ')
                 Icon(name='chevron-right' className='size-3 shrink-0 text-muted-foreground')
+
+  div(className='h-36 w-full')

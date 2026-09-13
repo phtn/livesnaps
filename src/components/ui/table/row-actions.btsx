@@ -2,7 +2,7 @@ import { createContext, lazy, Suspense, use, useCallback, useEffect, useState } 
 import type { OctaneNode } from 'octane'
 import type { Doc } from '../../../../convex/_generated/dataModel'
 import { Dialog } from '@octanejs/base-ui/dialog'
-import { Dropdown } from '@/components/ui/dropdown-menu.btsx'
+import DropdownMenu, { DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu.btsx'
 import { Icon } from '@/lib/icons'
 import { fetchAdminSnap } from '@/lib/snaps/admin-reads'
 import { downloadSnapPhotoArchive } from '@/lib/snaps/photo-download'
@@ -208,8 +208,8 @@ setup
     openReportViewer(snap._id)
   }
 
-Dropdown.Root
-  Dropdown.Trigger(
+DropdownMenu
+  DropdownMenuTrigger(
     ~ disabled={isExporting}
     ~ onClick={(event: MouseEvent) => event.stopPropagation()}
     ~ aria-label={isExporting ? `Exporting report for ${snapLabel}` : `Open actions for ${snapLabel}`}
@@ -218,20 +218,20 @@ Dropdown.Root
     ~ )
     Icon(name={isExporting ? 'spinner-ring' : 'more-v'} className={cn('size-5 rotate-45 opacity-80')})
 
-  Dropdown.Content(
+  DropdownMenuContent(
     ~ align='end'
     ~ sideOffset={4}
     ~ className='w-64 ring-0 rounded-md dark:bg-zinc-900/50 bg-zinc-200/20 border border-border shadow-sm backdrop-blur-3xl'
     ~ onClick={(event: MouseEvent) => event.stopPropagation()}
     ~ )
-    Dropdown.Group
-      Dropdown.Label(className='border-b border-dashed border-border/50') #{snap.plateNumber !== '' ? snap.plateNumber : 'Options'}
-      Dropdown.Item(onClick={handleView} className='h-12 rounded-xs')
+    DropdownMenuGroup
+      DropdownMenuLabel(className='border-b border-dashed border-border/50') #{snap.plateNumber !== '' ? snap.plateNumber : 'Options'}
+      DropdownMenuItem(onClick={handleView} className='h-12 rounded-xs')
         Icon(name='eye' className='size-4 opacity-80')
         span(className='flex min-w-0 flex-col')
           span Open Report
-      Dropdown.Separator
-      Dropdown.Item(
+      DropdownMenuSeparator
+      DropdownMenuItem(
         ~ disabled={!hasPhotos || isExporting}
         ~ onClick={() => void handleExport()}
         ~ className='h-12 rounded-xs'

@@ -12,11 +12,12 @@ module
     /** Null until the first read settles, so loading reads differently to empty. */
     accounts: WorkspaceAccount[] | null
     error: string
+    onSelect: (id: string) => void
     onRetry: () => void
     uid: string
   }
 
-props { account, accounts, error, onRetry, uid }: WorkspaceProviderProps
+props { account, accounts, error, onSelect, onRetry, uid }: WorkspaceProviderProps
 
 if error
   div(role='alert' className='p-6 text-sm text-destructive')
@@ -32,4 +33,26 @@ elseif account
     div(key={`${uid}:${account.id}`})
       Outlet
 else
-  p(className='p-6 text-sm text-muted-foreground') Select the Account whose submissions you want to view.
+  section(className='mx-auto w-full max-w-6xl px-6 py-10 md:px-10 md:py-14')
+    div(className='max-w-2xl')
+      p(className='font-mono text-2xs uppercase tracking-[0.16em] text-muted-foreground') Workspace
+      h2(className='mt-2 font-poly text-xl font-medium tracking-tight text-foreground md:text-2xl') Choose an account
+    div(className='mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3')
+      each availableAccount in accounts key availableAccount.id
+        button(
+          ~ type='button'
+          ~ onClick={() => onSelect(availableAccount.id)}
+          ~ className='group relative flex min-h-52 w-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-5 text-left shadow-sm transition-all duration-200 hover:border-foreground/20 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
+          ~ aria-label={`Select ${availableAccount.name || availableAccount.slug}`}
+          ~ )
+          div(className='flex items-start justify-between gap-4')
+            div(className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-foreground text-2xl font-medium text-background shadow-sm')
+              | ✦
+            span(className='flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors group-hover:bg-foreground group-hover:text-background')
+              Icon(name='arrow-right' className='size-4')
+          div(className='mt-8 min-w-0')
+            h3(className='truncate font-poly text-lg font-medium tracking-tight text-foreground') #{availableAccount.name || availableAccount.slug}
+            p(className='mt-1 truncate font-mono text-xs text-muted-foreground') #{availableAccount.slug}
+          div(className='mt-auto flex flex-wrap items-center gap-2 pt-5')
+            span(className='rounded-full border border-border/70 bg-muted/60 px-2.5 py-1 font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{availableAccount.plan}
+            span(className='rounded-full border border-border/70 px-2.5 py-1 font-mono text-2xs uppercase tracking-wider text-muted-foreground') #{availableAccount.role}

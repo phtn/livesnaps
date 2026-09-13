@@ -1,0 +1,16 @@
+import Skeleton from "@/components/ui/skeleton.btsx";
+component Root
+  div(className="w-full")
+    div(className="flex flex-col")
+      div(className="flex items-center justify-between")
+      // Skeleton(className="h-8 w-20 rounded-md")
+      // Separator(className="opacity-60")
+      each _, i in Array.from({ length: 3 }) key i
+        div(className="border-border/60 flex items-center gap-4 border-b border-sidebar-border px-2 py-4 last:border-b-0")
+          Skeleton(className="size-9 shrink-0 rounded-full")
+          div(className="flex flex-1 flex-col gap-1.5")
+            Skeleton(className="h-3.5 w-32")
+            Skeleton(className="h-3 w-48")
+          Skeleton(className="h-7 w-16 rounded-md")
+
+Root

@@ -1,0 +1,14 @@
+import Skeleton from "@/components/ui/skeleton.btsx";
+import type {ClassValue} from 'octane'
+import Card, {CardHeader, CardContent} from "../ui/card.btsx";
+import {cn} from '@/lib/utils'
+
+props {className}: {className?: ClassValue}
+section(className={cn('mt-3 rounded-xl max-w-md overflow-hidden',className, 'shadow-sm')})
+  header(className='border-b border-sidebar-border bg-sidebar/30 px-4 pt-4 pb-2')
+    div(className='flex items-start justify-between')
+      div
+        p(className='w-16 h-5 bg-sidebar rounded-full')
+        h2(className='mt-1 font-sans text-base font-medium rounded-lg w-24 h-8 bg-sidebar')
+      span(className='rounded-full border border-border/50 bg-background px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+  div(className='p-4 h-32 border-b border-x border-sidebar-border overflow-hidden rounded-b-xl')
