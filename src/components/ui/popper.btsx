@@ -1,8 +1,7 @@
 
 import type { ClassValue } from 'octane/jsx-runtime'
-import { AnimatePresence, motion } from '@octanejs/motion'
 import { cn } from '@/lib/utils'
-import {useId} from 'octane'
+import { useEffect, useState } from 'octane'
 
 module
   type Props = {
@@ -13,22 +12,35 @@ module
     lead?: string
     role?: string
   }
-  const MotionDiv = motion.div
+
+  /** Matches `animation-duration-200` on the exit class below. */
+  const EXIT_MS = 200
 
 props {condition, value, className, trail, lead}: Props
 setup
-  const id = useId()
-AnimatePresence(mode='wait')
-  if (condition)
-    MotionDiv(
-      ~ key={id}
-      ~ initial={undefined}
-      ~ animate={{ opacity: 1 }}
-      ~ exit={{ opacity: 0 }}
-      ~ transition={{ type: 'spring', duration: 0.3, bounce: 0.35, delay: 0.45 }}
-      ~ className={cn('inline-block text-muted-foreground/50 text-xs px-1 space-x-2 min-w-40 flex items-center justify-end', className)}
-      ~ )
-      span #{lead}
-      span #{value}
-      span #{trail}
-      span(className='text-muted-foreground/50' aria-hidden='true') ·
+  // CSS can animate the way out only while the node still exists, so it stays
+  // mounted for the length of the exit animation after `condition` drops.
+  const [isMounted, setIsMounted] = useState(condition)
+  useEffect(() => {
+    if (condition) {
+      setIsMounted(true)
+      return
+    }
+    const timer = setTimeout(() => setIsMounted(false), EXIT_MS)
+    return () => clearTimeout(timer)
+  }, [condition])
+
+if (condition || isMounted)
+  div(
+    ~ className={cn(
+    ~   'inline-block text-muted-foreground/50 text-xs px-1 space-x-2 min-w-40 flex items-center justify-end',
+    ~   condition
+    ~     ? 'animate-in fade-in animation-duration-300 delay-450 fill-mode-backwards ease-out'
+    ~     : 'animate-out fade-out animation-duration-200 fill-mode-forwards',
+    ~   className
+    ~ )}
+    ~ )
+    span #{lead}
+    span #{value}
+    span #{trail}
+    span(className='text-muted-foreground/50' aria-hidden='true') ·

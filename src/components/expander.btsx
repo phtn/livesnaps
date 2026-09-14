@@ -1,3 +1,27 @@
+import type { api } from '../../convex/_generated/api'
+import { useConvexQuery } from '@/hooks/use-convex-query'
+import { useCaptureSettings } from '@/hooks/use-capture-settings'
+import { useConvexAuth } from '@/hooks/use-convex-auth'
+import {Icon} from "@/lib/icons";
+import { parseCaptureReading } from '@/lib/snaps/capture-reading'
+import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
+import  CapturedPhotos from './captured-photos.btsx'
+import { CAPTURE_SLOTS, CaptureSlotIndex, MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'
+import { cn } from '@/lib/utils'
+import * as viewportStyles from '@/components/mobile-viewport.module.css'
+import { RefObject } from 'octane'
+import CaptureProgress from './capture-progress.btsx'
+import PhotoPreview from './photo-preview.btsx'
+import GuidePanel from './guide-panel.btsx'
+import ShutterButton from './shutter-button.btsx'
+import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
+import CameraStatusbar from './camera-statusbar.btsx'
+import { getCaptureProgressCount, upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
+import { onError, onInfo, onSuccess } from '@/lib/toast'
+import { createUuid } from '@/lib/uuid'
+import { createSnapImageFile, encodeSnapCanvasImage, optimizeSnapImage } from '@/lib/images/optimize-snap-image'
+import type {DeviceLocation} from '@/lib/location/types'
+
 
 module
   interface ExpanderProps {
@@ -97,7 +121,6 @@ module
     if (!(error instanceof DOMException)) {
       return 'Unable to start the camera. Check your device and try again.'
     }
-
     switch (error.name) {
       case 'NotAllowedError':
       case 'SecurityError':
@@ -117,29 +140,6 @@ module
     }
   }
 
-
-import type { api } from '../../convex/_generated/api'
-import { useConvexQuery } from '@/hooks/use-convex-query'
-import { useCaptureSettings } from '@/hooks/use-capture-settings'
-import { useConvexAuth } from '@/hooks/use-convex-auth'
-import {Icon} from "@/lib/icons";
-import { parseCaptureReading } from '@/lib/snaps/capture-reading'
-import { EMPTY_VEHICLE_DETAILS, formatCapturePlateNumber,isCompleteCapturePlateNumber,mergeDetectedVehicleDetails,normalizePlateNumber,type VehicleDetails} from '@/lib/snaps/vehicle-details'
-import  CapturedPhotos from './captured-photos.btsx'
-import { CAPTURE_SLOTS, CaptureSlotIndex, MAX_CAPTURED_PHOTOS } from './captured-photos.btsx'
-import { cn } from '@/lib/utils'
-import * as viewportStyles from '@/components/mobile-viewport.module.css'
-import { RefObject } from 'octane'
-import CaptureProgress from './capture-progress.btsx'
-import PhotoPreview from './photo-preview.btsx'
-import GuidePanel from './guide-panel.btsx'
-import ShutterButton from './shutter-button.btsx'
-import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
-import CameraStatusbar from './camera-statusbar.btsx'
-import { getCaptureProgressCount, upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
-import { onError, onInfo, onSuccess } from '@/lib/toast'
-import { createUuid } from '@/lib/uuid'
-import { createSnapImageFile, encodeSnapCanvasImage, optimizeSnapImage } from '@/lib/images/optimize-snap-image'
 
 props { cancelSession, completeSession, endCompletedSession, getCurrentIdToken, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
 

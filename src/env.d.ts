@@ -21,6 +21,11 @@ declare module '*.btsx' {
   export default component
 }
 
+declare module '*.module.css' {
+  const classes: { readonly [className: string]: string }
+  export = classes
+}
+
 declare module '*.mdx' {
   import type { ComponentBody } from 'octane'
 
