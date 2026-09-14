@@ -27,7 +27,7 @@ module
   const navs: NavItem[] = [
     { icon: 'folder', label: 'Overview', path: '/citadel', exact: true },
     { icon: 'account', label: 'Accounts', path: '/citadel/accounts' },
-    { icon: 'ocr', label: 'Vision', path: '/citadel/vision' },
+    { icon: 'vision', label: 'Vision', path: '/citadel/vision' },
     { icon: 'settings', label: 'Settings', path: '/citadel/settings' },
   ]
 

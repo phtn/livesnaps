@@ -12,7 +12,9 @@ export type MetaVisionClient = {
 }
 
 export type MetaVisionFileInput = {
+  apiKey?: string
   abortSignal: AbortSignal
+  baseURL?: string
   bytes: Uint8Array
   filename: string
   mediaType: VisionTestMediaType
@@ -47,8 +49,8 @@ type MetaVisionFileDependencies = {
   onCleanupError?: (error: unknown) => void
 }
 
-const createMetaVisionClient = (): MetaVisionClient => {
-  const { apiKey, baseURL } = getMetaConfig()
+const createMetaVisionClient = (input: MetaVisionFileInput): MetaVisionClient => {
+  const { apiKey, baseURL } = getMetaConfig(input)
 
   return new OpenAI({
     apiKey,
@@ -62,7 +64,7 @@ export const withMetaVisionFile = async <T>(
   callback: (reference: MetaVisionFileReference) => Promise<T>,
   dependencies: MetaVisionFileDependencies = {}
 ): Promise<T> => {
-  const client = dependencies.client ?? createMetaVisionClient()
+  const client = dependencies.client ?? createMetaVisionClient(input)
   let providerFileId: string | null = null
 
   try {

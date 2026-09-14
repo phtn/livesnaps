@@ -109,7 +109,7 @@ component VisionTestResultPanel
         dd(className='font-mono text-foreground') #{result.usage.totalTokens?.toLocaleString('en-US') ?? '—'}
 
 setup
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLInputElement|null>(null)
   const selectedImageRef = useRef<SelectedImage | null>(null)
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null)
   const [provider, setProvider] = useState<VisionTestProvider>('configured')
@@ -170,10 +170,10 @@ setup
     if (inputRef.current) inputRef.current.value = ''
   }
 
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (event: DragEvent) => {
     event.preventDefault()
     setIsDragging(false)
-    selectImage(event.dataTransfer.files.item(0))
+    selectImage(event.dataTransfer?.files.item(0) ?? null)
   }
 
   const selectPrompt = (value: string) => {
@@ -316,7 +316,7 @@ main(className='w-full px-4 py-7 sm:px-6 sm:py-10')
             ~ }}
             ~ onDragOver={(event) => {
             ~   event.preventDefault();
-            ~   event.dataTransfer.dropEffect = 'copy';
+            ~   event.dataTransfer!.dropEffect = 'copy';
             ~ }}
             ~ onDragLeave={() => setIsDragging(false)}
             ~ onDrop={handleDrop}

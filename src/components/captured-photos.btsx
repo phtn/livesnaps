@@ -31,19 +31,26 @@ component SlotImage
 component SavingBadge
   Icon(name='cloud' className='absolute right-1 top-1 text-white/60 animate-pulse')
 
+component FailedBadge
+  span(className='absolute right-1 top-1 inline-flex items-center gap-1 rounded-full bg-destructive px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-destructive-foreground shadow-sm')
+    Icon(name='alert-triangle' className='size-3')
+    span Retry
+
 component CollapsedStackSlot
   props { slot, stackIndex, stackSize, photo, isActive }: { slot: CaptureSlot; stackIndex: number; stackSize: number; photo?: CapturedPhoto; isActive: boolean }
   setup
     const offset = (stackSize - 1 - stackIndex) * 2
     const rotate = (stackSize - 1 - stackIndex) * -1.5
 
-  div(data-upload-status={photo?.uploadStatus} className={cn('absolute inset-0 overflow-hidden rounded-lg border bg-black/65 shadow-lg transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && 'border-beach ring-1 ring-beach/50 dark:border-lime-200 dark:ring-lime-200/50')} style={{ zIndex: stackIndex, transform: `translate3d(${-offset}px, ${-offset}px, 0) rotate(${rotate}deg)` }})
+  div(data-upload-status={photo?.uploadStatus} className={cn('absolute inset-0 overflow-hidden rounded-lg border bg-black/65 shadow-lg transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && 'border-beach ring-1 ring-beach/50 dark:border-lime-200 dark:ring-lime-200/50', photo?.uploadStatus === 'failed' && 'border-destructive ring-2 ring-destructive/80')} style={{ zIndex: stackIndex, transform: `translate3d(${-offset}px, ${-offset}px, 0) rotate(${rotate}deg)` }})
     if photo
       SlotImage(photo={photo} label={slot.label})
     else
       Icon(name='camera-enhance' className='absolute inset-0 m-auto size-10 -rotate-2 text-white/50 dark:text-lime-100/60')
     if photo?.uploadStatus === 'saving'
       SavingBadge
+    elseif photo?.uploadStatus === 'failed'
+      FailedBadge
 
 component ExpandedStackSlot
   props { slot, photo, isActive, selectCaptureSlot, selectPhoto }: { slot: CaptureSlot; photo?: CapturedPhoto; isActive: boolean; selectCaptureSlot: (index: CaptureSlotIndex) => void; selectPhoto: (photo: CapturedPhoto) => void }
@@ -57,20 +64,23 @@ component ExpandedStackSlot
       selectCaptureSlot(slot.index)
     }
 
-  button(data-upload-status={photo?.uploadStatus} type='button' onClick={handleSelect} className={cn('group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-md border-[0.5px] bg-zinc-500/80 shadow-sm transition-[transform,box-shadow] hover:scale-[1.02] hover:shadow-2xl active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beach', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && !photo && 'border-beach ring-1 ring-beach/60 dark:border-lime-200 dark:ring-lime-200/50')} aria-label={photo ? `View ${slot.label} photo` : `Select ${slot.label} photo for capture`} aria-pressed={photo ? undefined : isActive})
+  button(data-upload-status={photo?.uploadStatus} type='button' onClick={handleSelect} className={cn('group relative h-20 w-20 shrink-0 cursor-pointer overflow-hidden rounded-md border-[0.5px] bg-zinc-500/80 shadow-sm transition-[transform,box-shadow] hover:scale-[1.02] hover:shadow-2xl active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-beach', photo ? 'border-white/80' : 'border-dashed border-white/60', isActive && !photo && 'border-beach ring-1 ring-beach/60 dark:border-lime-200 dark:ring-lime-200/50', photo?.uploadStatus === 'failed' && 'border-destructive ring-2 ring-destructive/80 focus-visible:ring-destructive')} aria-label={photo?.uploadStatus === 'failed' ? `View failed ${slot.label} photo and retry` : photo ? `View ${slot.label} photo` : `Select ${slot.label} photo for capture`} aria-pressed={photo ? undefined : isActive})
     if photo
       SlotImage(photo={photo} label={slot.label})
     else
       Icon(name='circle-plus' className='absolute inset-0 m-auto size-4.5 -translate-y-0.75 text-white/50')
     if photo?.uploadStatus === 'saving'
       SavingBadge
+    elseif photo?.uploadStatus === 'failed'
+      FailedBadge
     span(className='absolute bottom-1 left-1 rounded-xs bg-black/70 px-1.5 py-0.75 text-[10px] font-medium capitalize leading-none text-white') #{slot.label}
 
 props { capturedPhotos, activeCaptureIndex, isStackExpanded, expandStack, collapseStack, selectCaptureSlot, selectPhoto }: CapturedPhotosProps
 setup
   const capturedByIndex = new Map(capturedPhotos.map((photo) => [photo.index, photo]))
   const mostRecentPhoto = capturedPhotos.reduce<CapturedPhoto | undefined>((latest, photo) => !latest || photo.file.lastModified > latest.file.lastModified ? photo : latest, undefined)
-  const collapsedTopSlotIndex = mostRecentPhoto?.index ?? activeCaptureIndex
+  const mostRecentFailedPhoto = capturedPhotos.reduce<CapturedPhoto | undefined>((latest, photo) => photo.uploadStatus !== 'failed' ? latest : !latest || photo.file.lastModified > latest.file.lastModified ? photo : latest, undefined)
+  const collapsedTopSlotIndex = mostRecentFailedPhoto?.index ?? mostRecentPhoto?.index ?? activeCaptureIndex
   const stackedSlots = [...CAPTURE_SLOTS.filter((slot) => slot.index !== collapsedTopSlotIndex), ...CAPTURE_SLOTS.filter((slot) => slot.index === collapsedTopSlotIndex)]
   const shouldScaleDown = capturedPhotos.length === 0 && !isStackExpanded
 

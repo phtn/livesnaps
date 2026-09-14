@@ -14,9 +14,9 @@ import {
   handleAdminSnapUpdate
 } from './server/admin-snap-routes'
 import {
+  handleAdminVerificationEntryActivate,
   handleAdminVerificationEntryAttachmentRemove,
   handleAdminVerificationEntryAttachmentUpload,
-  handleAdminVerificationEntryActivate,
   handleAdminVerificationEntryCreate,
   handleAdminVerificationEntryList,
   handleAdminVerificationEntrySend
@@ -45,15 +45,24 @@ interface WorkerEnvironment {
   ASSETS: {
     fetch(request: Request): Promise<Response>
   }
+  COHERE_API_KEY?: string
+  COHERE_VISION_MODEL?: string
   CONVEX_URL?: string
   PUBLIC_CONVEX_URL?: string
   IPINFO_LITE_TOKEN?: string
   MAPBOX_ACCESS_TOKEN?: string
+  META_API_KEY?: string
+  META_BASE_URL?: string
+  META_MODEL?: string
   R2_ACCOUNT_ID?: string
   R2_ACCESS_KEY_ID?: string
   R2_SECRET_ACCESS_KEY?: string
   R2_BUCKET_NAME?: string
   RESEND_WEBHOOK_SECRET?: string
+}
+
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<unknown>): void
 }
 
 const SESSION_PATH = '/api/snaps/session'
@@ -85,8 +94,17 @@ const RESEND_WEBHOOK_PATH = '/api/webhooks'
 const isSpaNavigation = (request: Request) =>
   request.method === 'GET' && request.headers.get('accept')?.includes('text/html')
 
-const getSnapPhotoEnvironment = (env: WorkerEnvironment): SnapPhotoRouteEnvironment => ({
+const getSnapPhotoEnvironment = (
+  env: WorkerEnvironment,
+  context?: WorkerExecutionContext
+): SnapPhotoRouteEnvironment => ({
+  cohereApiKey: env.COHERE_API_KEY,
+  cohereVisionModel: env.COHERE_VISION_MODEL,
   convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL,
+  defer: context ? (promise) => context.waitUntil(promise) : undefined,
+  metaApiKey: env.META_API_KEY,
+  metaBaseURL: env.META_BASE_URL,
+  metaModel: env.META_MODEL,
   r2AccountId: env.R2_ACCOUNT_ID,
   r2AccessKeyId: env.R2_ACCESS_KEY_ID,
   r2SecretAccessKey: env.R2_SECRET_ACCESS_KEY,
@@ -94,7 +112,7 @@ const getSnapPhotoEnvironment = (env: WorkerEnvironment): SnapPhotoRouteEnvironm
 })
 
 export default {
-  async fetch(request: Request, env: WorkerEnvironment): Promise<Response> {
+  async fetch(request: Request, env: WorkerEnvironment, context: WorkerExecutionContext): Promise<Response> {
     const pathname = new URL(request.url).pathname
     const photoRouteMatch = SNAP_SUBMISSION_PHOTO_PATH.exec(pathname)
 
@@ -238,7 +256,7 @@ export default {
     }
 
     if (pathname === PHOTO_PATH) {
-      return handleSnapPhotoRequest(request, getSnapPhotoEnvironment(env))
+      return handleSnapPhotoRequest(request, getSnapPhotoEnvironment(env, context))
     }
 
     const adminSnapPhotoMatch = ADMIN_SNAP_PHOTO_PATH.exec(pathname)

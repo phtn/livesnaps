@@ -1,5 +1,4 @@
 import { api } from '../../convex/_generated/api'
-import { getAdminConvexClient } from './admin-convex'
 import { parseDeviceLocation } from '../lib/location/type'
 import { deleteR2Object, getR2Object, putR2Object, type R2Config } from '../lib/r2/server'
 import {
@@ -11,10 +10,18 @@ import {
   SNAP_IMAGE_MAX_BYTES,
   type SnapSlotIndex
 } from '../lib/r2/snap-images'
+import { getAdminConvexClient } from './admin-convex'
+import { runCaptureVehicleVisionPipeline } from './capture-vehicle-vision'
 import { authenticateReadRequest, authenticateRequest, RequestError } from './convex'
 
 export interface SnapPhotoRouteEnvironment {
+  cohereApiKey?: string
+  cohereVisionModel?: string
   convexUrl?: string
+  defer?: (promise: Promise<unknown>) => void
+  metaApiKey?: string
+  metaBaseURL?: string
+  metaModel?: string
   r2AccountId?: string
   r2AccessKeyId?: string
   r2SecretAccessKey?: string
@@ -141,6 +148,14 @@ async function saveSnapPhoto(request: Request, environment: SnapPhotoRouteEnviro
   } catch (error) {
     await deleteR2Object(objectKey, r2).catch(() => undefined)
     throw error
+  }
+
+  if ((slot.index === 1 || slot.index === 2) && environment.defer) {
+    environment.defer(
+      runCaptureVehicleVisionPipeline(client, uploadId, environment).catch((error) => {
+        console.error('[Capture Vision] Background vehicle analysis failed', error)
+      })
+    )
   }
 
   return json({ ok: true })

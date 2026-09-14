@@ -2,10 +2,16 @@ import { createOpenAI } from '@ai-sdk/openai'
 
 export const META_FILES_API_PURPOSE = 'user_data' as const
 
-export const getMetaConfig = () => ({
-  apiKey: process.env.META_API_KEY ?? '',
-  baseURL: process.env.META_BASE_URL ?? 'https://api.meta.ai/v1',
-  model: (process.env.META_MODEL ?? 'muse-spark-1.2-contributor').trim() || 'muse-spark-1.2-contributor'
+export type MetaConfigOverrides = {
+  apiKey?: string
+  baseURL?: string
+  model?: string
+}
+
+export const getMetaConfig = (overrides: MetaConfigOverrides = {}) => ({
+  apiKey: overrides.apiKey?.trim() || process.env.META_API_KEY?.trim() || '',
+  baseURL: overrides.baseURL?.trim() || process.env.META_BASE_URL?.trim() || 'https://api.meta.ai/v1',
+  model: overrides.model?.trim() || process.env.META_MODEL?.trim() || 'muse-spark-1.2-contributor'
 })
 
 export const isMetaConfigured = () => {

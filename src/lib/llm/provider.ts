@@ -17,8 +17,17 @@ export type ProviderResolution = {
   visionProvider: LlmProvider
 }
 
+export type ProviderAvailability = {
+  cohere: boolean
+  meta: boolean
+}
+
 export const resolveProviderConfig = async (
-  fetchConfig?: () => Promise<LlmProviderConfig | null>
+  fetchConfig?: () => Promise<LlmProviderConfig | null>,
+  availability: ProviderAvailability = {
+    cohere: Boolean(process.env.COHERE_API_KEY),
+    meta: isMetaConfigured()
+  }
 ): Promise<ProviderResolution> => {
   let raw: LlmProviderConfig | null = null
 
@@ -33,7 +42,7 @@ export const resolveProviderConfig = async (
   const normalized = normalizeLlmProviderConfig(raw ?? {})
 
   // If primary is meta but meta is not configured, fallback to cohere
-  if (normalized.primaryProvider === 'meta' && !isMetaConfigured()) {
+  if (normalized.primaryProvider === 'meta' && !availability.meta) {
     return {
       primary: 'cohere',
       fallback: null,
@@ -45,14 +54,14 @@ export const resolveProviderConfig = async (
   }
 
   // If primary is cohere but cohere key missing, try meta if configured
-  if (normalized.primaryProvider === 'cohere' && !process.env.COHERE_API_KEY && isMetaConfigured()) {
+  if (normalized.primaryProvider === 'cohere' && !availability.cohere && availability.meta) {
     return {
       primary: 'meta',
       fallback: null,
       fallbackEnabled: false,
       metaModel: normalized.metaModel,
       cohereModel: normalized.cohereModel,
-      visionProvider: isMetaConfigured() ? 'meta' : 'cohere'
+      visionProvider: availability.meta ? 'meta' : 'cohere'
     }
   }
 
@@ -61,8 +70,8 @@ export const resolveProviderConfig = async (
   // If fallback provider not configured, disable fallback
   const effectiveFallback = (() => {
     if (!fallback) return null
-    if (fallback === 'meta' && !isMetaConfigured()) return null
-    if (fallback === 'cohere' && !process.env.COHERE_API_KEY) return null
+    if (fallback === 'meta' && !availability.meta) return null
+    if (fallback === 'cohere' && !availability.cohere) return null
     return fallback
   })()
 

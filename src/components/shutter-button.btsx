@@ -11,6 +11,7 @@ module
     isCameraRequesting: boolean
     isCapturing: boolean
     isLocationPrecise: boolean
+    isRetry: boolean
     capturedPhotoCount: number
     captureLabel: string
     capturePhoto: VoidFunction
@@ -32,23 +33,23 @@ module
     if (!isLocationPrecise) return 'waiting-for-location'
     return 'ready-to-enable-camera'
   }
-  const getShutterPresentation = ({ captureLabel, capturedPhotoCount, state }: { captureLabel: string; capturedPhotoCount: number; state: ShutterState }): ShutterPresentation => {
+  const getShutterPresentation = ({ captureLabel, capturedPhotoCount, isRetry, state }: { captureLabel: string; capturedPhotoCount: number; isRetry: boolean; state: ShutterState }): ShutterPresentation => {
     switch (state) {
       case 'waiting-for-location': return { ariaLabel: 'Waiting for precise location', icon: 'gps', label: 'Waiting for GPS…' }
       case 'ready-to-enable-camera': return { ariaLabel: 'Turn on camera', icon: 'camera-enhance', label: 'Turn on camera' }
       case 'enabling-camera': return { ariaLabel: 'Starting camera', icon: 'spinner-ferris', label: 'Starting camera…' }
       case 'waiting-to-capture': return { ariaLabel: 'Waiting for precise location before capturing' }
-      case 'ready-to-capture': return { ariaLabel: `Capture ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured` }
-      case 'capturing': return { ariaLabel: `Capturing ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured`, icon: 'spinner-ferris' }
+      case 'ready-to-capture': return { ariaLabel: `${isRetry ? 'Retake' : 'Capture'} ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured` }
+      case 'capturing': return { ariaLabel: `${isRetry ? 'Retaking' : 'Capturing'} ${captureLabel} photo, ${capturedPhotoCount} of ${MAX_CAPTURED_PHOTOS} captured`, icon: 'spinner-ferris' }
       case 'complete': return { ariaLabel: 'All five photos captured' }
     }
   }
 
-props { isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise, capturePhoto, capturedPhotoCount, captureLabel, enableCamera }: ShutterButtonProps
+props { isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise, isRetry, capturePhoto, capturedPhotoCount, captureLabel, enableCamera }: ShutterButtonProps
 setup
   const isMobile = useMobile()
   const state = getShutterState({ capturedPhotoCount, isCameraActive, isCameraRequesting, isCapturing, isLocationPrecise })
-  const presentation = getShutterPresentation({ captureLabel, capturedPhotoCount, state })
+  const presentation = getShutterPresentation({ captureLabel, capturedPhotoCount, isRetry, state })
   const isBusy = state === 'enabling-camera' || state === 'capturing'
   const isEnabled = state === 'ready-to-enable-camera' || state === 'ready-to-capture'
   const isCameraMode = state === 'waiting-to-capture' || state === 'ready-to-capture' || state === 'capturing' || state === 'complete'

@@ -3,7 +3,7 @@ import { snapCaptureIntegritySchema, snapVehicleDetailsSchema } from '../snaps/d
 
 export const visionLogKindSchema = v.union(v.literal('vehicle'), v.literal('odometer'), v.literal('capture_integrity'))
 
-export const visionLogStatusSchema = v.union(v.literal('completed'), v.literal('unavailable'))
+export const visionLogStatusSchema = v.union(v.literal('processing'), v.literal('completed'), v.literal('unavailable'))
 
 export const visionLogSchema = v.object({
   upload_id: v.string(),

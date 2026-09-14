@@ -136,7 +136,7 @@ import GuidePanel from './guide-panel.btsx'
 import ShutterButton from './shutter-button.btsx'
 import PlateConfirmationDialog from './plate-confirmation-dialog.btsx'
 import CameraStatusbar from './camera-statusbar.btsx'
-import { upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
+import { getCaptureProgressCount, upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
 import { onError, onInfo, onSuccess } from '@/lib/toast'
 import { createUuid } from '@/lib/uuid'
 import { optimizeImageToWebp } from '@/lib/images/optimize-to-webp'
@@ -191,7 +191,10 @@ setup
   const [plateConfirmationError, setPlateConfirmationError] = useState<string | null>(null)
   const isCameraActive = cameraStatus === 'active'
   const isCameraRequesting = cameraStatus === 'requesting'
-  const hasCapturedAllPhotos = capturedPhotos.length >= MAX_CAPTURED_PHOTOS
+  const captureProgressCount = getCaptureProgressCount(capturedPhotos)
+  const failedPhoto = capturedPhotos.find((photo) => photo.uploadStatus === 'failed')
+  const failedCaptureIndex = (failedPhoto?.index as CaptureSlotIndex | undefined) ?? null
+  const hasCapturedAllPhotos = captureProgressCount >= MAX_CAPTURED_PHOTOS
   const shouldShowCaptureGuidance = isCameraActive || capturedPhotos.length > 0
   const expandPhotoStack = useCallback(() => setIsStackExpanded(true), [])
   const collapsePhotoStack = useCallback(() => setIsStackExpanded(false), [])
@@ -362,7 +365,9 @@ setup
   const capturePhoto = useCallback(async () => {
     // Allow pipelining — only block concurrent canvas captures, not background uploads
     if (capturePendingRef.current) return
-    if (capturedPhotosRef.current.length >= MAX_CAPTURED_PHOTOS) {
+    const activePhoto = capturedPhotosRef.current.find((photo) => photo.index === activeCaptureIndex)
+    const isRetryingFailedPhoto = activePhoto?.uploadStatus === 'failed'
+    if (!isRetryingFailedPhoto && capturedPhotosRef.current.length >= MAX_CAPTURED_PHOTOS) {
       // If all 5 slots are filled optimistically, don't allow extra captures (retakes go via retakePhoto)
       const hasEmptySlot = CAPTURE_SLOTS.some(
         (slot) => !capturedPhotosRef.current.some((photo) => photo.index === slot.index)
@@ -558,6 +563,11 @@ setup
         setCapturedPhotos(savedPhotos)
         setSelectedPhoto((selected) => (selected?.id === bgOptimisticPhoto.id ? savedPhoto : selected))
 
+        const nextFailedPhoto = savedPhotos.find((photo) => photo.uploadStatus === 'failed')
+        if (nextFailedPhoto) {
+          setActiveCaptureIndex(nextFailedPhoto.index as CaptureSlotIndex)
+        }
+
         if (bgPreviousPhoto) URL.revokeObjectURL(bgPreviousPhoto.preview)
 
         if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
@@ -648,15 +658,18 @@ setup
         const failedPhoto: CapturedPhoto = { ...bgOptimisticPhoto, uploadStatus: 'failed' }
         const failedPhotos = replaceCapturedPhoto(capturedPhotosRef.current, bgOptimisticPhoto.id, failedPhoto)
         capturedPhotosRef.current = failedPhotos
+        retakeSlotsRef.current.add(bgCaptureNumber)
         setCapturedPhotos(failedPhotos)
+        setActiveCaptureIndex(bgCaptureNumber)
         setSelectedPhoto((selected) => (selected?.id === bgOptimisticPhoto.id ? failedPhoto : selected))
+
+        if (bgPreviousPhoto) URL.revokeObjectURL(bgPreviousPhoto.preview)
 
         const message =
           bgError instanceof Error ? bgError.message : 'Unable to save this photo. Tap retake to retry.'
         if (captureSessionId === requestSequenceRef.current) {
-          setCameraError(message)
+          setCameraError(`${message} Retake the ${bgOptimisticPhoto.label} photo with the shutter button.`)
         }
-        // Keep retake flag so next capture for this slot is treated as retake
         onError(message)
       }
     })()
@@ -766,9 +779,9 @@ div(id='drop-zone-surface' data-expanded={isExpanded} className={cn(viewportStyl
 
       Activity(mode={shouldShowCaptureGuidance ? 'visible' : 'hidden'})
         div(className={viewportStyles.guidePanel})
-          GuidePanel(activeCaptureIndex={activeCaptureIndex} capturedCount={capturedPhotos.length})
+          GuidePanel(activeCaptureIndex={activeCaptureIndex} capturedCount={captureProgressCount} retryCaptureIndex={failedCaptureIndex})
       div(className={cn(viewportStyles.shutterControls, 'mt-6 flex shrink-0 flex-col items-center gap-2')})
-        ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={capturedPhotos.length} captureLabel={getInspectionLabel(activeCaptureIndex)})
+        ShutterButton(isCameraActive={isCameraActive} isCameraRequesting={isCameraRequesting} isCapturing={isCapturing} isLocationPrecise={isLocationPrecise} capturePhoto={capturePhoto} enableCamera={enableCamera} capturedPhotoCount={captureProgressCount} captureLabel={getInspectionLabel(activeCaptureIndex)} isRetry={failedCaptureIndex === activeCaptureIndex})
 
 
   PlateConfirmationDialog(error={plateConfirmationError} isDebugMode={isDebugMode} onEnd={endSession} onPlateNumberChange={setPlateNumber} onSubmit={confirmPlateNumber} mileageKm={mileageKm} plateNumber={plateNumber} stage={plateConfirmationStage} vehicle={vehicleDetails})

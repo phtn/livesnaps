@@ -20,10 +20,13 @@ module
   export interface GuidePanelProps {
     activeCaptureIndex: CaptureSlotIndex
     capturedCount: number
+    retryCaptureIndex: CaptureSlotIndex | null
   }
 
-props { activeCaptureIndex, capturedCount }: GuidePanelProps
-setup const isComplete = capturedCount >= MAX_CAPTURED_PHOTOS
+props { activeCaptureIndex, capturedCount, retryCaptureIndex }: GuidePanelProps
+setup
+  const isComplete = capturedCount >= MAX_CAPTURED_PHOTOS
+  const isRetry = retryCaptureIndex === activeCaptureIndex
 
 div(className='mt-2 flex shrink-0 scale-100 items-center overflow-hidden rounded-md border border-border/60 bg-white/60 font-okx text-base tracking-wide dark:bg-black/50 sm:scale-80')
   if isComplete
@@ -31,7 +34,7 @@ div(className='mt-2 flex shrink-0 scale-100 items-center overflow-hidden rounded
       Icon(name='checkmark-circle' className='size-5')
   else
     h3(className='flex w-18 select-none items-center justify-center bg-slate-500/8 font-okx text-base tracking-wide backdrop-blur-3xl dark:bg-black/65')
-      span(className='py-1.75') Next
+      span(className='py-1.75') #{isRetry ? 'Retry' : 'Next'}
   if isComplete
     h3(className='flex items-center space-x-1 rounded-sm border-x border-border/60 bg-beach/70 px-8 py-2 font-okx text-base font-medium italic tracking-wide shadow-md backdrop-blur-3xl dark:bg-lime-200 dark:text-background')
       Icon(name='spinner-ring' className='size-5')
