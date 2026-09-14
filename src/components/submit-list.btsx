@@ -1,4 +1,4 @@
-import { memo } from 'octane'
+import { memo, useEffect, useState } from 'octane'
 import { useConvexQuery } from '@/hooks/use-convex-query'
 import { useConvexAuth } from '@/hooks/use-convex-auth'
 import { Link } from '@octanejs/tanstack-router'
@@ -7,7 +7,8 @@ import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
-import { format } from 'date-fns'
+import { format, formatDistanceStrict } from 'date-fns'
+import HyperList from "./ui/hyper-list.btsx";
 
 module
   type SnapSubmission = FunctionReturnType<typeof api.snaps.q.listMine>[number]
@@ -31,14 +32,13 @@ module
     invalidated: { badge: 'border-red-500/25 bg-red-500/8! text-red-700! dark:text-red-300!', icon: 'alert-octagon-fill', iconFrame: 'bg-red-500/10 text-red-600 dark:text-red-300' },
     pending: { badge: 'border-amber-500/25 bg-amber-500/8! text-amber-700! dark:text-amber-300!', icon: 'spinner-ferris', iconFrame: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' }
   }
+  const RELATIVE_TIME_TICK_MS = 30_000
+  const formatRelativeTime = (timestamp: number, now: number) =>
+    now - timestamp < 60_000 ? 'just now' : formatDistanceStrict(timestamp, now, { addSuffix: true })
   const vehicleLabel = (submission: SnapSubmission) => [submission.year, submission.make, submission.model].filter(Boolean).join(' ') || 'Vehicle details: N/A'
-  const sameRenderedSubmission = (
-    previous: Readonly<{ submission: SnapSubmission }>,
-    next: Readonly<{ submission: SnapSubmission }>
-  ) => {
-    const left = previous.submission
-    const right = next.submission
-    return left._id === right._id &&
+  // HyperList spreads each submission onto the row, so the props are its fields.
+  const sameRenderedSubmission = (left: Readonly<SnapSubmission>, right: Readonly<SnapSubmission>) =>
+    left._id === right._id &&
       left.status === right.status &&
       left.startedAt === right.startedAt &&
       left.plateNumber === right.plateNumber &&
@@ -46,24 +46,34 @@ module
       left.make === right.make &&
       left.model === right.model &&
       left.photoCount === right.photoCount
-  }
   const StableSubmissionRow = memo(SubmissionRow, sameRenderedSubmission)
+  export {SubmisionRow}
 
 component SubmissionRow
-  props { submission }: { submission: SnapSubmission }
+  props {...submission}: SnapSubmission
   setup
     const formatDate = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
-  li
-    Link(to='/snaps/$snapId' params={{ snapId: String(submission._id) }} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
-      span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', statusPresentation[submission.status].iconFrame)})
-        Icon(name={statusPresentation[submission.status].icon as any} className='size-5')
-      div(className='min-w-0 flex-1')
-        div(className='flex min-w-0 items-center gap-2')
-          p(className='truncate font-poly text-sm font-medium uppercase tracking-tight') #{submission.plateNumber.trim() || 'No Plate'}
-          Badge(variant='outline' className={cn('capitalize font-normal', statusPresentation[submission.status].badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
-        p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
-      time(dateTime={formatDate(submission.startedAt)} className='hidden shrink-0 text-right font-mono text-[10px] text-muted-foreground sm:block') #{formatDate(submission.startedAt)}
-      Icon(name='down' className='size-3.5 -rotate-45 shrink-0 text-muted-foreground')
+    // The row is memoized on its data, so it keeps its own clock to stop
+    // "x minutes ago" from going stale between query updates.
+    const [now, setNow] = useState(() => Date.now())
+    useEffect(() => {
+      const interval = window.setInterval(() => setNow(Date.now()), RELATIVE_TIME_TICK_MS)
+      return () => window.clearInterval(interval)
+    }, [])
+  // HyperList supplies the `li`, so the row is just the link.
+  Link(to='/snaps/$snapId' params={{ snapId: String(submission._id) }} className='group/submission flex min-h-18 items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/45 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4')
+    span(className={cn('grid size-9 shrink-0 place-items-center rounded-full', statusPresentation[submission.status].iconFrame)})
+      Icon(name={statusPresentation[submission.status].icon as any} className='size-5')
+    div(className='min-w-0 flex-1')
+      div(className='flex min-w-0 items-center gap-2')
+        p(className='truncate font-poly text-sm font-medium uppercase tracking-tight') #{submission.plateNumber.trim() || 'No Plate'}
+        Badge(variant='outline' className={cn('capitalize font-normal', statusPresentation[submission.status].badge)}) #{submission.status === 'completed' ? 'Submitted' : submission.status}
+      p(className='mt-1 truncate text-xs text-muted-foreground') #{vehicleLabel(submission)} · #{submission.photoCount} of 5 photos
+    // Both labels share one grid cell, so swapping them on hover never shifts the row.
+    time(dateTime={new Date(submission.startedAt).toISOString()} className='hidden shrink-0 grid-cols-1 justify-items-end text-right font-mono text-[10px] text-muted-foreground sm:grid')
+      span(className='col-start-1 row-start-1 group-hover/submission:invisible group-focus-visible/submission:invisible') #{formatRelativeTime(submission.startedAt, now)}
+      span(aria-hidden={true} className='invisible col-start-1 row-start-1 group-hover/submission:visible group-focus-visible/submission:visible') #{formatDate(submission.startedAt)}
+    Icon(name='down' className='size-3.5 -rotate-45 shrink-0 text-muted-foreground')
 
 component EmptyState
   props { isAuthenticated }: { isAuthenticated: boolean }
@@ -96,8 +106,6 @@ section(aria-labelledby='proof-submissions-title' className={cn('h-full pb-12 pt
     if isLoading
       div(className='relative h-16 animate-pulse bg-mist-100 dark:bg-mist-400/10')
     elseif submissions && submissions.length > 0
-      ul(className='divide-y divide-border/60')
-        each submission in submissions key submission._id
-          StableSubmissionRow(submission={submission})
+      HyperList(data={submissions} component={StableSubmissionRow} keyId='_id' container='divide-y divide-border/60')
     else
       EmptyState(isAuthenticated={isAuthenticated})

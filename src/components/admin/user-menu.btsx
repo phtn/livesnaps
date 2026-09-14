@@ -8,6 +8,7 @@ import { buildAppUrl } from '@/lib/routing/app-url'
 import { buildAdminHandoffUrl } from '@/lib/routing/admin-subdomain'
 import { useConvexAuth } from '@/hooks/use-convex'
 import { useConvexQuery } from '@/hooks/use-convex-query'
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar'
 import { api } from '../../../convex/_generated/api'
 import { canUseAccount } from '@/lib/accounts/accounts'
 import type { User } from 'firebase/auth'
@@ -126,6 +127,7 @@ setup
     scope === 'citadel' && convexAuth.isAuthenticated ? { limit: 250 } : 'skip',
     convexAuth.userId ?? ''
   )
+  const avatar = useCurrentUserAvatar(photoUrl)
   const displayName = useMemo(() => name?.trim() || email?.split('@')[0] || 'Account', [name, email])
   const showCredits = typeof creditsUsed === 'number' && typeof creditsTotal === 'number'
   const hasWorkspace = scope === 'citadel' && (accounts?.some(account => canUseAccount(account.status)) ?? false)
@@ -246,7 +248,7 @@ Menu(
   ~ popupClassName='z-50 w-64 overflow-hidden rounded-md border border-border/40 bg-surface dark:bg-card/35 p-1 pb-1 text-popover-foreground shadow-2xl outline-hidden md:w-48'
   ~ )
     div(className='relative shrink-0 overflow-hidden')
-      Avatar(imageUrl={photoUrl} alt={displayName} size={'default'})
+      Avatar(imageUrl={avatar.src} fallbackImageUrl={avatar.fallbackSrc} alt={displayName} size={'default'})
       if isOnline
         span(className='absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-background bg-emerald-500')
     if !compact

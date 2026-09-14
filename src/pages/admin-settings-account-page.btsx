@@ -12,6 +12,9 @@ import { USER_IMAGE_ACCEPT, getUserImageFileError } from '@/lib/r2/user-images'
 import { isAccountEmailAddress, normalizeAccountWebsiteUrl } from '@/lib/accounts/accounts'
 import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, formatAccountDate } from '@/lib/citadel/accounts'
 import { EMPTY_ACCOUNT_PROFILE_VALUES, accountLogoUrl, fetchAccountProfile, saveAccountProfile, toAccountProfileValues, uploadAccountLogo, type AccountProfile, type AccountProfileValues } from '@/lib/admin/account-profile'
+import { useScrollBox } from '@/hooks/use-scroll-box';
+import Footer from "../components/footer.btsx";
+
 
 module
   type ProfileForm = ReturnType<typeof useProfileForm>
@@ -124,6 +127,8 @@ setup
       input.value = ''
     }
   }
+  const boxRef = useRef<HTMLDivElement|null>(null)
+  const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
 
 section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
   header(className='flex flex-wrap items-end justify-between gap-4 py-4')
@@ -146,7 +151,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
     p(className='rounded-lg border border-destructive/40 bg-destructive/8 px-4 py-3 text-sm text-destructive' role='alert') #{loadError}
   elseif activeProfile
     form(className='grid items-start gap-4 pb-36 lg:grid-cols-[minmax(0,1fr)_20rem]' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
-      div(className='grid gap-4')
+      div(ref={boxRef} className='grid gap-4')
         section(className={cardClassName})
           SectionHeading(eyebrow='Identity' title='Account specifics' description='The account slug, status, and billing plan remain managed separately.')
           div(className='grid gap-4 p-4 sm:grid-cols-2')
@@ -181,6 +186,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
             label(className='flex flex-col gap-1.5 sm:col-span-2' htmlFor='account-profile-notes')
               span(className={labelClassName}) Notes
               textarea(id='account-profile-notes' value={notesValue} maxLength={2000} disabled={!canEdit || isSubmitting} onInput={(event: Event) => form.setFieldValue('notes', (event.currentTarget as HTMLTextAreaElement).value)} className='min-h-28 resize-y rounded-sm border border-border/60 bg-sunken/60 p-3 text-sm outline-none focus:border-active/50 focus:ring-2 focus:ring-active/10 disabled:opacity-60')
+        Footer(scrollPct={scrollPct})
 
         if errors.length
           p(className='rounded-sm border border-destructive/35 bg-destructive/8 px-3 py-2 text-sm text-destructive' role='alert') #{errors.filter(error => typeof error === 'string').join(' ')}

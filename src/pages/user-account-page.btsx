@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'octane'
+import { useEffect, useRef, useState } from 'octane'
 import type { OctaneNode } from 'octane'
 import { updateProfile, type User } from 'firebase/auth'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
 import AccountInvitations from '@/components/account/invitations.btsx'
 import { useAccountInvitations } from '@/hooks/use-account-invitations'
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar'
+import { useScrollBox } from '@/hooks/use-scroll-box'
 import Avatar from '@/components/ui/avatar.btsx'
+import Footer from '@/components/footer.btsx'
 import Topbar from '@/components/topbar.btsx'
 import { ScrollArea } from '@/components/ui/'
 import { Icon, type IconName } from '@/lib/icons'
@@ -185,6 +188,9 @@ component AuthenticatedAccount
     const [signOutError, setSignOutError] = useState<string | null>(null)
     const [reduceMotion, setReduceMotion] = useState(readReduceMotionPreference)
     const displayedPhotoUrl = resolveAccountProfileImageUrl(photoUrl)
+    const savedAvatar = useCurrentUserAvatar(resolveAccountProfileImageUrl(user.photoURL ?? ''))
+    // An edited photo URL previews as typed; otherwise the saved avatar resolves through R2.
+    const avatar = photoUrl === (user.photoURL ?? '') ? savedAvatar : { src: displayedPhotoUrl, fallbackSrc: null }
     const claimEntries = Object.entries(customClaims)
 
     // Nothing to accept is nothing to show: the section and its jump link only
@@ -275,7 +281,7 @@ component AuthenticatedAccount
     section(id='profile' className='scroll-mt-24 overflow-hidden p-5 sm:p-7' aria-labelledby='account-profile-title')
       div(className='flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between')
         div(className='flex min-w-0 items-center gap-4 sm:gap-5')
-          Avatar(imageUrl={displayedPhotoUrl} alt={displayName || 'Profile image'} fallback={getInitials(displayName)} className='size-16 border-0 shadow-lg ring-4 ring-background sm:size-20')
+          Avatar(imageUrl={avatar.src} fallbackImageUrl={avatar.fallbackSrc} alt={displayName || 'Profile image'} fallback={getInitials(displayName)} className='size-16 border-0 shadow-lg ring-4 ring-background sm:size-20')
           div(className='min-w-0')
             p(className='font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground') #{user.email ?? 'No email address'}
             h1(id='account-profile-title' className='mt-1 truncate font-poly text-xl font-medium tracking-tight sm:text-2xl') #{displayName || 'Your account'}
@@ -358,23 +364,25 @@ component AuthenticatedAccount
           if signOutError
             p(className='mt-3 text-sm text-destructive' role='alert') #{signOutError}
 
-        SettingsSection(id='data' eyebrow='Portability' icon='download-line' title='Data privacy' description='Download a portable snapshot of the account information available on this device.')
-          div(className='flex items-center justify-between')
-            div(className='flex items-start gap-4')
-              span(className='mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
-                Icon(name='json' className='size-4')
-              div
-                p(className='text-sm font-medium') Export account data
-                p(className='mt-1 max-w-lg text-xs leading-5 text-muted-foreground') Includes your profile, sign-in provider, account dates, access roles, and current preferences. Authentication tokens are never included.
-            button(type='button' onClick={exportAccountData} className='inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-              Icon(name='download' className='size-4')
-              span Download JSON
+        // SettingsSection(id='data' eyebrow='Portability' icon='download-line' title='Data privacy' description='Download a portable snapshot of the account information available on this device.')
+        //   div(className='flex items-center justify-between')
+        //     div(className='flex items-start gap-4')
+        //       span(className='mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-background ring-1 ring-border/70')
+        //         Icon(name='json' className='size-4')
+        //       div
+        //         p(className='text-sm font-medium') Export account data
+        //         p(className='mt-1 max-w-lg text-xs leading-5 text-muted-foreground') Includes your profile, sign-in provider, account dates, access roles, and current preferences. Authentication tokens are never included.
+        //     button(type='button' onClick={exportAccountData} className='inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full border border-border bg-background px-4 text-sm font-medium transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
+        //       Icon(name='download' className='size-4')
+        //       span Download JSON
 
         div(className='flex items-center justify-between p-4 h-10' )
 
 
 setup
   const { customClaims, isLoading, user } = useFirebaseUser()
+  const boxRef = useRef<HTMLDivElement | null>(null)
+  const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
   useEffect(() => {
     const previousTitle = document.title
     document.title = 'Account — LiveSnapsNow'
@@ -384,10 +392,11 @@ setup
 div(className={cn(viewportStyles.root, 'relative min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
   PageBackdrop
   Topbar
-  ScrollArea(className={cn(viewportStyles.viewportBody, 'relative')})
+  ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'relative')})
     if isLoading
       LoadingState
     elseif !user
       SignedOutState
     else
       AuthenticatedAccount(key={user.uid} customClaims={customClaims} user={user})
+    Footer(scrollPct={scrollPct})

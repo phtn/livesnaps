@@ -1,0 +1,130 @@
+import { AnimatePresence, motion, useReducedMotion, type Variants } from "@octanejs/motion";
+import { useMemo, useRef } from "octane";
+import type { FC, OctaneNode } from "octane";
+import { cn } from "@/lib/utils";
+module
+  // Each item is spread onto `component` as its props, so an item's fields are
+  // the component's props. Items are plain objects, keyed by `keyId`.
+  interface HyperListProps {
+    ~ keyId?: string;
+    ~ component: FC<any>;
+    ~ data: readonly object[] | undefined;
+    ~ container?: string;
+    ~ itemStyle?: string;
+    ~ reversed?: boolean;
+    ~ orderBy?: string;
+    ~ max?: number;
+    ~ children?: OctaneNode;
+    ~ direction?: "up" | "down" | "left" | "right";
+    ~ delay?: number;
+    ~ /** Seconds between each entering item. */
+    ~ stagger?: number;
+    ~ duration?: number;
+    ~ disableAnimation?: boolean;
+    ~ withExitAnimation?: boolean;
+    ~ }
+
+  const variants: Variants = {
+    down: { opacity: 0, y: -10 },
+    up: { opacity: 0, y: 10 },
+    left: { opacity: 0, x: 10 },
+    right: { opacity: 0, x: -10 },
+  };
+
+  // The entrance spells out its start keyframes. @octanejs/motion applies
+  // `initial` as a zero-duration animation on the next frame, but `animate` reads
+  // its starting value earlier in that same frame, while the row is still at
+  // opacity 1. It sees nothing to animate and jumps to the end, so a plain
+  // `{ opacity: 1 }` target never visibly animates in the browser.
+  const enterKeyframes = {
+    down: { opacity: [0, 1], y: [-10, 0] },
+    up: { opacity: [0, 1], y: [10, 0] },
+    left: { opacity: [0, 1], x: [10, 0] },
+    right: { opacity: [0, 1], x: [-10, 0] },
+  };
+  const settled = {
+    down: { opacity: 1, y: 0 },
+    up: { opacity: 1, y: 0 },
+    left: { opacity: 1, x: 0 },
+    right: { opacity: 1, x: 0 },
+  };
+  // Motion's first frame comes after the first paint; starting hidden keeps a row
+  // from flashing fully visible for that one frame before its entrance begins.
+  const hiddenUntilEntrance = { opacity: 0 };
+
+  const exitOffset = {
+    down: { y: 40 },
+    up: { y: -40 },
+    left: { x: -20 },
+    right: { x: 20 },
+  } as const;
+
+  const MotionLi = motion.li;
+
+  // Ease-out with a long, soft tail: items arrive quickly and settle without the
+  // overshoot a bouncy spring gives opacity and position.
+  const ENTER_EASE = [0.22, 1, 0.36, 1] as const;
+  // However many items enter together, the last one starts within this window.
+  const MAX_STAGGER_SPAN = 0.4;
+
+  const field = (item: object, name: string) => (item as Record<string, unknown>)[name];
+
+  // A stable key lets AnimatePresence animate only the items that actually
+  // enter or leave, instead of every row whose position shifted.
+  const itemKey = (item: object, index: number, keyId?: string) =>
+    keyId && field(item, keyId) !== undefined ? String(field(item, keyId)) : String(index);
+
+props { data, component: Item, container, children, delay = 0, stagger = 0.06, direction = "down", itemStyle, keyId, max = 15, orderBy, reversed = false, disableAnimation = false, withExitAnimation = false, duration = 0.45 }: HyperListProps
+setup
+  const prefersReducedMotion = useReducedMotion();
+  const skipEnter = disableAnimation || prefersReducedMotion === true;
+  const itemClassName = useMemo(() => cn(itemStyle, "group/list"), [itemStyle]);
+  const animate = skipEnter ? settled[direction] : enterKeyframes[direction];
+  const exit = useMemo(
+    () => (withExitAnimation ? { opacity: 0, transition: { duration: 0.2, ease: "easeIn" }, ...exitOffset[direction] } : undefined),
+    [direction, withExitAnimation]
+  );
+
+  // Order first, then cap, so `max` keeps the first items of the final order.
+  const items = useMemo(() => {
+    const list = data ? [...data] : [];
+    if (orderBy) {
+      list.sort((a, b) => Number(field(b, orderBy)) - Number(field(a, orderBy)));
+    }
+    if (reversed) list.reverse();
+    return list.slice(0, max).map((item, index) => ({ item, key: itemKey(item, index, keyId) }));
+  }, [data, keyId, max, orderBy, reversed]);
+
+  // Each item's entrance delay is fixed the first time its key appears, counted
+  // among the items entering in that same update. The first load cascades top to
+  // bottom, a newly arrived item starts right away wherever it lands, and rows
+  // already on screen keep their transition, so a list update never restarts
+  // their animation. Keys that leave are forgotten, so a returning item staggers in again.
+  const enterDelays = useRef(new Map<string, number>());
+  const presentKeys = new Set(items.map((entry) => entry.key));
+  for (const key of enterDelays.current.keys()) {
+    if (!presentKeys.has(key)) enterDelays.current.delete(key);
+  }
+  let entering = 0;
+  for (const { key } of items) {
+    if (!enterDelays.current.has(key)) {
+      enterDelays.current.set(key, delay + Math.min(entering * stagger, MAX_STAGGER_SPAN));
+      entering += 1;
+    }
+  }
+
+fragment
+  | #{children}
+  ul(className={container})
+    AnimatePresence(mode="sync")
+      each entry in items key entry.key
+        MotionLi(
+          ~ initial={skipEnter ? false : direction}
+          ~ variants={variants}
+          ~ animate={animate}
+          ~ exit={exit}
+          ~ transition={{ duration, ease: ENTER_EASE, delay: enterDelays.current.get(entry.key) ?? delay }}
+          ~ style={skipEnter ? undefined : hiddenUntilEntrance}
+          ~ className={itemClassName}
+          ~ )
+          Item({...entry.item})

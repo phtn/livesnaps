@@ -36,7 +36,7 @@ component SidebarTrigger
       Link(to='/' aria-label='App home')
         AppWordmark
     DrawerTrigger(type='button' aria-label='Open navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-foreground/70 transition-colors hover:bg-sidebar hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-      Icon(name='sidebar' className='size-6')
+      Icon(name='sidebar' className='md:size-5 size-6')
 
 component SidebarHeader
   props { brand }: { brand: MobileSidebarBrand }
@@ -63,8 +63,9 @@ Drawer(
   ~ description='Swipe right or use the close button to close navigation.'
   ~ trigger={trigger}
   ~ className={cn('will-change-transform', className)}
-  ~ contentClassName='bg-inherit backdrop-blur-none!'
+  ~ contentClassName='bg-inherit backdrop-blur-none! relative'
   ~ backdropClassName='bg-black/20! backdrop-blur-none!'
   ~ )
+  div(className='absolute -right-48 -top-64 size-152 rounded-full bg-beach/8 blur-3xl dark:bg-lime-200/3 pointer-events-none')
   SidebarHeader(brand={brand})
   | #{children}

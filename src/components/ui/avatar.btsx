@@ -4,31 +4,35 @@ import { cn, getInitials } from '@/lib/utils'
 module
   export interface AvatarProps {
     imageUrl?: string | null
+    /** Tried when `imageUrl` fails to load, before falling back to initials. */
+    fallbackImageUrl?: string | null
     alt?: string
     fallback?: string | null
     size?: 'default' | 'sm' | 'lg'
     className?: string
   }
 
-props { imageUrl, alt = 'User', fallback, size = 'default', className }: AvatarProps
+props { imageUrl, fallbackImageUrl, alt = 'User', fallback, size = 'default', className }: AvatarProps
 
 setup
-  // Provider-hosted photos (Google, in practice) go missing often enough —
-  // rotated URLs, rate limits — that a failed load has to fall back to the
-  // initials rather than leave a broken image in the row.
-  const [hasFailed, setHasFailed] = useState(false)
-  const showImage = Boolean(imageUrl) && !hasFailed
+  // Images go missing often enough — an R2 mirror not written yet, rotated
+  // provider URLs, rate limits — that each failed source steps to the next,
+  // and the initials stand in once none load. Tracking failures by URL means
+  // new props get a fresh attempt.
+  const [failedUrls, setFailedUrls] = useState<string[]>([])
+  const currentUrl = [imageUrl, fallbackImageUrl].find((url): url is string => Boolean(url) && !failedUrls.includes(url as string))
+  const showImage = Boolean(currentUrl)
 
 div(className={cn('group relative flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted text-sm text-muted-foreground', size === 'sm' ? 'size-6 text-xs' : size === 'lg' ? 'size-10' : 'size-8', className)} data-slot='avatar' data-size={size})
   if showImage
     img(
       ~ className='aspect-square size-full rounded-full object-cover'
-      ~ src={imageUrl}
+      ~ src={currentUrl}
       ~ alt={alt}
       ~ loading='lazy'
       ~ decoding='async'
       ~ referrerPolicy='no-referrer'
-      ~ onError={() => setHasFailed(true)}
+      ~ onError={() => setFailedUrls((urls) => (currentUrl && !urls.includes(currentUrl) ? [...urls, currentUrl] : urls))}
       ~ )
   else
     span(className='flex size-full items-center justify-center rounded-full') #{fallback ?? getInitials(alt)}

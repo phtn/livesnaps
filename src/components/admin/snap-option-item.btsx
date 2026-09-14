@@ -50,24 +50,25 @@ setup
   const initials = initialsFor(snap)
   const tone = toneForId(snap._id)
   const createdAtIso = Number.isFinite(snap.createdAt) ? new Date(snap.createdAt).toISOString() : undefined
-  // Provider-hosted photos go missing often enough that a failed load has to
-  // fall back to the initials rather than leave a broken image in the row.
-  const [hasFailedImage, setHasFailedImage] = useState(false)
-  const showImage = Boolean(snap.imageUrl) && !hasFailedImage
+  // The R2 mirror steps to the provider photo, then to initials, so a failed
+  // load never leaves a broken image in the row.
+  const [failedImageUrls, setFailedImageUrls] = useState<string[]>([])
+  const imageUrl = [snap.imageUrl, snap.imageFallbackUrl].find((url): url is string => Boolean(url) && !failedImageUrls.includes(url as string))
+  const showImage = Boolean(imageUrl)
   const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status] })
 
 div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-sm py-1.5', className)})
   span(className='relative size-10 shrink-0')
     if showImage
       img(
-        ~ src={snap.imageUrl}
+        ~ src={imageUrl}
         ~ alt=''
         ~ width={40}
         ~ height={40}
         ~ loading='lazy'
         ~ decoding='async'
         ~ referrerPolicy='no-referrer'
-        ~ onError={() => setHasFailedImage(true)}
+        ~ onError={() => setFailedImageUrls((urls) => (imageUrl && !urls.includes(imageUrl) ? [...urls, imageUrl] : urls))}
         ~ className='block size-10 rounded-full object-cover'
         ~ )
     else

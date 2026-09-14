@@ -48,15 +48,15 @@ module
   }
 
   const navLinkClassName =
-    'relative flex h-14 items-center text-foreground/80 transition-colors rounded-lg'
+    'relative flex h-14 items-center text-foreground/80 transition-colors rounded-lg hover:text-foreground hover:bg-foreground/5'
   const activeNavClassName = "bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4]"
 
 component AdminNavigation
   props { compact = false, onNavigate }: { compact?: boolean; onNavigate?: () => void }
   nav(className='flex-1 w-full')
-    ul(className={cn('flex flex-col space-y-1', compact && 'space-y-2.5!')})
+    ul(className={cn('flex flex-col space-y-2', compact && 'space-y-2.5!')})
       each item in navs key item.path
-        li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
+        li(className='font-sans w-full')
           Link(
             ~ to={item.path}
             ~ onClick={onNavigate}
@@ -165,8 +165,8 @@ setup
 if isMobile
   div(className='min-h-screen bg-sunken')
     Sidebar(open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen} title='Admin navigation' brand='admin' triggerLabel={activeNavLabel} className='bg-sunken')
-      div(className='flex min-h-0 flex-1 flex-col px-4')
-        div(className='space-y-2')
+      div(className='flex min-h-0 flex-1 flex-col px-4.5')
+        div(className='space-y-3')
           div(className='h-14 flex items-center')
             Switcher(
               ~ items={workspace.options.map(account => ({ id: account.value, label: account.label }))}

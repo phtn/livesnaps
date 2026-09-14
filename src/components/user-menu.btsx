@@ -1,5 +1,6 @@
 import { useConvexAuth } from '@/hooks/use-convex'
 import { useConvexQuery } from '@/hooks/use-convex-query'
+import { useCurrentUserAvatar } from '@/hooks/use-current-user-avatar'
 import { api } from '../../convex/_generated/api'
 import { canUseAccount } from '@/lib/accounts/accounts'
 import { Icon, type IconName } from '@/lib/icons'
@@ -53,7 +54,7 @@ setup
   const [isNavigatingToAdmin, setIsNavigatingToAdmin] = useState(false)
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const profileImageUrl = user?.photoURL ? resolveAccountProfileImageUrl(user.photoURL) : null
+  const avatar = useCurrentUserAvatar(user?.photoURL ? resolveAccountProfileImageUrl(user.photoURL) : null)
   const navigate = (path: string) => {
     setIsOpen(false)
     window.location.assign(path)
@@ -94,7 +95,7 @@ setup
 div(ref={menuRef} className='relative z-100!')
   button(type='button' aria-haspopup='menu' aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)} className='cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring' aria-label='Open user menu')
     div(className='flex aspect-square size-9 items-center justify-center rounded-full bg-beach/10 backdrop-blur-3xl transition hover:bg-beach/80 dark:bg-lime-200/10 dark:hover:bg-lime-200/80 md:size-12')
-      Avatar(imageUrl={profileImageUrl} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
+      Avatar(imageUrl={avatar.src} fallbackImageUrl={avatar.fallbackSrc} alt={user?.displayName ?? 'User'} fallback={getInitials(user?.displayName)} size='default' className='size-9 border-0 shadow-none md:size-10')
   if isOpen
     div(role='menu' className='absolute right-0 top-full z-50 mt-2 max-h-[calc(100vh-5rem)] min-w-48 overflow-x-hidden overflow-y-auto rounded-2xl bg-popover p-1 text-popover-foreground shadow-2xl ring-1 ring-input')
       RouteItem(to='/account' label='account' icon='user' onNavigate={() => setIsOpen(false)})

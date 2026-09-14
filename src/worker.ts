@@ -34,6 +34,7 @@ import {
   type SnapPhotoRouteEnvironment
 } from './server/snap-photo-routes'
 import { handleSnapSessionRequest, type SnapRouteEnvironment } from './server/snap-routes'
+import { handleUserAvatarRequest } from './server/user-avatar-routes'
 import {
   handleSubmissionAnalytics,
   handleSubmissionLinkEmail,
@@ -90,6 +91,7 @@ const ADMIN_VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
 const ADMIN_SNAP_PHOTO_PATH = /^\/api\/r2\/(.+)$/
 const RESEND_WEBHOOK_PATH = '/api/webhooks'
+const USER_AVATAR_PATH = /^\/api\/avatars\/([^/]+)$/
 
 const isSpaNavigation = (request: Request) =>
   request.method === 'GET' && request.headers.get('accept')?.includes('text/html')
@@ -115,6 +117,16 @@ export default {
   async fetch(request: Request, env: WorkerEnvironment, context: WorkerExecutionContext): Promise<Response> {
     const pathname = new URL(request.url).pathname
     const photoRouteMatch = SNAP_SUBMISSION_PHOTO_PATH.exec(pathname)
+
+    const userAvatarMatch = USER_AVATAR_PATH.exec(pathname)
+    if (userAvatarMatch) {
+      return handleUserAvatarRequest(request, userAvatarMatch[1], {
+        accountId: env.R2_ACCOUNT_ID,
+        accessKeyId: env.R2_ACCESS_KEY_ID,
+        secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+        bucket: env.R2_BUCKET_NAME
+      })
+    }
 
     if (pathname === '/api/admin/recipient-defaults')
       return handleRecipientDefaults(request, { convexUrl: env.CONVEX_URL || env.PUBLIC_CONVEX_URL })

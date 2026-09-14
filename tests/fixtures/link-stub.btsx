@@ -1,0 +1,5 @@
+import type { OctaneNode } from 'octane'
+
+props { children, className }: { children?: OctaneNode; className?: string }
+a(href='#' className={className})
+  | #{children}

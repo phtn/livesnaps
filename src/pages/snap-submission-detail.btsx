@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'octane'
+import { useEffect, useRef, useState, type ClassValue } from 'octane'
 import type { FunctionReturnType } from 'convex/server'
 import type { api } from '../../convex/_generated/api'
 import Badge from '@/components/ui/badge.btsx'
@@ -37,7 +37,7 @@ module
     timeStyle: 'short'
   })
   const numberFormatter = new Intl.NumberFormat('en-PH', { maximumFractionDigits: 1 })
-  const statusPresentation: Record<SnapStatus, { badge: string; icon: IconName; label: string }> = {
+  const statusPresentation: Record<SnapStatus, { badge: string; icon: IconName; label: string, iconFrame: ClassValue }> = {
     active: { badge: 'border-blue-500/25 bg-blue-500/8! text-blue-700! dark:text-blue-400!', icon: 'sparkle', iconFrame: 'bg-blue-500/10 text-blue-600 dark:text-blue-400', label: 'Active' },
     abandoned: { badge: 'border-zinc-500/20 bg-zinc-500/10! text-zinc-700! dark:text-zinc-300!', icon: 'alert-diamond-fill', iconFrame: 'bg-zinc-500/10 text-zinc-600 dark:text-zinc-300', label: 'Abandoned' },
     cancelled: { badge: 'border-mauve-500/20 bg-mauve-500/10! text-mauve-700! dark:text-mauve-300!', icon: 'cancel', iconFrame: 'bg-mauve-500/10 text-mauve-600 dark:text-mauve-300', label: 'Cancelled' },
@@ -91,7 +91,7 @@ component Breadcrumbs
             ~ hash='top'
             ~ className='inline-flex h-8 items-center gap-1.5 rounded-full px-2.5 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
             ~ )
-            Icon(name='livesnaps' className='size-4 text-foreground' iconStyle='text-foreground')
+            Icon(name='livesnaps' className='size-4 text-foreground' svgStyle='text-foreground')
             span My Snaps
         BreadcrumbSeparator
         li(className='min-w-0' title={currentTitle})
@@ -160,7 +160,7 @@ setup
   const [loadError, setLoadError] = useState<string | null>(null)
   const [previewUrls, setPreviewUrls] = useState<Record<number, string>>({})
   const [viewerPhotoId, setViewerPhotoId] = useState<string | null>(null)
-  const boxRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement|null>(null)
   const scrollPct = submission ? useScrollBox<HTMLDivElement>(boxRef) : 0
 
   useEffect(() => subscribeToAuthState(() => {

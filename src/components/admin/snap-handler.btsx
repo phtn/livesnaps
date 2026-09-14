@@ -26,7 +26,7 @@ component SnapHandlerProvider
   SnapHandlerContext.Provider(value={{ options, refresh }})
     fragment #{children}
 
-props { uploadId, name, email, imageUrl }: { uploadId: string; name?: string; email?: string; imageUrl?: string }
+props { uploadId, name, email, imageUrl, fallbackImageUrl }: { uploadId: string; name?: string; email?: string; imageUrl?: string; fallbackImageUrl?: string }
 setup
   const context = useSnapHandlerContext()
   const [busy, setBusy] = useState(false)
@@ -80,6 +80,6 @@ div(className='flex flex-col gap-1' onClick={(event: MouseEvent) => event.stopPr
       ~ value={currentMemberId}
       ~ )
   else
-    PersonCell(name={name || 'Unassigned'} imageUrl={imageUrl})
+    PersonCell(name={name || 'Unassigned'} imageUrl={imageUrl} fallbackImageUrl={fallbackImageUrl})
   if error
     span(role='alert' className='text-xs text-destructive') #{error}

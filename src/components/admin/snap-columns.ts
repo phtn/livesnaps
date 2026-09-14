@@ -69,7 +69,12 @@ export const snapColumns = columnHelper.columns([
     enableColumnFilter: false,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(PersonCell, { imageUrl: info.row.original.imageUrl, name: info.getValue() })
+    cell: (info) =>
+      createElement(PersonCell, {
+        imageUrl: info.row.original.imageUrl,
+        fallbackImageUrl: info.row.original.imageFallbackUrl,
+        name: info.getValue()
+      })
   }),
   columnHelper.accessor('locationLabel', {
     header: createHeader('Location'),
@@ -143,6 +148,7 @@ export const snapColumns = columnHelper.columns([
         uploadId: info.row.original.uploadId,
         email: info.row.original.handler?.email,
         imageUrl: info.row.original.handlerImageUrl,
+        fallbackImageUrl: info.row.original.handlerImageFallbackUrl,
         name: info.getValue()
       })
   }),

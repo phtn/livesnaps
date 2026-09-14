@@ -1,6 +1,7 @@
 import { paginationOptsValidator, paginationResultValidator } from 'convex/server'
 import { ConvexError, v } from 'convex/values'
 import { getSnapSlot, isSnapObjectKey, isSnapUploadId, SNAP_STORAGE_PREFIX } from '../../src/lib/r2/snap-images'
+import { resolveUserAvatar, type UserAvatarSource } from '../../src/lib/r2/user-avatars'
 import { prepareSnapLocation } from '../../src/lib/snaps/snap-location'
 import type { Doc, Id } from '../_generated/dataModel'
 import { type QueryCtx, query } from '../_generated/server'
@@ -77,7 +78,9 @@ const snapListItemSchema = v.object({
   fullName: v.string(),
   handler: v.optional(snapHandlerSchema),
   handlerImageUrl: v.optional(v.string()),
+  handlerImageFallbackUrl: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
+  imageFallbackUrl: v.optional(v.string()),
   location: v.union(snapLocationSchema, v.null()),
   location_session: v.optional(snapLocationSessionSchema),
   locationLabel: v.string(),
@@ -406,44 +409,50 @@ export const getApplicantProfileForAdminBySnapId = query({
 
 async function mapSnapList(ctx: QueryCtx, snaps: Doc<'snaps'>[]): Promise<SnapListItem[]> {
     const firebaseUids = [...new Set(snaps.map((snap) => snap.firebase_uid).filter((uid): uid is string => !!uid))]
-    const imageUrlByFirebaseUid = new Map<string, string | undefined>(
+    const avatarByFirebaseUid = new Map<string, UserAvatarSource>(
       await Promise.all(
-        firebaseUids.map(async (uid): Promise<[string, string | undefined]> => {
+        firebaseUids.map(async (uid): Promise<[string, UserAvatarSource]> => {
           const user = await ctx.db
             .query('users')
             .withIndex('by_firebaseUid', (q) => q.eq('firebaseUid', uid))
             .unique()
 
-          return [uid, user?.imageUrl]
+          return [uid, resolveUserAvatar(user)]
         })
       )
     )
 
     // A handler is stored as a name and an address rather than a reference, so
     // the avatar is resolved through the address. Addresses are not unique in
-    // `users`, so the first match wins rather than throwing on a duplicate.
+    // `users`, so the first match wins rather than throwing on a duplicate. The
+    // lookup runs even when the handler carries a snapshot `image_url`, since
+    // only the user row knows whether an R2 mirror exists.
     const handlerEmails = [
-      ...new Set(
-        snaps
-          .map((snap) => (snap.handler?.image_url ? undefined : snap.handler?.email))
-          .filter((email): email is string => !!email)
-      )
+      ...new Set(snaps.map((snap) => snap.handler?.email).filter((email): email is string => !!email))
     ]
-    const imageUrlByHandlerEmail = new Map<string, string | undefined>(
+    const avatarByHandlerEmail = new Map<string, UserAvatarSource>(
       await Promise.all(
-        handlerEmails.map(async (email): Promise<[string, string | undefined]> => {
+        handlerEmails.map(async (email): Promise<[string, UserAvatarSource]> => {
           const user = await ctx.db
             .query('users')
             .withIndex('by_email', (q) => q.eq('email', email))
             .first()
 
-          return [email, user?.imageUrl]
+          return [email, resolveUserAvatar(user)]
         })
       )
     )
 
     return snaps.map((snap): SnapListItem => {
       const location = snap.location ?? (snap.location_session ? prepareSnapLocation(snap.location_session) : null)
+      const applicantAvatar = snap.firebase_uid ? avatarByFirebaseUid.get(snap.firebase_uid) : undefined
+      const handlerAvatar = snap.handler?.email ? avatarByHandlerEmail.get(snap.handler.email) : undefined
+      // Prefer the R2 mirror; the handler's snapshot photo stays as the fallback.
+      const handlerSnapshotUrl = snap.handler?.image_url
+      const handlerImageUrl = handlerAvatar?.src ?? handlerSnapshotUrl
+      const handlerImageFallbackUrl = handlerAvatar?.src
+        ? (handlerAvatar.fallbackSrc ?? handlerSnapshotUrl)
+        : undefined
 
       return {
         _id: snap._id,
@@ -457,10 +466,10 @@ async function mapSnapList(ctx: QueryCtx, snaps: Doc<'snaps'>[]): Promise<SnapLi
         firebaseUid: snap.firebase_uid ?? '',
         fullName: snap.full_name ?? '',
         handler: snap.handler ?? undefined,
-        handlerImageUrl:
-          snap.handler?.image_url ??
-          (snap.handler?.email ? imageUrlByHandlerEmail.get(snap.handler.email) : undefined),
-        imageUrl: snap.firebase_uid ? imageUrlByFirebaseUid.get(snap.firebase_uid) : undefined,
+        ...(handlerImageUrl ? { handlerImageUrl } : {}),
+        ...(handlerImageFallbackUrl ? { handlerImageFallbackUrl } : {}),
+        ...(applicantAvatar?.src ? { imageUrl: applicantAvatar.src } : {}),
+        ...(applicantAvatar?.fallbackSrc ? { imageFallbackUrl: applicantAvatar.fallbackSrc } : {}),
         location,
         location_session: snap.location_session,
         locationLabel: location?.address.full_address ?? '',
