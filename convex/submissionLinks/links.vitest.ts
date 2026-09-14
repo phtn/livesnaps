@@ -2,7 +2,7 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { DEFAULT_SUBMISSION_LINK_LABEL } from '../../src/lib/accounts/submission-links'
-import { buildSnapObjectKey, SNAP_SLOTS } from '../../src/lib/r2/snap-images'
+import { buildSnapObjectKey, SNAP_SLOTS, type SnapImageContentType } from '../../src/lib/r2/snap-images'
 import { api, internal } from '../_generated/api'
 import type { Id } from '../_generated/dataModel'
 import schema from '../schema'
@@ -136,14 +136,14 @@ const analytics = () =>
   t.withIdentity(viewer).query(api.submissionLinks.q.analytics, { accountId: org1, fromDay: day, toDay: day })
 const createLink = (slug = 'team-a') =>
   t.withIdentity(owner).mutation(api.submissionLinks.m.create, { accountId: org1, slug, label: slug })
-const photo = (uploadId: number, slot = 1) => {
+const photo = (uploadId: number, slot = 1, contentType: SnapImageContentType = 'image/webp') => {
   const snapSlot = SNAP_SLOTS[slot - 1]
   return {
     capture_id: uid(100 + slot),
     captured_at: Date.now(),
-    content_type: 'image/webp' as const,
+    content_type: contentType,
     label: snapSlot.label,
-    r2_key: buildSnapObjectKey(uid(uploadId), snapSlot.index, uid(100 + slot)),
+    r2_key: buildSnapObjectKey(uid(uploadId), snapSlot.index, uid(100 + slot), contentType),
     size: 100,
     slot
   }
@@ -242,6 +242,31 @@ describe('Account submission links and immutable ownership', () => {
       metadata: { upload_id: uid(1) }
     })
     expect((await analytics()).totals).toMatchObject({ started: 2, completed: 1 })
+  })
+
+  test.each([
+    ['image/webp', 11],
+    ['image/jpeg', 12],
+    ['image/png', 13]
+  ] as const)('stores supported %s proof photos with matching object keys', async (contentType, uploadId) => {
+    const snapId = await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(uploadId))
+    await t.withIdentity(applicant).mutation(api.snaps.m.savePhoto, {
+      upload_id: uid(uploadId),
+      is_retake: false,
+      location: location(),
+      photo: photo(uploadId, 1, contentType)
+    })
+
+    expect(await t.run((ctx) => ctx.db.get(snapId))).toMatchObject({
+      metadata: {
+        photos: [
+          {
+            content_type: contentType,
+            r2_key: buildSnapObjectKey(uid(uploadId), 1, uid(101), contentType)
+          }
+        ]
+      }
+    })
   })
 
   test('rejects write spoofing by unauthenticated callers, another applicant, or an Account owner', async () => {

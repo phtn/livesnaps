@@ -6,6 +6,7 @@ import { runMetaVisionTest } from '../lib/llm/meta-vision-files'
 import { resolveProviderConfig } from '../lib/llm/provider'
 import type { ResolvedVisionTestProvider } from '../lib/llm/vision-test-contract'
 import { getR2Object, type R2Config } from '../lib/r2/server'
+import { getSnapImageContentType, getSnapImageExtension, type SnapImageContentType } from '../lib/r2/snap-images'
 import type { VehicleDetails } from '../lib/snaps/vehicle-details'
 
 const CAPTURE_VEHICLE_VISION_TIMEOUT_MS = 25_000
@@ -89,7 +90,12 @@ const getR2Config = (environment: CaptureVehicleVisionEnvironment): Partial<R2Co
   secretAccessKey: environment.r2SecretAccessKey
 })
 
-const analyzeVehicleImage = async (bytes: Uint8Array, slot: 1 | 2, runtime: CaptureVehicleVisionRuntime) => {
+const analyzeVehicleImage = async (
+  bytes: Uint8Array,
+  slot: 1 | 2,
+  mediaType: SnapImageContentType,
+  runtime: CaptureVehicleVisionRuntime
+) => {
   const prompt =
     slot === 1
       ? 'Inspect the front of this vehicle. Read the license plate exactly and identify the make and model when visible.'
@@ -97,8 +103,8 @@ const analyzeVehicleImage = async (bytes: Uint8Array, slot: 1 | 2, runtime: Capt
   const input = {
     abortSignal: AbortSignal.timeout(CAPTURE_VEHICLE_VISION_TIMEOUT_MS),
     bytes,
-    filename: `capture-${slot === 1 ? 'front' : 'back'}.webp`,
-    mediaType: 'image/webp' as const,
+    filename: `capture-${slot === 1 ? 'front' : 'back'}.${getSnapImageExtension(mediaType)}`,
+    mediaType,
     model: runtime.model,
     prompt,
     systemPrompt: CAPTURE_VEHICLE_SYSTEM_PROMPT
@@ -141,7 +147,14 @@ export async function runCaptureVehicleVisionPipeline(
       const response = await getR2Object(job.r2_key, getR2Config(environment))
       if (!response.ok) throw new Error(`Unable to load the ${job.slot === 1 ? 'front' : 'back'} image.`)
 
-      const result = await analyzeVehicleImage(new Uint8Array(await response.arrayBuffer()), job.slot, runtime)
+      const mediaType = getSnapImageContentType(job.r2_key)
+      if (!mediaType) throw new Error('The captured image format is unsupported.')
+      const result = await analyzeVehicleImage(
+        new Uint8Array(await response.arrayBuffer()),
+        job.slot,
+        mediaType,
+        runtime
+      )
       await client.mutation(api.vision_logs.m.completeCaptureVehicleVision, {
         log_id: job.log_id,
         rawOutput: result.rawOutput,

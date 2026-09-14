@@ -137,11 +137,17 @@ export const snapCaptureIntegritySchema = v.object({
   verdict: v.union(v.literal('physical_scene'), v.literal('display_replay'), v.literal('uncertain'))
 })
 
+export const snapImageContentTypeSchema = v.union(
+  v.literal('image/webp'),
+  v.literal('image/jpeg'),
+  v.literal('image/png')
+)
+
 export const snapPhotoSchema = v.object({
   capture_id: v.optional(v.string()),
   capture_integrity: v.optional(snapCaptureIntegritySchema),
   captured_at: v.number(),
-  content_type: v.literal('image/webp'),
+  content_type: snapImageContentTypeSchema,
   label: v.string(),
   location: v.optional(snapDeviceLocationSchema),
   r2_key: v.string(),

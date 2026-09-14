@@ -1,7 +1,6 @@
-import { useState } from 'octane'
+import { lazy, Suspense, useState } from 'octane'
 import { format } from 'date-fns'
 import type { DateRange } from '@octanejs/day-picker'
-import Calendar from './calendar.btsx'
 import Popover, { PopoverContent, PopoverTrigger } from './Popover.btsx'
 import type { PopoverContentProps, PopoverProps } from './Popover.btsx'
 import { Icon } from '@/lib/icons'
@@ -11,6 +10,10 @@ import type { ClassName } from '@/types'
 module
   type PopoverAlign = PopoverContentProps['align']
   type PopoverSide = PopoverContentProps['side']
+
+  // day-picker only renders inside the open popover. Every table filter bar
+  // mounts a closed trigger, so the calendar arrives on first open instead.
+  const LazyCalendar = lazy(() => import('./calendar.btsx'))
 
   export interface DateRangePickerProps {
     value: DateRange | undefined
@@ -53,6 +56,10 @@ module
     if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId)
     if (event.button === 0 && event.ctrlKey === false && event.pointerType === 'mouse') event.preventDefault()
   }
+
+component CalendarFallback
+  div(className='grid h-72 w-64 place-items-center')
+    Icon(name='spinner-ring' className='size-4 opacity-60')
 
 props { value, onValueChange, id, open, onOpenChange, align = 'start', side, sideOffset = 4, numberOfMonths = 1, placeholder = 'Any date', disabled = false, clearLabel = 'Clear', className, contentClassName, 'aria-labelledby': ariaLabelledBy }: DateRangePickerProps
 
@@ -98,7 +105,8 @@ Popover(open={isOpen} onOpenChange={handleOpenChange})
     ~ sideOffset={sideOffset}
     ~ className={cn('w-auto gap-0 overflow-hidden rounded-sm border border-border/60 p-0!', contentClassName)}
     ~ )
-    Calendar(selectedRange={value} handleSelect={handleSelect} numberOfMonths={numberOfMonths})
+    Suspense(fallback={CalendarFallback})
+      LazyCalendar(selectedRange={value} handleSelect={handleSelect} numberOfMonths={numberOfMonths})
     if hasValue
       div(className='flex justify-end border-t border-dashed border-border px-2 py-1.5')
         button(

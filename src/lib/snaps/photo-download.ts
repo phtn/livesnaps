@@ -1,5 +1,5 @@
 import type { AsyncZippable } from 'fflate'
-import { getSnapImageUrl } from '@/lib/r2/snap-images'
+import { getSnapImageExtension, getSnapImageUrl } from '@/lib/r2/snap-images'
 import type { AdminSnapPhoto } from './admin-photo-types'
 
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -17,7 +17,7 @@ export const getSnapPhotoArchiveName = (uploadId: string) => `snap-photos-${safe
 export const getSnapPhotoFileName = (photo: AdminSnapPhoto, index: number) => {
   const position = String(index + 1).padStart(2, '0')
   const label = safeFileSegment(photo.label, `slot-${photo.slot}`)
-  return `${position}-${label}.webp`
+  return `${position}-${label}.${getSnapImageExtension(photo.content_type)}`
 }
 
 const createZip = async (entries: AsyncZippable): Promise<Uint8Array<ArrayBuffer>> => {

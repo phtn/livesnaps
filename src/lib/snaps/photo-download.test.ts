@@ -32,7 +32,8 @@ const photos: AdminSnapPhoto[] = [
 test('proof photo download names are safe and stable', () => {
   assert.equal(getSnapPhotoArchiveName(uploadId), `snap-photos-${uploadId}.zip`)
   assert.equal(getSnapPhotoFileName(photos[0], 0), '01-front-view.webp')
-  assert.equal(getSnapPhotoFileName(photos[1], 1), '02-side-B.webp')
+  assert.equal(getSnapPhotoFileName({ ...photos[1], content_type: 'image/jpeg' }, 1), '02-side-B.jpg')
+  assert.equal(getSnapPhotoFileName({ ...photos[1], content_type: 'image/png' }, 1), '02-side-B.png')
 })
 
 test('proof photos are fetched from their protected routes and archived together', async () => {

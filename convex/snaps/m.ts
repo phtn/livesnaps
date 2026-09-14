@@ -114,9 +114,8 @@ const normalizePhoto = (uploadId: string, photo: SnapPhoto): SnapPhoto => {
   if (
     !captureId ||
     !isSnapCaptureId(captureId) ||
-    photo.r2_key !== buildSnapObjectKey(uploadId, slot.index, captureId) ||
-    photo.label !== slot.label ||
-    photo.content_type !== 'image/webp'
+    photo.r2_key !== buildSnapObjectKey(uploadId, slot.index, captureId, photo.content_type) ||
+    photo.label !== slot.label
   ) {
     throw new ConvexError('Proof photo metadata does not match its storage slot.')
   }

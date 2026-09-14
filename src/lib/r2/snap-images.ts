@@ -1,6 +1,14 @@
 export const SNAP_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 export const SNAP_STORAGE_PREFIX = 'snaps/' as const
 
+export const SNAP_IMAGE_FORMATS = [
+  { contentType: 'image/webp', extension: 'webp' },
+  { contentType: 'image/jpeg', extension: 'jpg' },
+  { contentType: 'image/png', extension: 'png' }
+] as const
+
+export type SnapImageContentType = (typeof SNAP_IMAGE_FORMATS)[number]['contentType']
+
 export const SNAP_SLOTS = [
   { index: 1, label: 'front', slug: 'front' },
   { index: 2, label: 'back', slug: 'back' },
@@ -16,9 +24,23 @@ const SNAP_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f
 export const isSnapUploadId = (value: string) => SNAP_ID_PATTERN.test(value)
 export const isSnapCaptureId = (value: string) => SNAP_ID_PATTERN.test(value)
 
+export const isSnapImageContentType = (value: string): value is SnapImageContentType =>
+  SNAP_IMAGE_FORMATS.some((format) => format.contentType === value)
+
+export const getSnapImageExtension = (contentType: SnapImageContentType) =>
+  SNAP_IMAGE_FORMATS.find((format) => format.contentType === contentType)?.extension ?? 'webp'
+
+export const getSnapImageContentType = (objectKey: string): SnapImageContentType | null =>
+  SNAP_IMAGE_FORMATS.find((format) => objectKey.endsWith(`.${format.extension}`))?.contentType ?? null
+
 export const getSnapSlot = (index: number) => SNAP_SLOTS.find((slot) => slot.index === index)
 
-export const buildSnapObjectKey = (uploadId: string, slotIndex: SnapSlotIndex, captureId: string) => {
+export const buildSnapObjectKey = (
+  uploadId: string,
+  slotIndex: SnapSlotIndex,
+  captureId: string,
+  contentType: SnapImageContentType = 'image/webp'
+) => {
   if (!isSnapUploadId(uploadId)) {
     throw new Error('Invalid Snap upload ID.')
   }
@@ -33,7 +55,7 @@ export const buildSnapObjectKey = (uploadId: string, slotIndex: SnapSlotIndex, c
     throw new Error('Invalid Snap photo slot.')
   }
 
-  return `${SNAP_STORAGE_PREFIX}${uploadId}/${slot.index}-${slot.slug}-${captureId}.webp`
+  return `${SNAP_STORAGE_PREFIX}${uploadId}/${slot.index}-${slot.slug}-${captureId}.${getSnapImageExtension(contentType)}`
 }
 
 export const isSnapObjectKey = (value: string) =>
@@ -48,12 +70,18 @@ export const isSnapObjectKey = (value: string) =>
     const uploadId = value.slice(prefixLength, separatorIndex)
     const filename = value.slice(separatorIndex + 1)
     const filenamePrefix = `${slot.index}-${slot.slug}-`
-    const captureId = filename.startsWith(filenamePrefix) ? filename.slice(filenamePrefix.length, -'.webp'.length) : ''
+    const contentType = getSnapImageContentType(filename)
+    const extension = contentType ? getSnapImageExtension(contentType) : ''
+    const captureId =
+      contentType && filename.startsWith(filenamePrefix)
+        ? filename.slice(filenamePrefix.length, -`.${extension}`.length)
+        : ''
 
     return (
+      contentType !== null &&
       isSnapUploadId(uploadId) &&
       isSnapCaptureId(captureId) &&
-      value === buildSnapObjectKey(uploadId, slot.index, captureId)
+      value === buildSnapObjectKey(uploadId, slot.index, captureId, contentType)
     )
   })
 

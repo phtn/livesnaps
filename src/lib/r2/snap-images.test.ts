@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   buildSnapObjectKey,
+  getSnapImageContentType,
+  getSnapImageExtension,
   getSnapImageUrl,
   isSnapObjectKey,
   isSnapUploadId,
@@ -16,16 +18,36 @@ test('snap object keys use the snaps prefix and preserve every capture ID', () =
   assert.equal(SNAP_STORAGE_PREFIX, 'snaps/')
   assert.equal(buildSnapObjectKey(uploadId, 1, firstCaptureId), `snaps/${uploadId}/1-front-${firstCaptureId}.webp`)
   assert.notEqual(buildSnapObjectKey(uploadId, 1, firstCaptureId), buildSnapObjectKey(uploadId, 1, secondCaptureId))
-  assert.equal(buildSnapObjectKey(uploadId, 5, secondCaptureId), `snaps/${uploadId}/5-odometer-${secondCaptureId}.webp`)
+  assert.equal(
+    buildSnapObjectKey(uploadId, 5, secondCaptureId, 'image/jpeg'),
+    `snaps/${uploadId}/5-odometer-${secondCaptureId}.jpg`
+  )
+  assert.equal(
+    buildSnapObjectKey(uploadId, 3, secondCaptureId, 'image/png'),
+    `snaps/${uploadId}/3-side-a-${secondCaptureId}.png`
+  )
 })
 
 test('snap upload IDs and object keys reject unsafe paths', () => {
   assert.equal(isSnapUploadId(uploadId), true)
   assert.equal(isSnapUploadId('../snaps'), false)
   assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.webp`), true)
+  assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.jpg`), true)
+  assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.png`), true)
   assert.equal(isSnapObjectKey(`user/${uploadId}/4-side-b-${firstCaptureId}.webp`), false)
   assert.equal(isSnapObjectKey(`snaps/${uploadId}/../4-side-b-${firstCaptureId}.webp`), false)
-  assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.jpg`), false)
+  assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.jpeg`), false)
+  assert.equal(isSnapObjectKey(`snaps/${uploadId}/4-side-b-${firstCaptureId}.gif`), false)
+})
+
+test('snap image formats map content types to canonical object-key extensions', () => {
+  assert.equal(getSnapImageExtension('image/webp'), 'webp')
+  assert.equal(getSnapImageExtension('image/jpeg'), 'jpg')
+  assert.equal(getSnapImageExtension('image/png'), 'png')
+  assert.equal(getSnapImageContentType(`snaps/${uploadId}/1-front-${firstCaptureId}.webp`), 'image/webp')
+  assert.equal(getSnapImageContentType(`snaps/${uploadId}/1-front-${firstCaptureId}.jpg`), 'image/jpeg')
+  assert.equal(getSnapImageContentType(`snaps/${uploadId}/1-front-${firstCaptureId}.png`), 'image/png')
+  assert.equal(getSnapImageContentType(`snaps/${uploadId}/1-front-${firstCaptureId}.gif`), null)
 })
 
 test('snap image URLs preserve validated object-key path segments', () => {

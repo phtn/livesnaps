@@ -41,7 +41,7 @@ export const getSnapSettingsValidationError = (settings: ImageCaptureSettingsVal
       IMAGE_CAPTURE_SETTINGS_CONSTRAINTS.imageQuality.max
     )
   ) {
-    return 'WebP image quality must be between 0.1 and 1.'
+    return 'Optimized image quality must be between 0.1 and 1.'
   }
 
   if (

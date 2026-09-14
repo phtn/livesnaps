@@ -139,7 +139,7 @@ import CameraStatusbar from './camera-statusbar.btsx'
 import { getCaptureProgressCount, upsertCapturedPhoto, replaceCapturedPhoto } from './captured-photo-state'
 import { onError, onInfo, onSuccess } from '@/lib/toast'
 import { createUuid } from '@/lib/uuid'
-import { optimizeImageToWebp } from '@/lib/images/optimize-to-webp'
+import { createSnapImageFile, encodeSnapCanvasImage, optimizeSnapImage } from '@/lib/images/optimize-snap-image'
 
 props { cancelSession, completeSession, endCompletedSession, getCurrentIdToken, getCurrentLocation, isDebugMode, isExpanded, isLocationPrecise, locationAccuracyMeters, sessionUploadId }: ExpanderProps
 
@@ -420,13 +420,11 @@ setup
 
       context.drawImage(video, 0, 0, width, height)
 
-      blob = await new Promise<Blob | null>((resolve) => {
-        canvas!.toBlob(resolve, 'image/jpeg', sourceJpegQuality)
+      blob = await encodeSnapCanvasImage(canvas, {
+        contentTypes: ['image/jpeg', 'image/png'],
+        imageQuality: sourceJpegQuality,
+        timeoutMs: imageOptimizationTimeoutMs
       })
-
-      if (!blob) {
-        throw new Error('Unable to encode the captured photo.')
-      }
 
       if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
         capturePendingRef.current = false
@@ -449,10 +447,11 @@ setup
     const captureId = createUuid()
     const label = getInspectionLabel(captureNumber)
     const slug = label.replace(/\s+/g, '-').toLowerCase()
-    const interimFile = new File([blob!], `pre-inspection-${slug}-${captureNumber}-${capturedAt}.jpg`, {
-      lastModified: capturedAt,
-      type: 'image/jpeg'
-    })
+    const interimFile = createSnapImageFile(
+      blob!,
+      `pre-inspection-${slug}-${captureNumber}-${capturedAt}`,
+      capturedAt
+    )
     const optimisticPhoto: CapturedPhoto = {
       file: interimFile,
       id: captureId,
@@ -493,24 +492,21 @@ setup
         const locationPromise = isDebugMode ? Promise.resolve(null) : getCurrentLocation()
         const outputFilePromise = (async () => {
           try {
-            return await optimizeImageToWebp(bgInterimFile, {
+            return await optimizeSnapImage(bgInterimFile, {
               imageOptimizationTimeoutMs,
               imageQuality,
               maxImageDimension
             })
           } catch {
-            const webpBlob = await new Promise<Blob | null>((resolve) => {
-              bgCanvas.toBlob(resolve, 'image/webp', imageQuality)
+            const fallbackBlob = await encodeSnapCanvasImage(bgCanvas, {
+              imageQuality,
+              timeoutMs: imageOptimizationTimeoutMs
             })
-
-            if (webpBlob?.type === 'image/webp') {
-              return new File([webpBlob], `pre-inspection-${bgSlug}-${bgCaptureNumber}-${bgCapturedAt}.webp`, {
-                lastModified: bgCapturedAt,
-                type: 'image/webp'
-              })
-            }
-
-            return bgInterimFile
+            return createSnapImageFile(
+              fallbackBlob,
+              `pre-inspection-${bgSlug}-${bgCaptureNumber}-${bgCapturedAt}`,
+              bgCapturedAt
+            )
           }
         })()
 
@@ -518,10 +514,6 @@ setup
 
         if (captureSessionId !== requestSequenceRef.current || !streamRef.current) {
           return
-        }
-
-        if (outputFile.type !== 'image/webp') {
-          throw new Error('This browser could not convert the capture to WebP. Please try another browser.')
         }
 
         const file = outputFile

@@ -1,18 +1,20 @@
 import { Button as BaseButton } from '@octanejs/base-ui/button'
 import { Menu } from '@octanejs/base-ui/menu'
 import type { Column, ColumnOrderState, ColumnVisibilityState, RowData, TableFeatures } from '@octanejs/tanstack-table'
-import { createElement, useCallback, useMemo, useState } from 'octane'
+import { createElement, lazy, Suspense, useCallback, useMemo, useState } from 'octane'
 
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { mergeColumnOrder } from './column-order'
 import { getColumnHeaderText } from './filter-utils'
-import Sortable, { SortableContent, SortableItem, SortableOverlay } from './sortable.btsx'
 import { isColumnVisible } from './visibility'
 import Checkbox from '@/components/ui/checkbox.btsx'
 
 
 module
+  // dnd-kit sits behind the reorder toggle; see `ColumnPositionList.btsx`.
+  const LazyColumnPositionList = lazy(() => import('./ColumnPositionList.btsx'))
+
   interface Props<TFeatures extends TableFeatures, TData extends RowData> {
     cols: Column<TFeatures, TData, unknown>[]
     columnVisibility?: ColumnVisibilityState
@@ -77,6 +79,10 @@ component ColumnVisibilityItem
       ~ onCheckedChange={(value: boolean) => onToggle(column.id, value)}
       ~ )
 
+component ColumnPositionFallback
+  div(className='grid h-16 place-items-center')
+    Icon(name='spinner-ring' className='size-4 opacity-60')
+
 props { cols, columnVisibility, onColumnVisibilityChange, columnOrder, onColumnOrderChange }: Props<any, any>
 setup
   const [isPositioning, setIsPositioning] = useState(false)
@@ -128,92 +134,49 @@ setup
     },
     [cols, columnOrder, onColumnOrderChange],
   )
-  const renderColumnOverlay = useCallback(
-    ({ value }: { value: string | number }) => {
-      const column = cols.find((candidate) => candidate.id === String(value))
-      return createElement(
-        'div',
-        {
-          className: cn(
-            'flex ml-1 h-8 w-[244px] items-center rounded-xs border border-input/70',
-            'bg-background px-3 text-sm text-foreground shadow-md',
-          ),
-        },
-        column ? getColumnHeaderText(column) : String(value),
-      )
-    },
-    [cols],
-  )
 
-Sortable(value={reorderableColumnIds} onValueChange={handleColumnOrderChange})
-  Menu.Root
-    Menu.Trigger(render={createElement(ColumnViewTrigger, { invisibleCount })})
-    Menu.Portal
-      Menu.Positioner(align='start' className='isolate z-50 outline-none' sideOffset={3})
-        Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:text-zinc-200')
-          div(className='flex items-center justify-between border-b border-dashed border-border px-4 py-1 font-sans text-sm')
-            span(className='font-sans text-sm text-muted-foreground')
-              | #{positioningEnabled ? 'Position Columns' : 'View Options'}
-            BaseButton(
-              ~ id='column-drag-toggle'
-              ~ type='button'
-              ~ aria-label={positioningEnabled ? 'Show column visibility controls' : 'Reorder columns'}
-              ~ aria-pressed={positioningEnabled}
-              ~ disabled={!canPositionColumns}
-              ~ title={canPositionColumns
-              ~   ? positioningEnabled
-              ~     ? 'Show column visibility controls'
-              ~     : 'Reorder columns'
-              ~   : 'At least two unpinned columns are required to reorder'}
-              ~ onClick={() => setIsPositioning((current) => !current)}
-              ~ className='group/toggle flex size-7 items-center justify-center rounded-xs text-mist-600 transition-colors hover:bg-mist-300/50 dark:hover:bg-mist-300/10 focus-visible:outline-1 disabled:cursor-not-allowed disabled:opacity-40 -mr-2'
+Menu.Root
+  Menu.Trigger(render={createElement(ColumnViewTrigger, { invisibleCount })})
+  Menu.Portal
+    Menu.Positioner(align='start' className='isolate z-50 outline-none' sideOffset={3})
+      Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:text-zinc-200')
+        div(className='flex items-center justify-between border-b border-dashed border-border px-4 py-1 font-sans text-sm')
+          span(className='font-sans text-sm text-muted-foreground')
+            | #{positioningEnabled ? 'Position Columns' : 'View Options'}
+          BaseButton(
+            ~ id='column-drag-toggle'
+            ~ type='button'
+            ~ aria-label={positioningEnabled ? 'Show column visibility controls' : 'Reorder columns'}
+            ~ aria-pressed={positioningEnabled}
+            ~ disabled={!canPositionColumns}
+            ~ title={canPositionColumns
+            ~   ? positioningEnabled
+            ~     ? 'Show column visibility controls'
+            ~     : 'Reorder columns'
+            ~   : 'At least two unpinned columns are required to reorder'}
+            ~ onClick={() => setIsPositioning((current) => !current)}
+            ~ className='group/toggle flex size-7 items-center justify-center rounded-xs text-mist-600 transition-colors hover:bg-mist-300/50 dark:hover:bg-mist-300/10 focus-visible:outline-1 disabled:cursor-not-allowed disabled:opacity-40 -mr-2'
+            ~ )
+            Icon(
+              ~ name='arrow-right-col'
+              ~ className={cn(
+              ~   'size-5 text-foreground/80 transition-colors group-hover/toggle:text-foreground',
+              ~   positioningEnabled && 'opacity-100 text-orange-400',
+              ~ )}
               ~ )
-              Icon(
-                ~ name='arrow-right-col'
-                ~ className={cn(
-                ~   'size-5 text-foreground/80 transition-colors group-hover/toggle:text-foreground',
-                ~   positioningEnabled && 'opacity-100 text-orange-400',
-                ~ )}
+
+        if positioningEnabled
+          Suspense(fallback={ColumnPositionFallback})
+            LazyColumnPositionList(
+              ~ columns={hideableColumns}
+              ~ reorderableColumnIds={reorderableColumnIds}
+              ~ onReorder={handleColumnOrderChange}
+              ~ )
+        else
+          div(className='space-y-0 p-0')
+            each column in hideableColumns key column.id
+              ColumnVisibilityItem(
+                ~ column={column}
+                ~ isVisible={visibilityByColumnId.get(column.id) ?? true}
+                ~ onToggle={handleToggle}
                 ~ )
-
-          if positioningEnabled
-            SortableContent(render={createElement('div', { className: 'space-y-0 p-0' })})
-              each column in hideableColumns key column.id
-                if Boolean(column.getIsPinned())
-                  Menu.Item(
-                    ~ disabled
-                    ~ closeOnClick={false}
-                    ~ title='Pinned columns keep their pinned position'
-                    ~ className='flex h-8 items-center justify-between bg-zinc-200/20 ps-3 pe-2 text-sm text-foreground/80 opacity-60 dark:bg-zinc-300/5'
-                    ~ )
-                    span #{getColumnHeaderText(column)}
-                    // Icon(name='' className='size-4')
-                else
-                  SortableItem(
-                    ~ value={column.id}
-                    ~ asHandle
-                    ~ render={createElement(Menu.Item, {
-                    ~   closeOnClick: false,
-                    ~   title: `Drag ${getColumnHeaderText(column)} to reposition it`,
-                    ~   className: 'group/drag flex h-8 items-center justify-between rounded-xs bg-transparent ps-3 pe-1 text-sm text-foreground opacity-100 hover:bg-sand/10 dark:text-white dark:hover:bg-sand/2 dark:hover:text-sand/95',
-                    ~ })}
-                    ~ )
-                    span #{getColumnHeaderText(column)}
-
-                    Icon(
-                      ~ name='draggable'
-                      ~ className='size-5 opacity-60 group-hover/drag:opacity-100 group-hover/drag:text-mist-700 dark:group-hover/drag:text-orange-200'
-                      ~ )
-          else
-            div(className='space-y-0 p-0')
-              each column in hideableColumns key column.id
-                ColumnVisibilityItem(
-                  ~ column={column}
-                  ~ isVisible={visibilityByColumnId.get(column.id) ?? true}
-                  ~ onToggle={handleToggle}
-                  ~ )
-  SortableOverlay(
-    ~ className='pointer-events-none z-60'
-    ~ dropAnimation={null}
-    ~ children={renderColumnOverlay}
-    ~ )

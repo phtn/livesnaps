@@ -3,8 +3,10 @@ import { parseDeviceLocation } from '../lib/location/type'
 import { deleteR2Object, getR2Object, putR2Object, type R2Config } from '../lib/r2/server'
 import {
   buildSnapObjectKey,
+  getSnapImageContentType,
   getSnapSlot,
   isSnapCaptureId,
+  isSnapImageContentType,
   isSnapObjectKey,
   isSnapUploadId,
   SNAP_IMAGE_MAX_BYTES,
@@ -107,20 +109,22 @@ async function saveSnapPhoto(request: Request, environment: SnapPhotoRouteEnviro
     throw new RequestError(413, 'The proof photo is too large.')
   }
 
-  if (file.type !== 'image/webp') {
-    throw new RequestError(415, 'Proof photos must be WebP images.')
+  if (!isSnapImageContentType(file.type)) {
+    throw new RequestError(415, 'Proof photos must be WebP, JPEG, or PNG images.')
   }
+
+  const contentType = file.type
 
   // Check capture ownership before uploading any bytes to R2. The mutation
   // checks again after upload so revocation or completion cannot race the save.
   const capture = await client.query(api.snaps.q.getByUploadId, { upload_id: uploadId })
   if (!capture) throw new RequestError(403, 'This capture session is not available to you.')
 
-  const objectKey = buildSnapObjectKey(uploadId, slot.index as SnapSlotIndex, captureId)
+  const objectKey = buildSnapObjectKey(uploadId, slot.index as SnapSlotIndex, captureId, contentType)
   const r2 = getR2Environment(environment)
   const uploadResponse = await putR2Object({
     body: await file.arrayBuffer(),
-    contentType: file.type,
+    contentType,
     objectKey,
     r2
   })
@@ -136,7 +140,7 @@ async function saveSnapPhoto(request: Request, environment: SnapPhotoRouteEnviro
       photo: {
         capture_id: captureId,
         captured_at: capturedAt,
-        content_type: 'image/webp',
+        content_type: contentType,
         label: slot.label,
         location,
         r2_key: objectKey,
@@ -184,7 +188,7 @@ export async function handleSnapSubmissionPhotoPreviewRequest(
       throw new Error(`R2 photo fetch failed with status ${photoResponse.status}.`)
     }
 
-    const contentType = photoResponse.headers.get('content-type') || 'image/webp'
+    const contentType = photoResponse.headers.get('content-type') || getSnapImageContentType(objectKey) || 'image/webp'
     const contentLength = photoResponse.headers.get('content-length')
     const etag = photoResponse.headers.get('etag')
 
@@ -236,7 +240,7 @@ export async function handleAdminSnapPhotoRequest(
       throw new Error(`R2 photo fetch failed with status ${photoResponse.status}.`)
     }
 
-    const contentType = photoResponse.headers.get('content-type') || 'image/webp'
+    const contentType = photoResponse.headers.get('content-type') || getSnapImageContentType(objectKey) || 'image/webp'
     const contentLength = photoResponse.headers.get('content-length')
     const etag = photoResponse.headers.get('etag')
 
