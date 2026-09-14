@@ -6,7 +6,7 @@ import { resendWebhookEventSchema } from './resendWebhooks/d'
 import { snapSettingsSchema } from './snapSettings/d'
 import { snapValidator } from './snaps/d'
 import { accountSlugReservationSchema, submissionLinkDailyStatsSchema, submissionLinkSchema } from './submissionLinks/d'
-import { userValidator } from './users/v'
+import { userDocumentValidator } from './users/v'
 import { verificationEntrySchema, verificationUploadIntentSchema } from './verificationEntries/d'
 import { visionLogSchema } from './vision_logs/d'
 
@@ -31,7 +31,7 @@ export default defineSchema({
     .index('by_tokenIdentifier_and_status', ['tokenIdentifier', 'status'])
     .index('by_email_and_status', ['email', 'status']),
   admin: defineTable(adminSchema).index('by_identifier', ['identifier']),
-  users: defineTable(userValidator)
+  users: defineTable(userDocumentValidator)
     .index('by_tokenIdentifier', ['tokenIdentifier'])
     .index('by_firebaseUid', ['firebaseUid'])
     .index('by_email', ['email']),

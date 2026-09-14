@@ -11,23 +11,7 @@ export const current = query({
     return await getUserByTokenIdentifier(ctx, identity.tokenIdentifier)
   }
 })
-export const listUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const users = await ctx.db.query('users').collect()
-    return users
-  }
-})
 
-export const getUserByTokenId = query({
-  args: { tokenIdentifier: v.string() },
-  handler: async ({ db }, { tokenIdentifier }) => {
-    return await db
-      .query('users')
-      .withIndex('by_tokenIdentifier', (q) => q.eq('tokenIdentifier', tokenIdentifier))
-      .collect()
-  }
-})
 export async function getCurrentIdentity(ctx: QueryCtx | MutationCtx) {
   return await ctx.auth.getUserIdentity()
 }

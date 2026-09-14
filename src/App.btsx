@@ -292,7 +292,7 @@ setup
       locationWatchRef.current?.stop()
     }
   }, [])
-  const boxRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement|null>(null)
   const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
 
 
@@ -307,7 +307,7 @@ component Fallback
     StoreMark(className='size-12')
 
 div(data-expanded={isExpanded} className={cn(viewportStyles.root, 'min-h-screen min-w-[320px] overflow-hidden bg-background font-sans text-foreground antialiased')})
-  div
+  main
     LazyTop
   ScrollArea(ref={boxRef} className={cn(viewportStyles.viewportBody, 'overflow-hidden')})
     div(className='flex flex-col')

@@ -43,6 +43,7 @@ import type * as submissionLinks_email from "../submissionLinks/email.js";
 import type * as submissionLinks_helpers from "../submissionLinks/helpers.js";
 import type * as submissionLinks_m from "../submissionLinks/m.js";
 import type * as submissionLinks_q from "../submissionLinks/q.js";
+import type * as users_avatar from "../users/avatar.js";
 import type * as users_m from "../users/m.js";
 import type * as users_q from "../users/q.js";
 import type * as users_v from "../users/v.js";
@@ -99,6 +100,7 @@ declare const fullApi: ApiFromModules<{
   "submissionLinks/helpers": typeof submissionLinks_helpers;
   "submissionLinks/m": typeof submissionLinks_m;
   "submissionLinks/q": typeof submissionLinks_q;
+  "users/avatar": typeof users_avatar;
   "users/m": typeof users_m;
   "users/q": typeof users_q;
   "users/v": typeof users_v;

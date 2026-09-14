@@ -1,5 +1,5 @@
 {
   "node": {
-    "externalPackages": ["takumi-pdf"]
+    "externalPackages": ["takumi-pdf", "sharp"]
   }
 }

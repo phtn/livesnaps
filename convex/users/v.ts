@@ -17,13 +17,18 @@ export const userFields = {
   emailVerified: v.union(v.boolean(), v.null())
 }
 
-export const userUpsertSchema = v.object(userFields)
-
 export const userValidator = v.object({
   ...userFields,
   createdAt: v.number(),
   updatedAt: v.number()
 })
 
+/** The stored `users` document: identity fields plus server-owned avatar mirror state. */
+export const userDocumentValidator = userValidator.extend({
+  avatarR2Key: v.optional(v.string()),
+  /** The `imageUrl` that `avatarR2Key` was last generated from. */
+  avatarSourceUrl: v.optional(v.string()),
+  avatarSyncRequestedAt: v.optional(v.number())
+})
+
 export type UserIdentity = typeof userValidator.type
-export type UserUpsertInput = typeof userUpsertSchema.type

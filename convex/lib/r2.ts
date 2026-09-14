@@ -1,5 +1,5 @@
 /**
- * Reads snap photos straight out of R2 from inside a Convex action.
+ * Reads snap photos and writes user avatars straight to R2 from inside a Convex action.
  *
  * The Worker has its own copy of this signing in `src/lib/r2/server.ts`, but
  * that one is built on `node:crypto` and this file has to run in the Convex
@@ -34,8 +34,8 @@ const toHex = (bytes: ArrayBuffer): string =>
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('')
 
-const sha256Hex = async (data: string | ArrayBuffer): Promise<string> =>
-  toHex(await crypto.subtle.digest('SHA-256', typeof data === 'string' ? encoder.encode(data) : data))
+const sha256Hex = async (data: string | Uint8Array): Promise<string> =>
+  toHex(await crypto.subtle.digest('SHA-256', (typeof data === 'string' ? encoder.encode(data) : data) as BufferSource))
 
 const hmac = async (key: ArrayBuffer | Uint8Array, data: string): Promise<ArrayBuffer> => {
   const cryptoKey = await crypto.subtle.importKey(
@@ -71,22 +71,21 @@ export const isR2Configured = (): boolean =>
       process.env.R2_SECRET_ACCESS_KEY?.trim()
   )
 
-/**
- * Fetches one object's bytes. Throws on a non-2xx so a missing or unreadable
- * photo surfaces as a named failure rather than an empty attachment.
- */
-export async function getR2ObjectBytes(objectKey: string): Promise<ArrayBuffer> {
+async function requestR2(
+  method: 'GET' | 'PUT',
+  objectKey: string,
+  body?: { bytes: Uint8Array; contentType: string }
+): Promise<Response> {
   const config = getR2Config()
   const host = `${config.accountId}.r2.cloudflarestorage.com`
   const pathname = `/${config.bucket}/${objectKey}`
-  // Every GET here has an empty body, so the payload hash is the digest of ''.
-  const payloadHash = await sha256Hex('')
+  const payloadHash = await sha256Hex(body ? body.bytes : '')
 
   const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
   const dateStamp = amzDate.slice(0, 8)
   const signedHeaders = 'host;x-amz-content-sha256;x-amz-date'
   const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
-  const canonicalRequest = ['GET', encodePath(pathname), '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
+  const canonicalRequest = [method, encodePath(pathname), '', canonicalHeaders, signedHeaders, payloadHash].join('\n')
   const credentialScope = `${dateStamp}/${R2_REGION}/${R2_SERVICE}/aws4_request`
   const stringToSign = ['AWS4-HMAC-SHA256', amzDate, credentialScope, await sha256Hex(canonicalRequest)].join('\n')
 
@@ -96,20 +95,39 @@ export async function getR2ObjectBytes(objectKey: string): Promise<ArrayBuffer> 
   const signingKey = await hmac(serviceKey, 'aws4_request')
   const signature = toHex(await hmac(signingKey, stringToSign))
 
-  const response = await fetch(`https://${host}${encodePath(pathname)}`, {
-    method: 'GET',
+  return fetch(`https://${host}${encodePath(pathname)}`, {
+    method,
     headers: {
       authorization: `AWS4-HMAC-SHA256 Credential=${config.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
       'x-amz-content-sha256': payloadHash,
-      'x-amz-date': amzDate
-    }
+      'x-amz-date': amzDate,
+      ...(body ? { 'content-type': body.contentType } : {})
+    },
+    ...(body ? { body: body.bytes as BodyInit } : {})
   })
+}
+
+/**
+ * Fetches one object's bytes. Throws on a non-2xx so a missing or unreadable
+ * photo surfaces as a named failure rather than an empty attachment.
+ */
+export async function getR2ObjectBytes(objectKey: string): Promise<ArrayBuffer> {
+  const response = await requestR2('GET', objectKey)
 
   if (!response.ok) {
     throw new Error(`R2 read failed for ${objectKey} (${response.status}).`)
   }
 
   return response.arrayBuffer()
+}
+
+/** Writes one object, replacing any existing object at the same key. */
+export async function putR2Object(objectKey: string, bytes: Uint8Array, contentType: string): Promise<void> {
+  const response = await requestR2('PUT', objectKey, { bytes, contentType })
+
+  if (!response.ok) {
+    throw new Error(`R2 write failed for ${objectKey} (${response.status}).`)
+  }
 }
 
 /**

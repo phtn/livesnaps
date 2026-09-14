@@ -2,5 +2,5 @@ import {useTheme} from '@/components/theme-provider.btsx'
 props {}: {}
 setup
   const {theme} = useTheme()
-  const mark = theme === 'dark' ? '/images/mark-light.webp' : '/images/mark-dark.webp'
-img(src={mark} className='size-12')
+  const mark = theme === 'dark' ? '/images/mark-light.svg' : '/images/mark-dark.svg'
+img(src={mark} className='size-12' alt='mark')
