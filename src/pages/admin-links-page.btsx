@@ -133,22 +133,22 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
         if loading
           Icon(name='spinner-ring' className='size-3')
         else
-          span(className='text-foreground') #{linkRows?.length}
+          span(className='text-foreground/70') #{linkRows?.length}
       if links?.canManage
         button(type='button' aria-label={isCreateOpen ? 'Close create link form' : 'Create submission link'} aria-expanded={isCreateOpen} onClick={() => setIsCreateOpen(open => !open)} className={cn(addButtonClassName, isCreateOpen && 'bg-foreground! text-background!')})
           Icon(name='add' className={cn('size-3.5 transition-transform duration-200 ease-out', isCreateOpen && 'rotate-45')})
       div(className={cn('flex items-center justify-start gap-4', {'hidden!': isSearchExpanded})})
+        button(type='button' aria-label='Refresh submission links' disabled={loading} onClick={refresh} className='group  size-7 aspect-square rounded-full bg-table-head text-foreground/70 transition-colors hover:bg-sidebar hover:text-foreground disabled:opacity-50')
+          Icon(name='refresh' className='-rotate-6 transition-transform duration-200 ease-out group-active:rotate-39')
         Link(to='/admin-settings/links/activity' className='flex items-center justify-center size-7 aspect-square rounded-full bg-table-head transition-colors text-foreground/70 hover:bg-accent hover:text-brand')
           Icon(name='trend' className='size-3.5')
-        button(type='button' aria-label='Refresh submission links' disabled={loading} onClick={refresh} className='group  size-7 aspect-square rounded-full bg-table-head text-muted-foreground transition-colors hover:bg-sidebar hover:text-foreground disabled:opacity-50')
-          Icon(name='refresh' className='transition-transform duration-200 ease-out group-active:rotate-180')
+
 
     div(className={cn('relative', {'w-full! mx-auto!': isSearchExpanded})})
       HyperSearch( onChange={handleOnSearchInputChange} onClear={handleClearSearch} onExpandedChange={setIsSearchExpanded}
         ~ id='submission-link-search'
         ~ value={query}
-        ~ placeholder='Search links by label or slug'
-        ~ autoComplete='off'
+        ~ placeholder='Search links'
         ~ )
 
   if isCreateOpen && account

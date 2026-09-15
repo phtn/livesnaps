@@ -39,7 +39,7 @@ module
 
 props { itemName, itemTitle, itemLabel, brand, qrCodeImageUrl = null, qrSvg, ref }: QRExportSurfaceProps
 
-div(className="overflow-hidden bg-white" ref={ref} data-ticket-export-root)
+div(className="overflow-hidden" ref={ref} data-ticket-export-root)
   div(className="flex min-w-0 flex-col items-center px-6 py-4 text-center sm:px-7 sm:py-7")
     div(className="my-2 min-w-0 max-w-full")
       p(className="wrap-break-word font-poly text-xs font-medium uppercase tracking-[0.24em] text-slate-600") #{itemName}

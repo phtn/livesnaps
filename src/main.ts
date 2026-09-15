@@ -6,6 +6,20 @@ import { applyTheme, getPreferredTheme } from './lib/theme'
 import { router } from './router'
 import './style.css'
 
+// document.addEventListener('pointerdown', (e) => {
+//   const button = (e.target as HTMLButtonElement)?.closest('button')
+//   if (button) button.classList.add('is-tapped')
+// })
+
+// document.addEventListener('pointerup', (e) => {
+//   document.querySelectorAll('.is-tapped').forEach((el) => el.classList.remove('is-tapped'))
+// })
+
+// document.addEventListener('pointerinverse', (e) => {
+//   // fallback for cancellations
+//   document.querySelectorAll('.is-tapped').forEach((el) => el.classList.remove('is-tapped'))
+// })
+
 /**
  * True for every local host, subdomains included.
  *

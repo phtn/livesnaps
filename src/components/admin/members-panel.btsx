@@ -1,6 +1,6 @@
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
-import { Badge } from '@/components/ui'
+import { Avatar, Badge } from '@/components/ui'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
@@ -22,7 +22,13 @@ module
 component MemberIdentity
   props { member }: { member: MemberRow }
   div(className='flex min-w-0 items-center gap-3')
-    span(className='grid size-8 shrink-0 place-items-center rounded-full bg-foreground/10 font-mono text-[10px] text-muted-foreground') #{getMemberInitials(member)}
+    Avatar(
+      ~ imageUrl={member.avatar.src}
+      ~ fallbackImageUrl={member.avatar.fallbackSrc}
+      ~ alt={member.name ?? member.email}
+      ~ fallback={getMemberInitials(member)}
+      ~ className='border-0 bg-foreground/10 font-mono text-[10px]'
+      ~ )
     div(className='min-w-0')
       p(className='truncate text-sm text-foreground') #{member.name ?? member.email}
       p(className='truncate font-mono text-xs text-muted-foreground') #{member.email}
@@ -80,7 +86,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
           h2(className='font-poly font-medium tracking-tight') Staff
           span(className='font-poly size-7 aspect-square flex items-center justify-center rounded-full bg-table-head')
             if rosterStatus === 'ready'
-              span(className='text-foreground') #{members.length}
+              span(className='text-foreground/70') #{members.length}
             else
               Icon(name='spinner-ring' className='size-3')
           if canInvite
@@ -97,9 +103,9 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
               ~ type='button'
               ~ aria-label='Refresh members'
               ~ onClick={() => setLocalReloadToken((token) => token + 1)}
-              ~ className='group size-7 aspect-square rounded-full bg-table-head text-muted-foreground transition-colors hover:bg-sidebar hover:text-foreground'
+              ~ className='group size-7 aspect-square rounded-full bg-table-head text-foreground/70 transition-all duration-200 ease-out hover:text-foreground active:scale-97'
               ~ )
-              Icon(name='refresh' className='transition-transform duration-200 ease-out group-active:rotate-180')
+              Icon(name='refresh' className='-rotate-6 transition-transform duration-200 ease-out group-active:rotate-39')
 
         div(className={cn('relative', {'w-full! mx-auto!': isSearchExpanded})})
           HyperSearch(
@@ -135,7 +141,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
               li(className='flex flex-wrap items-center justify-between gap-3 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent')
                 MemberIdentity(member={member})
                 div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
-                  span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline') #{member.title ?? ''}
+                  span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline capitalize') #{member.title ?? ''}
                   span(className='shrink-0 font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
                   span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatMemberDate(member.joinedAt ?? member.invitedAt)}
                   Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}

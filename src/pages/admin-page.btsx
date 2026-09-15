@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import ThemeToggle from '../components/theme-toggle.btsx'
 import { Link, useLocation } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator, usePanelRef } from '@octanejs/resizable-panels'
-import { parseAsBoolean, useQueryState } from '@octanejs/nuqs'
 import { useMobile } from '@/hooks/use-mobile'
 import { useFirebaseUser } from '@/lib/firebase/auth'
 import { useConsoleFirebaseSession } from '@/lib/firebase/console-session'
@@ -34,6 +33,27 @@ module
     { icon: 'settings', label: 'Settings', path: '/admin-settings' },
     // { icon: 'play', label: 'Sandbox', path: '/admin-snaps-lab'}
   ]
+
+  // Persisted locally rather than in the URL: nav Links don't carry search params,
+  // so a query-string flag reset to expanded on every navigation.
+  const NAV_COMPACT_STORAGE_KEY = 'livesnaps:admin-nav-compact'
+
+  const readNavCompactPreference = () => {
+    if (typeof window === 'undefined') return false
+    try {
+      return window.localStorage.getItem(NAV_COMPACT_STORAGE_KEY) === 'true'
+    } catch {
+      return false
+    }
+  }
+
+  const persistNavCompactPreference = (compact: boolean) => {
+    try {
+      window.localStorage.setItem(NAV_COMPACT_STORAGE_KEY, String(compact))
+    } catch {
+      // The state still applies for the current session when storage is unavailable.
+    }
+  }
 
   const resolveAdminNavLabel = (pathname: string) =>
     navs.find(item => item.exact ? pathname === item.path : pathname === item.path || pathname.startsWith(`${item.path}/`))?.label ?? 'Admin'
@@ -99,10 +119,7 @@ setup
   const { hasGodAccess, user } = useFirebaseUser()
   const [email, setEmail] = useState<string | null>(null)
   const [sessionUid, setSessionUid] = useState('')
-  const [isNavigationCompact, setIsNavigationCompact] = useQueryState(
-    'compact',
-    parseAsBoolean.withDefault(false).withOptions({ history: 'replace' })
-  )
+  const [isNavigationCompact, setIsNavigationCompact] = useState(readNavCompactPreference)
   const navigationPanelRef = usePanelRef()
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [status, setStatus] = useState<'loading' | 'ready' | 'unauthorized' | 'error'>('loading')
@@ -126,7 +143,9 @@ setup
 
   const handleNavigationResize = (size: { inPixels: number }) => {
     const nextCompact = size.inPixels <= 80
-    if (nextCompact !== isNavigationCompact) void setIsNavigationCompact(nextCompact)
+    if (nextCompact === isNavigationCompact) return
+    setIsNavigationCompact(nextCompact)
+    persistNavCompactPreference(nextCompact)
   }
 
   useEffect(() => {

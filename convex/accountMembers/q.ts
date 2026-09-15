@@ -1,6 +1,8 @@
 import { requireSubmissionAccountAccess } from '../lib/submissionAccess'
 import { ConvexError, v } from 'convex/values'
-import { internalQuery, query } from '../_generated/server'
+import { resolveUserAvatar } from '../../src/lib/r2/user-avatars'
+import type { Doc } from '../_generated/dataModel'
+import { internalQuery, type QueryCtx, query } from '../_generated/server'
 import { requireGodIdentity } from '../accounts/helpers'
 import { getUserByTokenIdentifier } from '../lib/auth'
 import { accountMemberDocumentSchema, accountMemberStatusSchema } from './d'
@@ -17,29 +19,45 @@ const normalizeListLimit = (limit: number | undefined) => {
   return Math.min(Math.max(Math.floor(limit), 1), MAX_LIST_LIMIT)
 }
 
+const memberAvatarSchema = v.object({
+  src: v.union(v.string(), v.null()),
+  fallbackSrc: v.union(v.string(), v.null())
+})
+
+// The R2 mirror is keyed by the `users` id, which only exists once the invite
+// is accepted; pending members get no image and fall back to initials.
+async function withMemberAvatars(ctx: QueryCtx, members: Doc<'accountMembers'>[]) {
+  return await Promise.all(
+    members.map(async (member) => ({
+      ...member,
+      avatar: resolveUserAvatar(member.userId ? await ctx.db.get('users', member.userId) : null)
+    }))
+  )
+}
+
 export const listForAccount = query({
   args: {
     accountId: v.id('accounts'),
     status: v.optional(accountMemberStatusSchema),
     limit: v.optional(v.number())
   },
-  returns: v.array(accountMemberDocumentSchema),
+  returns: v.array(accountMemberDocumentSchema.extend({ avatar: memberAvatarSchema })),
   handler: async (ctx, { accountId, status, limit }) => {
     await requireAccountAccess(ctx, accountId, 'viewer')
 
     const take = normalizeListLimit(limit)
 
-    if (status) {
-      return await ctx.db
-        .query('accountMembers')
-        .withIndex('by_accountId_and_status', (q) => q.eq('accountId', accountId).eq('status', status))
-        .take(take)
-    }
+    const members = status
+      ? await ctx.db
+          .query('accountMembers')
+          .withIndex('by_accountId_and_status', (q) => q.eq('accountId', accountId).eq('status', status))
+          .take(take)
+      : await ctx.db
+          .query('accountMembers')
+          .withIndex('by_accountId_and_status', (q) => q.eq('accountId', accountId))
+          .take(take)
 
-    return await ctx.db
-      .query('accountMembers')
-      .withIndex('by_accountId_and_status', (q) => q.eq('accountId', accountId))
-      .take(take)
+    return await withMemberAvatars(ctx, members)
   }
 })
 

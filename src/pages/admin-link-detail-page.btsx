@@ -41,10 +41,10 @@ component SharePanel
     div(className='flex min-w-0 items-center gap-2 border-b border-border/50 bg-sunken/50 p-1.5 pl-3')
       Icon(name='world' className='size-3.5 opacity-60')
       p(className='min-w-0 flex-1 truncate font-mono text-xs text-foreground/75') #{url}
-      Button(type='button' size='icon-lg' variant='secondary' icon='copy' aria-label='Copy submission link' onClick={copy})
+      Button(className='rounded-sm' type='button' size='icon-lg' variant='secondary' icon='copy' aria-label='Copy submission link' onClick={copy})
     div(className='grid gap-4 p-2 md:grid-cols-2')
       div(className='min-w-0 grid place-items-center')
-        div(className='mt-4 flex flex-col gap-4')
+        div(className='mt-4 flex md:flex-col gap-4')
           Button(className='h-14' type='button' onClick={() => setEmailOpen(true)} variant='secondary' size='lg' icon='email-body' label='Send Email')
           Button(className='h-14' type='a' href={smsHref} variant='secondary' size='lg' icon='message' label='Send SMS')
         if notice
@@ -173,7 +173,6 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
     fragment
       header(className='mt-5 flex flex-wrap items-start justify-between gap-3')
         div(className='min-w-0')
-          p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') /#{link.slug || account.slug}
           div(className='mt-1 flex items-center gap-2.5')
             span(className='size-3 rounded-full ring-2 ring-background shadow-[0_0_0_1px_rgba(0,0,0,0.12)]' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
             h1(className='font-poly text-2xl font-medium tracking-tight capitalize') #{link.label}
@@ -190,9 +189,9 @@ section(className='h-[calc(100vh-96px)] overflow-y-auto p-4')
           div
             p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Last 30 days
             h2(className='mt-1 text-base font-medium') Link performance
-          Link(to='/admin-settings/links/activity' className='inline-flex items-center gap-1.5 text-xs font-medium text-active hover:underline hover:underline-offset-4')
+          Link(to='/admin-settings/links/activity' className='inline-flex items-center gap-1.5 text-xs font-medium hover:text-brand hover:underline hover:underline-offset-4')
             span Full activity
-            Icon(name='arrow-right' className='size-3')
+            Icon(name='chevron-right' className='size-3')
         div(className='grid grid-cols-2 gap-px bg-border/50 sm:grid-cols-4')
           each metric in [{ label: 'Started', value: counts?.started ?? 0 }, { label: 'Completed', value: counts?.completed ?? 0 }, { label: 'Abandoned', value: counts?.abandoned ?? 0 }, { label: 'Completion', value: percentage(counts?.completed ?? 0, counts?.started ?? 0) }] key metric.label
             div(className='bg-surface px-4 py-3')
