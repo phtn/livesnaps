@@ -450,7 +450,7 @@ export const icons = {
   },
   'no-filter': {
     symbol:
-      '<g transform="scale(0.667)"><path d="M6.929.515 21.07 14.657l-1.414 1.414-3.823-3.822L14 14.999v7h-4v-7L4 6H3V4h4.585l-2.07-2.07zM21 4v2h-1l-1.915 2.872L13.213 4z" fill="currentColor"/></g>',
+      '<path fill="currentColor" d="M8.846 7h1.5L7.654 3.5h-1.5z"/><path fill="currentColor" fill-rule="evenodd" d="M3.75 7H3v1.5h8.5L10.346 7zM1 2h5.5l1.154 1.5H1zm14 1.5h-4.8L9 2h6zM10 12v1.5H6.154V12z" clip-rule="evenodd"/><path fill="currentColor" d="M10 8.5h1.5l2.125 2.75-1 .75-1.875-2.5zM6.5 2H5L4 .667 5 0z"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },
