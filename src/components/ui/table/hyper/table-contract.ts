@@ -1,4 +1,4 @@
-import type { Renderable, SortingState } from '@octanejs/tanstack-table'
+import type { ColumnPinningPosition, Renderable, SortingState } from '@octanejs/tanstack-table'
 
 /**
  * The structural contract `HyperTable` requires of a table, its headers and its
@@ -77,4 +77,18 @@ export interface HyperRowModel {
   getIsSelected: () => boolean
   getToggleSelectedHandler: () => (event: unknown) => void
   toggleSelected: () => void
+}
+
+/** The minimum a column must expose to be given a human label in the UI. */
+export interface LabelledColumn {
+  id: string
+  columnDef: { header?: unknown }
+}
+
+/** A column as the column-view menu and the reorder list read it. */
+export interface HyperViewColumn extends LabelledColumn {
+  getCanHide: () => boolean
+  getIsPinned: () => ColumnPinningPosition
+  getIsVisible: () => boolean
+  toggleVisibility: (value?: boolean) => void
 }

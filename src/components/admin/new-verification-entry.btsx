@@ -275,7 +275,7 @@ fragment
     ~ id='create-new-entry'
     ~ size='sm'
     ~ variant='dark'
-    ~ icon='add'
+    ~ icon='plus'
     ~ label={isMobile ? undefined : 'New'}
     // ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
     ~ onClick={() => setIsOpen(true)}

@@ -126,7 +126,7 @@ else
     // The trailing glyph is decoration only, so it steps aside whenever the
     // clear button needs the same corner.
     if !hasValue && !isExpanded
-      div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-foreground/40 peer-disabled:opacity-40')
+      div(className='pointer-events-none absolute inset-y-0 inset-e-0 flex items-center justify-center pe-1 text-muted-foreground/80 peer-disabled:opacity-40')
         Icon(name='slash' aria-hidden='true' className='size-3.5 md:size-5')
     if hasValue || isExpanded
       button(

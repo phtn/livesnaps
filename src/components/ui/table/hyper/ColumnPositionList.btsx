@@ -1,10 +1,10 @@
 import { Menu } from '@octanejs/base-ui/menu'
-import type { Column } from '@octanejs/tanstack-table'
 import { createElement, useCallback } from 'octane'
 
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { getColumnHeaderText } from './filter-utils'
+import type { HyperViewColumn } from './table-contract'
 import Sortable, { SortableContent, SortableItem, SortableOverlay } from './sortable.btsx'
 
 module
@@ -12,7 +12,7 @@ module
   // shows only after the column menu's reorder toggle. `ColumnView` loads this
   // module lazily so opening a table does not pay for drag and drop.
   interface Props {
-    columns: Column<any, any, unknown>[]
+    columns: HyperViewColumn[]
     reorderableColumnIds: string[]
     onReorder: (nextReorderableColumnIds: string[]) => void
   }

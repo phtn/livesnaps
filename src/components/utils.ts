@@ -1,4 +1,21 @@
-import type { OctaneNode } from 'octane'
+import type { ComponentBody, OctaneNode } from 'octane'
+import { lazy } from 'octane'
+
+/**
+ * `lazy()` for a `.btsx` module.
+ *
+ * Octane's `lazy` wants `{ default: ComponentBody }`, and `ComponentBody` is
+ * `(props, scope, extra) => void`. A `.btsx` module only describes itself that
+ * way through the ambient `declare module '*.btsx'` in `env.d.ts`; once the TSRX
+ * language service resolves the real file it reports the module's own shape,
+ * which does not match. That is why `tsrx-tsc` accepts a bare
+ * `lazy(() => import('./X.btsx'))` and the editor rejects it.
+ *
+ * Normalising here keeps the one assertion in a single place rather than at
+ * every lazy call site, and works under either resolution.
+ */
+export const lazyComponent = <P = any>(load: () => Promise<{ default?: unknown }>) =>
+  lazy<ComponentBody<P>>(() => load().then((module) => ({ default: module.default as ComponentBody<P> })))
 
 type Component<P = {}> = (props: P) => OctaneNode
 export type ComponentProps<T> = T extends Component<infer P> ? P : never

@@ -660,7 +660,7 @@ export const icons = {
   },
   plus: {
     symbol:
-      '<path fill-rule="evenodd" d="M8.004 2.335a1 1 0 0 1 1 1v3.669h3.669a1 1 0 0 1 0 2H9.004v3.669a1 1 0 0 1-2 0V9.004H3.335a1 1 0 0 1 0-2h3.669V3.335a1 1 0 0 1 1-1" clip-rule="evenodd" fill="currentColor"/>',
+      '<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="1.5" d="M3.335 8.004h9.338m-4.669 4.669V3.335"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },

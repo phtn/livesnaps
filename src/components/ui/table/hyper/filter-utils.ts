@@ -1,4 +1,4 @@
-import type { Column, RowData, TableFeatures } from '@octanejs/tanstack-table'
+import type { LabelledColumn } from './table-contract'
 import { TABLE_QUERY_LIMITS } from './parsers'
 
 const FILTER_OBJECT_LABEL_KEYS = ['label', 'name', 'title', 'slug', 'id', '_id', 'value'] as const
@@ -161,9 +161,7 @@ export const formatColumnId = (id: string): string => {
     .join(' ')
 }
 
-export const getColumnHeaderText = <TFeatures extends TableFeatures, TData extends RowData>(
-  column: Column<TFeatures, TData, unknown>
-): string => {
+export const getColumnHeaderText = (column: LabelledColumn): string => {
   const header = column.columnDef.header
 
   if (typeof header === 'string') {
