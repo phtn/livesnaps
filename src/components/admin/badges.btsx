@@ -1,11 +1,12 @@
 import Badge from '@/components/ui/badge.btsx'
 import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
+import {ClassValue} from 'octane'
 
 module
   /** The shape the presentation maps in `./data` provide. */
   export interface StatusPresentation {
-    className: string
+    className: ClassValue
     icon: IconName
     label: string
   }

@@ -77,9 +77,11 @@ const fetchFont = async (path: string): Promise<ArrayBuffer | null> => {
 }
 
 /**
- * The shipped families carry a single weight each, so every weight the PDF
- * styles ask for is served from the same file. Each registration gets its own
- * copy of the bytes — a loader may take ownership of the buffer it is handed.
+ * POLY and IOS ship a single weight each, so every weight the PDF styles ask
+ * for is served from the same file. OKX now ships a real regular alongside its
+ * medium, so those two are registered from their own files. Each registration
+ * gets its own copy of the bytes — a loader may take ownership of the buffer it
+ * is handed.
  */
 const faces = (data: ArrayBuffer | null, name: string, weights: readonly number[]): FontLoader[] =>
   data === null ? [] : weights.map((weight) => ({ data: data.slice(0), name, weight }))
@@ -96,14 +98,21 @@ export const loadPdfFonts = (): Promise<FontLoader[] | undefined> => {
     return Promise.resolve(undefined)
   }
 
+  // Root-relative on purpose: `CopyRspackPlugin` publishes `public/` at the site
+  // root, so these are served from `/fonts/...`. Written relative they resolved
+  // against the current route — `/admin-snaps/public/fonts/...` — and 404'd,
+  // which `fetchFont` swallows, so every face silently fell back.
   pdfFonts ??= Promise.all([
-    fetchFont('public/fonts/okxs-medium.woff2'),
-    fetchFont('public/fonts/PolySansTrial-MedianWide.otf'),
-    fetchFont('public/fonts/IoskeleyMono-Regular.woff2')
+    fetchFont('/fonts/okxs-regular.woff2'),
+    fetchFont('/fonts/okxs-medium.woff2'),
+    fetchFont('/fonts/PolySansTrial-MedianWide.otf'),
+    fetchFont('/fonts/IoskeleyMono-Regular.woff2')
   ])
-    .then(([body, display, mono]): FontLoader[] | undefined => {
+    .then(([bodyRegular, bodyMedium, display, mono]): FontLoader[] | undefined => {
       const loaders: FontLoader[] = [
-        ...faces(body, 'OKX', [400, 500]),
+        // Keep the old one-file-covers-both behaviour if the regular is missing.
+        ...faces(bodyRegular ?? bodyMedium, 'OKX', [400]),
+        ...faces(bodyMedium, 'OKX', [500]),
         ...faces(display, 'POLY', [500, 600]),
         ...faces(mono, 'IOS', [300])
       ]

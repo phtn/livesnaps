@@ -41,7 +41,7 @@ component SidebarTrigger
 component SidebarHeader
   props { brand }: { brand: MobileSidebarBrand }
   div(className='shrink-0')
-    div(className='flex h-16 items-center justify-between gap-3 ps-6 pe-2')
+    div(className='flex h-16 items-center justify-between gap-3 ps-6 pe-1')
       if brand === 'citadel'
         Link(className='inline-flex items-center gap-3 font-poly text-lg font-medium -tracking-[0.018em] text-foreground/90' to='/citadel' aria-label='Citadel home')
           Icon(name='re-up.ph' className='size-4.5')

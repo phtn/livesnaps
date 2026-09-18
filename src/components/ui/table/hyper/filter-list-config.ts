@@ -1,13 +1,8 @@
-import type { Column } from '@octanejs/tanstack-table'
 import { startOfDay, startOfMonth, subDays, subHours } from 'date-fns'
 import { getFilterValueLabel, getFilterValueToken } from './filter-utils'
+import type { FilterListColumn } from './table-contract'
 import { getRangeBounds, getRangeDate, getRangeInputValue, isOpenRangeBound } from './filter-ranges'
 
-/**
- * A filter list renders against whichever feature set its own table was built
- * with, so the column stays open here the same way `ColumnView`'s does.
- */
-export type FilterListColumn = Column<any, any, unknown>
 
 interface FilterDefinitionBase {
   /** Must name a real column, otherwise the filter silently disappears. */

@@ -4,20 +4,14 @@ import { createElement, useCallback } from 'octane'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { getColumnHeaderText } from './filter-utils'
-import type { HyperViewColumn } from './table-contract'
+import type { ColumnPositionListProps } from './table-contract'
 import Sortable, { SortableContent, SortableItem, SortableOverlay } from './sortable.btsx'
 
 module
   // The reorder list is the only dnd-kit consumer in the table toolbar, and it
   // shows only after the column menu's reorder toggle. `ColumnView` loads this
   // module lazily so opening a table does not pay for drag and drop.
-  interface Props {
-    columns: HyperViewColumn[]
-    reorderableColumnIds: string[]
-    onReorder: (nextReorderableColumnIds: string[]) => void
-  }
-
-  export type { Props as ColumnPositionListProps }
+  type Props = ColumnPositionListProps
 
 props { columns, reorderableColumnIds, onReorder }: Props
 setup

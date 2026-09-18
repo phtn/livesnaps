@@ -1,7 +1,8 @@
 import type { CollisionDetector } from '@dnd-kit/collision'
 import { closestCenter, closestCorners } from '@dnd-kit/collision'
-import type { Modifiers, UniqueIdentifier } from '@dnd-kit/abstract'
+import type { Data, Modifiers, UniqueIdentifier } from '@dnd-kit/abstract'
 import { RestrictToHorizontalAxis, RestrictToVerticalAxis } from '@dnd-kit/abstract/modifiers'
+import type { Draggable, Droppable } from '@dnd-kit/dom'
 import { Accessibility } from '@dnd-kit/dom'
 import { RestrictToElement } from '@dnd-kit/dom/modifiers'
 import { OptimisticSortingPlugin, SortableKeyboardPlugin } from '@dnd-kit/dom/sortable'
@@ -55,6 +56,11 @@ module
     getItemValue: (item: T) => UniqueIdentifier
   }
 
+  /**
+   * Generic for callers that name it. The root component itself is instantiated
+   * as `SortableProps<any>`, because Beast has no syntax for a type parameter on
+   * a component — `props <T>{ … }` does not parse.
+   */
   type SortableProps<T> = {
     id?: string
     value: T[]
@@ -67,7 +73,6 @@ module
     onDragEnd?: DragDropProviderProps['onDragEnd']
     onDragCancel?: DragDropProviderProps['onDragEnd']
     modifiers?: Modifiers
-    strategy?: unknown
     orientation?: Orientation
     flatCursor?: boolean
   } & (T extends object ? GetItemValue<T> : Partial<GetItemValue<T>>)
@@ -86,7 +91,6 @@ module
     render?: RenderProp
     asChild?: boolean
     withoutSlot?: boolean
-    strategy?: unknown
   }
 
   interface SortableItemProps extends Omit<DivProps, 'children' | 'id'> {
@@ -111,7 +115,7 @@ module
     asChild?: boolean
   }
 
-  type SortableOverlayProps = Omit<DragOverlayProps<any, any>, 'children'> & {
+  type SortableOverlayProps = Omit<DragOverlayProps<Data, Draggable<Data>>, 'children'> & {
     container?: HTMLElement | DocumentFragment | null
     children?: ((params: { value: UniqueIdentifier }) => unknown) | unknown
   }
@@ -153,8 +157,14 @@ module
     return next
   }
 
-  function sortableIndex(value: unknown): number {
-    return isSortable(value as any) ? (value as any).index : 0
+  /**
+   * `isSortable` is overloaded per element kind, and this is called with both a
+   * drag source and a drop target. Narrowing through the draggable overload is
+   * safe: `SortableDraggable` and `SortableDroppable` both carry `index`.
+   */
+  function sortableIndex(element: Draggable | Droppable | null | undefined): number {
+    const candidate = (element ?? null) as Draggable | null
+    return isSortable(candidate) ? candidate.index : 0
   }
 
   function wasPrevented(event: unknown): boolean {
@@ -162,7 +172,7 @@ module
   }
 
 component SortableContent
-  props { children, render, asChild = false, withoutSlot = false, strategy: _strategy, ref, ...contentProps }: SortableContentProps
+  props { children, render, asChild = false, withoutSlot = false, ref, ...contentProps }: SortableContentProps
   setup
     useSortableContext(CONTENT_NAME)
     const childIsRenderElement = asChild && isValidElement(children)
@@ -323,7 +333,6 @@ props { id: idProp,
   ~ onDragEnd: onDragEndProp,
   ~ onDragCancel,
   ~ modifiers,
-  ~ strategy: _strategy,
   ~ orientation = 'vertical',
   ~ flatCursor = false,
   ~ getItemValue: getItemValueProp }: SortableProps<any>
@@ -424,11 +433,13 @@ setup
     if (!wasPrevented(event)) {
       const active = event.operation.source
       const over = event.operation.target
-      const overId = active && isSortable(active) ? (active as any).index : null
+      // `OptimisticSortingPlugin` rewrites the source's own index while it is
+      // dragged, so on drop that index already IS the destination position.
+      const optimisticIndex = isSortable(active) ? active.index : null
       if (active) {
         const activeIndex = value.findIndex((item) => getItemValue(item) === active.id)
-        const overIndex = typeof overId === 'number'
-          ? overId
+        const overIndex = typeof optimisticIndex === 'number'
+          ? optimisticIndex
           : over
             ? value.findIndex((item) => getItemValue(item) === over.id)
             : activeIndex

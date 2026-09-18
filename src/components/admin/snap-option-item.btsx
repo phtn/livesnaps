@@ -1,4 +1,4 @@
-import { useState, createElement } from 'octane'
+import { useState, createElement, type ClassValue } from 'octane'
 import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { cn, formatName } from '@/lib/utils'
@@ -55,7 +55,7 @@ setup
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([])
   const imageUrl = [snap.imageUrl, snap.imageFallbackUrl].find((url): url is string => Boolean(url) && !failedImageUrls.includes(url as string))
   const showImage = Boolean(imageUrl)
-  const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status] })
+  const Status = (className: ClassValue) => createElement(StatusBadge, { presentation: {...snapSessionStatus[snap.status], className} })
 
 div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-sm py-1.5', className)})
   span(className='relative size-10 shrink-0')

@@ -681,6 +681,12 @@ export const icons = {
       '<g transform="scale(0.667)"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12c-6.597 0-9 2.403-9 9 0-6.597-2.403-9-9-9 6.597 0 9-2.403 9-9 0 6.597 2.403 9 9 9"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
+  },
+  signout: {
+    symbol:
+      '<g transform="scale(0.667)"><path d="M19 3H5c-1.11 0-2 .89-2 2v4h2V5h14v14H5v-4H3v4a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2m-8.92 12.58L11.5 17l5-5-5-5-1.42 1.41L12.67 11H3v2h9.67z" fill="currentColor"/></g>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
   }
 }
 

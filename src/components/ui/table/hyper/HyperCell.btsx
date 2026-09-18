@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { flexRender } from '@octanejs/tanstack-table'
+import { flexRender, Cell } from '@octanejs/tanstack-table'
 import type { OctaneNode } from 'octane'
 import { getPinnedColumnStyle } from './column-pinning.ts'
 import type { DefaultColumnPinningPosition, PinnedColumnLayout } from './column-pinning.ts'

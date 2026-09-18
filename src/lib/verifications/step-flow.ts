@@ -55,7 +55,7 @@ export const errorTextClassName = 'font-mono text-2xs text-destructive'
 
 export const CONTENT_BASE_CLASS =
   'fixed z-50 flex flex-col overflow-hidden border border-border/50 bg-sidebar text-foreground shadow-2xl outline-none'
-export const CONTENT_BOTTOM_CLASS = 'inset-x-0 bottom-0 max-h-[92dvh] rounded-t-2xl'
+export const CONTENT_BOTTOM_CLASS = 'inset-x-0 bottom-0 h-[94dvh] rounded-t-2xl'
 export const CONTENT_RIGHT_CLASS = 'inset-y-0 right-0 w-full max-w-[38rem] rounded-l-2xl'
 
 /** The shape either drawer needs to weigh an attachment: just the evidence. */

@@ -41,7 +41,13 @@ component RecipientDefaultsForm
           onSuccess('Recipient defaults saved.')
           onSaved()
         } catch (error) {
-          formApi.setErrorMap({ onSubmit: error instanceof Error ? error.message : 'Could not save recipient defaults.' })
+          // `setErrorMap` takes `GlobalFormValidationError`, not a bare string:
+          // `{ form?: ValidationError; fields: Partial<Record<DeepKeys<T>, …>> }`.
+          // The form-level message is unwrapped back into `state.errors`, so the
+          // string filter below still renders it.
+          formApi.setErrorMap({
+            onSubmit: { form: error instanceof Error ? error.message : 'Could not save recipient defaults.', fields: {} }
+          })
         }
       }
     })

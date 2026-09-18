@@ -1,8 +1,8 @@
+import rspack from '@rspack/core'
+import { beastOctane } from 'beast-tsrx/rspack'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import rspack from '@rspack/core'
-import { beastOctane } from 'beast-tsrx/rspack'
 
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const root = path.dirname(fileURLToPath(import.meta.url))
@@ -59,7 +59,7 @@ export default {
     }
   },
   resolve: {
-    extensions: ['.ts', '.tsx', '.js', '.btsx', '.mdx'],
+    extensions: ['.ts', '.tsx', '.js', '.mdx', '.btsx', '.tsrx'],
     // qrcode-svg exposes a Node-only `save()` helper from the same CommonJS
     // entry as its browser-safe `svg()` renderer. The client only uses `svg()`.
     fallback: {

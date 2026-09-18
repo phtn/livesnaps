@@ -9,7 +9,8 @@ import { cn } from '@/lib/utils'
 import FilterTrigger from './FilterTrigger.btsx'
 import { createInclusiveDateRangeFilterValue, createRangeFilterValue, getRangeBounds, getRangeDate, getRangeInputValue, isOpenRangeBound, OPEN_RANGE_BOUND } from './filter-ranges'
 import { DATE_PRESETS, getActiveFilterCount, getFilterOptions, getFilterSummary, getSelectedValues, matchDatePreset } from './filter-list-config'
-import type { DatePreset, DateRangeFilterDefinition, FacetedFilterDefinition, FilterDefinition, FilterListColumn, NumberRangeFilterDefinition } from './filter-list-config'
+import type { DatePreset, DateRangeFilterDefinition, FacetedFilterDefinition, FilterDefinition, NumberRangeFilterDefinition } from './filter-list-config'
+import type { FilterListColumn } from './table-contract'
 import { getFilterValueToken } from './filter-utils'
 
 module

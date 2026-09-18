@@ -344,7 +344,7 @@ fragment
                               p(className='text-sm font-medium text-muted-foreground') No eligible snaps match
                               p(className='mt-1 font-mono text-2xs text-muted-foreground') Try a different plate, name, email, make or model.
                           else
-                            SnapOptionList(snaps={filteredSnaps} onSelect={selectSnapById} selectedId={selectedSnap?._id ?? null})
+                            SnapOptionList(snaps={filteredSnaps} onSelect={selectSnapById} selectedId={selectedSnapId ?? null})
 
               Step(
                 ~ icon='person'

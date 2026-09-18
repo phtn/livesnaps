@@ -6,7 +6,8 @@ import { workspaceAccess } from '../lib/workspaceAccess'
 import { snapHandlerSchema } from '../snaps/d'
 import { verificationEntryDocumentSchema } from './d'
 
-const normalizeLimit = (limit?: number) => Math.min(Math.max(Math.floor(Number.isFinite(limit) ? limit! : 100), 1), 250)
+const normalizeLimit = (limit?: number) =>
+  Math.min(Math.max(Math.floor(Number.isFinite(limit) ? (limit ?? 25) : 100), 1), 250)
 const listArgs = { accountId: v.optional(v.id('accounts')), limit: v.optional(v.number()) }
 const queueItemSchema = verificationEntryDocumentSchema.extend({ handler: v.optional(snapHandlerSchema) })
 

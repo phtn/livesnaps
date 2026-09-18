@@ -1,23 +1,37 @@
 import type { ComponentBody, OctaneNode } from 'octane'
 import { lazy } from 'octane'
 
+/** What `lazyComponent` hands back: an ordinary component, plus `lazy`'s label. */
+export type LazyComponent<P> = ((props: P) => OctaneNode) & { displayName?: string }
+
 /**
  * `lazy()` for a `.btsx` module.
  *
- * Octane's `lazy` wants `{ default: ComponentBody }`, and `ComponentBody` is
- * `(props, scope, extra) => void`. A `.btsx` module only describes itself that
- * way through the ambient `declare module '*.btsx'` in `env.d.ts`; once the TSRX
- * language service resolves the real file it reports the module's own shape,
- * which does not match. That is why `tsrx-tsc` accepts a bare
- * `lazy(() => import('./X.btsx'))` and the editor rejects it.
+ * Two mismatches are bridged here, both at this one boundary:
  *
- * Normalising here keeps the one assertion in a single place rather than at
- * every lazy call site, and works under either resolution.
+ * 1. Octane's `lazy` is typed in terms of `ComponentBody`, its COMPILED-internal
+ *    signature — `(props, scope, extra) => void`. The JSX-facing component type
+ *    is `(props: P) => OctaneNode`, as `Component` below and the table binding's
+ *    own `TableComponentType` both are. Handing back the former makes the
+ *    checker see a component with NO props, so rendering it with any attribute
+ *    fails with "Property 'x' does not exist on type 'IntrinsicAttributes'".
+ * 2. A `.btsx` module only describes itself as `{ default: ComponentBody }`
+ *    through the ambient `declare module '*.btsx'` in `env.d.ts`; once the TSRX
+ *    language service resolves the real file it reports the module's own shape,
+ *    which does not match. That is why `tsrx-tsc` accepts a bare
+ *    `lazy(() => import('./X.btsx'))` and the editor does not.
+ *
+ * `P` has no inference site, so pass it explicitly when the component takes
+ * props — and from a `.ts` module, because a named type import from a `.btsx`
+ * specifier does not resolve under `tsrx-tsc` (the ambient declaration exposes
+ * only a default export).
  */
-export const lazyComponent = <P = any>(load: () => Promise<{ default?: unknown }>) =>
-  lazy<ComponentBody<P>>(() => load().then((module) => ({ default: module.default as ComponentBody<P> })))
+export const lazyComponent = <P = unknown>(
+  load: () => Promise<{ default?: unknown }>
+): LazyComponent<P> =>
+  lazy(() => load().then((module) => ({ default: module.default as ComponentBody<P> }))) as unknown as LazyComponent<P>
 
-type Component<P = {}> = (props: P) => OctaneNode
+type Component<P = object> = (props: P) => OctaneNode
 export type ComponentProps<T> = T extends Component<infer P> ? P : never
 
 type O<T> = {

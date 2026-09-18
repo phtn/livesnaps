@@ -1,12 +1,14 @@
-import { Drawer as D, type DrawerRootProps } from '@octanejs/base-ui/drawer'
-import type { OctaneNode } from 'octane'
+import { Drawer as D } from '@octanejs/base-ui/drawer'
+import type { OctaneNode, ComponentProps } from 'octane'
 import { cn } from '@/lib/utils'
 
 module
   export type DrawerSide = 'bottom' | 'left' | 'right' | 'top'
   export type DrawerSwipeDirection = 'down' | 'left' | 'right' | 'up'
+  type DrawerRoot = ComponentProps<typeof D.Root>
 
-  export interface DrawerProps extends Omit<DrawerRootProps, 'children' | 'swipeDirection'> {
+
+  export interface DrawerProps extends Omit<DrawerRoot, 'children' | 'swipeDirection'> {
     /** The drawer body, rendered inside Base UI's swipe-aware content region. */
     children?: OctaneNode
     /** Accessible name announced for the drawer. */

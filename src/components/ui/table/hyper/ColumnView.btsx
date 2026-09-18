@@ -7,14 +7,14 @@ import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { mergeColumnOrder } from './column-order'
 import { getColumnHeaderText } from './filter-utils'
-import type { HyperViewColumn } from './table-contract'
+import type { ColumnPositionListProps, HyperViewColumn } from './table-contract'
 import { isColumnVisible } from './visibility'
 import Checkbox from '@/components/ui/checkbox.btsx'
 
 
 module
   // dnd-kit sits behind the reorder toggle; see `ColumnPositionList.btsx`.
-  const LazyColumnPositionList = lazyComponent(() => import('./ColumnPositionList.btsx'))
+  const LazyColumnPositionList = lazyComponent<ColumnPositionListProps>(() => import('./ColumnPositionList.btsx'))
 
   export interface ColumnViewProps {
     cols: HyperViewColumn[]
