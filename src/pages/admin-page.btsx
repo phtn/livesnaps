@@ -86,7 +86,7 @@ component AdminNavigation
             ~ activeProps={{ className: activeNavClassName }}
             ~ className={cn(navLinkClassName, compact ? 'justify-center h-12!' : 'gap-4 px-3')}
             ~ )
-            Icon(name={item.icon as IconName} className='size-6')
+            Icon(name={item.icon as IconName} className='md:size-5 size-6')
             if !compact
               span #{item.label}
 

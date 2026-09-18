@@ -1,14 +1,14 @@
 import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
 import Tabs from '@/components/ui/tabs.btsx'
 import type { PanelRoute } from '@/components/ui/tabs.btsx'
-import Container from "../components/admin/container.btsx";
+import {Container} from '@/components/admin'
 
 module
   // One entry per child route under `citadelSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
     { id: 'settings', href: '/citadel/settings', label: 'Settings', shortLabel: 'Settings', icon: 'settings' },
     { id: 'email', href: '/citadel/settings/email', label: 'Email', shortLabel: 'Email', icon: 'email-setting' },
-    { id: 'gods', href: '/citadel/settings/gods', label: 'Gods', shortLabel: 'Gods', icon: 'cloud-fill' }
+    { id: 'gods', href: '/citadel/settings/gods', label: 'Gods', shortLabel: 'Gods', icon: 'cloud' }
   ]
 
   // Longest href wins, otherwise the `/citadel/settings` index would also claim
@@ -27,9 +27,8 @@ setup
     void navigate({ to: href })
   }
 
-
 Container
-  div(className='flex items-end h-12 border-b border-border/70')
+  div(className='flex items-end md:h-8 h-12 border-b border-border/50')
     Tabs(
       ~ activeId={activeId}
       ~ items={panelRoutes}

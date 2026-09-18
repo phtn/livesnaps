@@ -1,3 +1,4 @@
+import {InnerContainer} from '@/components/admin'
 import { useEffect, useState, useRef, useEffectEvent } from 'octane'
 import { Icon } from '@/lib/icons'
 import {Input} from '@/components/ui'
@@ -151,7 +152,7 @@ setup
     return () => document.removeEventListener('keydown', onKeyDown, true)
   }, [])
 
-section(className='p-5')
+InnerContainer
   header(className='flex items-baseline justify-between gap-3')
     div
       h2(className='font-poly text-2xl font-medium') Gods

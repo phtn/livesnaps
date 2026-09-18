@@ -1,2 +1,3 @@
 import Container from './container.btsx'
-export { Container }
+import InnerContainer from './inner-container.btsx'
+export { Container, InnerContainer }

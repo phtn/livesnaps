@@ -27,8 +27,8 @@ component SidebarTrigger
   props { brand, label }: { brand: MobileSidebarBrand; label?: string }
   header(className='fixed inset-x-0 top-0 z-35 flex h-12 md:h-14 items-center justify-between border-b border-sidebar-border bg-sunken px-3')
     if brand === 'citadel'
-      Link(className='inline-flex items-center gap-2 font-poly font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
-        Icon(name='re-up.ph' className='size-5')
+      Link(className='inline-flex items-center gap-3 font-poly font-medium text-lg text-foreground/90 tracking-tight' to='/citadel' aria-label='Citadel home')
+        Icon(name='re-up.ph' className='size-4')
         span(className='dark:text-lime-200') Citadel
     elseif label
       h1(className='font-poly text-lg font-medium tracking-tight text-foreground') #{label}
@@ -36,21 +36,21 @@ component SidebarTrigger
       Link(to='/' aria-label='App home')
         AppWordmark
     DrawerTrigger(type='button' aria-label='Open navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-foreground/70 transition-colors hover:bg-sidebar hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-      Icon(name='sidebar' className='size-5 opacity-80')
+      Icon(name='sidebar' className='size-5 opacity-90')
 
 component SidebarHeader
   props { brand }: { brand: MobileSidebarBrand }
   div(className='shrink-0')
-    div(className='flex h-16 items-center justify-between gap-3 px-5')
+    div(className='flex h-16 items-center justify-between gap-3 ps-6 pe-2')
       if brand === 'citadel'
-        Link(className='inline-flex items-center gap-3 font-poly text-xl font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
-          Icon(name='re-up.ph' className='size-5')
+        Link(className='inline-flex items-center gap-3 font-poly text-lg font-medium -tracking-[0.018em] text-foreground/90' to='/citadel' aria-label='Citadel home')
+          Icon(name='re-up.ph' className='size-4.5')
           span(className='dark:text-lime-200') Citadel
       else
         Link(className='text-[clamp(1.1rem,5vw,1.4rem)]' to='/' aria-label='App home')
           AppWordmark
       DrawerClose(type='button' aria-label='Close navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-2xl leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-        Icon(name='sidebar' className='size-5 opacity-80')
+        Icon(name='chevron-right' className='size-4 opacity-90')
 
 props { children, open, onOpenChange, title, brand = 'admin', triggerLabel, className }: SidebarProps
 setup const trigger = createElement(SidebarTrigger, { brand, label: triggerLabel })

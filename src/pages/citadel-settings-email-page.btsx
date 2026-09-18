@@ -1,3 +1,4 @@
+import {InnerContainer} from '@/components/admin'
 import { useState } from 'octane'
 import { useForm, useSelector } from '@octanejs/tanstack-form'
 import { api } from '../../convex/_generated/api'
@@ -132,7 +133,7 @@ component WebhookHistory
       span(className='text-xs text-muted-foreground') Page #{cursors.length}
       button(type='button' disabled={!events || events.isDone} onClick={() => { if (events && !events.isDone) setCursors(current => [...current, events.continueCursor]) }} className='rounded-sm border border-border/60 px-3 py-1.5 text-xs disabled:opacity-40') Older
 
-section(className='p-5')
+InnerContainer
   header(className='mb-6')
     h2(className='font-poly text-2xl font-medium') Email
     p(className='mt-1 text-sm text-muted-foreground') Preview templates, check inbox rendering, and follow delivery events.

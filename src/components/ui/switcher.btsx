@@ -30,7 +30,7 @@ component SwitcherRoot
 
   DropdownMenu
     DropdownMenuTrigger(
-      ~ className={cn('flex items-center justify-between h-12 min-w-0 cursor-pointer rounded-lg bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:bg-surface/90 data-popup-open:bg-background focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50', compact ? 'mx-auto w-full justify-center px-1!' : 'w-full px-3')}
+      ~ className={cn('flex items-center justify-between h-12 min-w-0 cursor-pointer rounded-lg bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:bg-surface/90 data-popup-open:bg-background focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50', compact ? 'mx-auto w-full justify-center px-1!' : 'w-full px-2')}
       ~ disabled={busy}
       ~ aria-label={label}
       ~ )
@@ -50,12 +50,12 @@ component SwitcherRoot
       DropdownMenuGroup
         DropdownMenuLabel(className="h-8 font-normal text-xs text-foreground/70") #{title}
         each item in items key item.id
-          DropdownMenuItem(onClick={() => onSelect?.(item)} disabled={item.id === activeItem?.id} className={cn("h-10 mb-1.5 last:mb-0 gap-1 p-2 bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4] rounded-sm",'dark:bg-[linear-gradient(in_oklab_180deg,oklab(31.7%_0_0)_0%,oklab(25.2%_0_0)_100%)] dark:text-[#FCFCFC]! dark:shadow-[inset_0_0.25px_0px_#FFFFFF26,inset_0_-0.5px_0.2px_0.15px_#121212,0_0.25px_0.25px_0.25px_#0D0D0D80,0_0_0_0.15px_#333333]', {'bg-brand/30! shadow-none': item.id === activeItem?.id})})
+          DropdownMenuItem(onClick={() => onSelect?.(item)} disabled={item.id === activeItem?.id} className={cn("h-10 mb-1.5 last:mb-0 gap-1 p-2 bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4] rounded-sm",'dark:bg-[linear-gradient(in_oklab_180deg,oklab(31.7%_0_0)_0%,oklab(25.2%_0_0)_100%)] dark:text-[#FCFCFC]! dark:shadow-none _dark:shadow-[inset_0_0.25px_0px_#FFFFFF26,inset_0_-0.5px_0.2px_0.15px_#121212,0_0.25px_0.25px_0.25px_#0D0D0D80,0_0_0_0.15px_#333333]', {'bg-brand/10! shadow-none': item.id === activeItem?.id})})
             div(className="flex size-6 items-center justify-center")
               if item.logo
                 | #{item.logo}
               else
-                span(className='text-xs font-medium uppercase') #{item.label.slice(0, 1)}
+                span(className='text-sm font-medium uppercase') ✦
             span(className='truncate pe-2') #{item.label}
         empty
           DropdownMenuItem(disabled className='p-2 text-xs text-muted-foreground') #{emptyLabel}

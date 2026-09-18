@@ -4,7 +4,7 @@ import Button from '@/components/ui/button.btsx'
 import { Icon } from '@/lib/icons'
 import { CUSTOM_VISION_TEST_PROMPT_ID, DEFAULT_VISION_TEST_PROMPT, DEFAULT_VISION_TEST_PROMPT_ID, getVisionTestFileError, getVisionTestPromptError, getVisionTestPromptLabel, getVisionTestPromptPreset, isVisionTestPromptId, isVisionTestProvider, VISION_TEST_ACCEPT, VISION_TEST_MAX_PROMPT_CHARACTERS, VISION_TEST_PROMPT_PRESETS, type ResolvedVisionTestProvider, type VisionTestPromptId, type VisionTestProvider, type VisionTestResult, type VisionTestStatus } from '@/lib/llm/vision-test-contract'
 import { cn } from '@/lib/utils'
-import { useEffect, useRef, useState } from 'octane'
+import { useEffect, useRef, useState, type OctaneNode } from 'octane'
 
 module
   type SelectedImage = {
@@ -65,8 +65,8 @@ module
   const isAbortError = (error: unknown) => error instanceof DOMException && error.name === 'AbortError'
 
 component ProviderStatus
-  props { status }: { status: VisionTestStatus | null }
-  div(className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground')
+  props { status, children }: { status: VisionTestStatus | null, children?: OctaneNode }
+  div(className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground mt-2 md:mt-0')
     if status
       fragment
         Badge(variant={status.providers.cohere ? 'outline' : 'destructive'}) Cohere #{status.providers.cohere ? 'ready' : 'not configured'}
@@ -74,6 +74,7 @@ component ProviderStatus
         span(className='font-mono') Default: #{PROVIDER_LABELS[status.defaultProvider]}
     else
       span Reading provider configuration…
+  | #{children}
 
 component ResultPlaceholder
   div(className='grid min-h-80 place-items-center rounded-xl border border-dashed border-border/70 bg-sunken/20 p-8 text-center')
@@ -220,18 +221,20 @@ setup
     }
   }
 
-main(className='w-full px-4 py-7 sm:px-6 sm:py-10')
-  header(className='mb-7 flex flex-col gap-3 border-b border-dotted border-border/60 pb-6')
-    div(className='flex items-center gap-3')
-      span(className='grid size-10 place-items-center rounded-full bg-active/10 text-active')
-        Icon(name='camera-enhance' className='size-5')
-      div
-        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Citadel · Model diagnostics
-        h1(className='font-poly text-2xl font-medium tracking-tight sm:text-3xl') Vision bench
-    p(className='max-w-3xl text-sm leading-6 text-muted-foreground') Compare Cohere inline vision with Meta Muse Spark’s temporary Files API upload using the same image, prompt, and structured vehicle schema.
-    ProviderStatus(status={status})
-    if statusError
-      p(className='text-xs text-destructive' role='alert') #{statusError}
+main(className='w-full p-4')
+  header(className='mb-7 flex flex-col gap-3')
+    div(className='flex flex-col md:flex-row md:items-center md:justify-between')
+      div(className='flex items-center gap-3')
+        span(className='grid size-10 place-items-center rounded-full bg-active/10 text-active')
+          Icon(name='vision' className='size-5')
+        div
+          p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Vision Model Diagnostics
+          h1(className='font-poly font-medium text-lg md:text-xl tracking-tight') Vision bench
+      ProviderStatus(status={status})
+        if statusError
+          p(className='text-xs text-destructive' role='alert') #{statusError}
+    p(className='hidden md:flex max-w-7xl font-mono text-muted-foreground text-sm -tracking-[0.02em] leading-6') Compare Cohere inline vision with Meta Muse Spark’s temporary Files API upload using the same image, prompt, and structured vehicle schema.
+
 
   form(className='grid max-w-7xl gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]' onSubmit={handleSubmit})
     section(className='min-w-0 rounded-xl border border-border/60 bg-sunken/15 p-4 sm:p-6')

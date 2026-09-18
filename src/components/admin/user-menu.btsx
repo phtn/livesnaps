@@ -41,12 +41,12 @@ module
    * this router. Every link resolves against the main app origin instead.
    */
   const appLinks: AppLink[] = [
-    { id: 'account', label: 'account', icon: 'person', path: '/account' },
+    { id: 'account', label: 'profile', icon: 'user', path: '/account' },
     { id: 'snaps', label: 'my snaps', icon: 'snap', path: '/snaps' }
   ]
 
   const godAppLinks: AppLink[] = [
-    { id: 'citadel', label: 'citadel', icon: 're-up.ph', path: '/citadel' },
+    { id: 'citadel', label: 'citadel', icon: 'cloud', path: '/citadel' },
     { id: 'admin', label: 'admin', icon: 'admin', path: '/admin' },
   ]
 
@@ -184,7 +184,7 @@ setup
   const itemContent = (icon: IconName, label: string) => createElement(
     'div',
     { className: 'contents' },
-    createElement(Icon, { name: icon, className: 'size-4' }),
+    createElement(Icon, { name: icon, className: 'size-5' }),
     createElement('span', null, label)
   )
 
@@ -204,7 +204,7 @@ setup
       disabled: isNavigatingToWorkspace,
       onClick: () => void handleWorkspaceNavigation(),
       className: cn(linkItemClassName, 'data-disabled:cursor-wait data-disabled:opacity-60'),
-      content: itemContent('admin', isNavigatingToWorkspace ? 'opening workspace…' : 'workspace')
+      content: itemContent('workspaces', isNavigatingToWorkspace ? 'opening workspace…' : 'workspace')
     }] : []),
     ...(actions ?? []).map((action, index) => ({
       id: action.id,
@@ -221,7 +221,7 @@ setup
       disabled: isLeaving,
       onClick: () => void handleLeaveConsole(),
       className: cn(itemClassName, 'data-disabled:cursor-wait data-disabled:opacity-60'),
-      content: itemContent('logoff', isLeaving ? scopes[scope].leavingLabel : scopes[scope].exitLabel)
+      content: itemContent('logout', isLeaving ? scopes[scope].leavingLabel : scopes[scope].exitLabel)
     },
     {
       id: 'sign-out',

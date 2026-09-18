@@ -1,3 +1,4 @@
+import {InnerContainer} from '@/components/admin'
 import { useEffect, useState } from 'octane'
 import { useForm, useStore } from '@octanejs/tanstack-form'
 import { useConvexQuery } from '@/hooks/use-convex-query'
@@ -77,13 +78,14 @@ component ReportSettings
             each field in group.fields key field.key
               ReportField(fieldKey={field.key} label={field.label} included={!settings.excludedFields.includes(field.key)})
 
-main(className='w-full px-4 py-8 sm:py-10')
-  section(className='bg-sunken/15 px-4 py-6 sm:px-8 sm:py-8')
-    div(className='flex items-start justify-between gap-6 border-b border-border/30 pb-6')
-      div
-        p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Snaps Data
-        h2(className='mt-2 font-poly text-2xl font-medium tracking-tight sm:text-3xl') Report Checklist
-      span(className='mt-5 shrink-0 font-mono text-sm text-muted-foreground') auto-saved
+InnerContainer
+  header(className='flex items-start justify-between gap-6 border-b border-border/30 pb-6')
+    div
+      p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Snaps Data Reporting
+      h2(className='mt-2 font-poly font-medium text-lg sm:text-xl tracking-tight') Report Checklist
+    span(className='mt-5 shrink-0 font-mono text-sm text-muted-foreground') auto-saved
+  section(className='')
+
     p(className='mt-6 max-w-4xl text-sm leading-6 text-muted-foreground') Choose the information included in every account report. Fields follow the PDF order and save as soon as you change them.
     p(className='mt-1 max-w-2xl text-xs leading-5 text-muted-foreground') Empty sections are omitted. Existing downloaded files stay unchanged.
     try

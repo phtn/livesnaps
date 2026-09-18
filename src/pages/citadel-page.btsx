@@ -42,7 +42,7 @@ component Navigation
   nav(className='flex-1 w-full')
     ul(className={cn('flex flex-col space-y-1', compact && 'space-y-2.5!')})
       each item in navs key item.path
-        li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60')
+        li(className='font-sans w-full hover:text-foreground hover:bg-sidebar/60 -tracking-[0.016em]')
           Link(
             ~ to={item.path}
             ~ onClick={onNavigate}
@@ -52,7 +52,7 @@ component Navigation
             ~ activeProps={{ className: activeNavClassName }}
             ~ className={cn(navLinkClassName, compact ? 'justify-center h-12!' : 'gap-4 px-3')}
             ~ )
-            Icon(name={item.icon} className='size-6')
+            Icon(name={item.icon} className='md:size-5 size-6')
             if !compact
               span #{item.label}
 

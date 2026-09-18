@@ -1,5 +1,22 @@
-import {OctaneNode} from 'octane'
+import type {OctaneNode} from 'octane'
+import {type ClassValue} from 'octane/jsx-runtime'
+import {cn} from '@/lib/utils'
 
-props {children}: {children?: OctaneNode}
-section(className='relative md:h-[calc(100vh-82px)] h-[calc(100vh-98px)] overflow-y-scroll scroll-smooth p-4')
+module
+  type Props = {
+    children?: OctaneNode
+    className?: ClassValue
+    /** A page with a tab strip above it has that much less room to scroll in. */
+    tabs?: boolean
+  }
+
+  // `Container` is a fixed-height card that clips, so the scrolling has to happen
+  // in here - that is what keeps a tab strip from riding up with the content.
+  // Desktop subtracts the card's own frame (32px outer gutter + 32px padding);
+  // mobile subtracts the `pt-11` shell. A tab strip costs another 32/48px.
+  const withTabs = 'md:h-[calc(100vh-82px)] h-[calc(100vh-98px)]'
+  const withoutTabs = 'md:h-[calc(100vh-64px)] h-[calc(100vh-44px)]'
+
+props {children, className, tabs = true}: Props
+section(className={cn('relative overflow-y-scroll scroll-smooth p-4', tabs ? withTabs : withoutTabs, className)})
   fragment #{children}

@@ -1,3 +1,6 @@
 import VisionBench from '@/components/citadel/vision-bench.btsx'
+import {Container, InnerContainer} from '@/components/admin'
 
-VisionBench
+Container
+  InnerContainer(tabs={false} className='p-0')
+    VisionBench

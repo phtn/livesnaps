@@ -1,3 +1,4 @@
+import {InnerContainer} from '@/components/admin'
 import { useEffect, useState, useRef } from 'octane'
 import { Icon, type IconName } from '@/lib/icons'
 import { Badge, Button, Input } from '@/components/ui'
@@ -616,7 +617,7 @@ setup
     void setFilters({ q: (e.currentTarget as HTMLInputElement).value })
   }
 
-section(className='p-4 h-[calc(100vh-98px)] overflow-y-auto smooth-scroll')
+InnerContainer
   header(className='flex items-center justify-between h-12')
     div(className={cn('w-full',isSearchExpanded && 'hidden! md:flex' )})
       div(className='flex items-center gap-3')

@@ -1,3 +1,4 @@
+import {InnerContainer} from '@/components/admin'
 import { useEffect, useState } from 'octane'
 import { Link, useNavigate } from '@octanejs/tanstack-router'
 import type {ClassValue} from 'octane/jsx-runtime'
@@ -115,7 +116,7 @@ setup
     return () => controller.abort()
   }, [slug, reloadToken])
 
-section(className='p-5')
+InnerContainer
   Link(to='/citadel/accounts' className='inline-flex items-center gap-1.5 font-mono text-xs text-muted-foreground hover:text-foreground')
     Icon(name='arrow-left' className='size-3')
     span All accounts
