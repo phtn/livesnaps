@@ -31,14 +31,14 @@ module
   // Shared row geometry: every list row is a uniform 32px tall with the same
   // inset, root page or drilled in.
   const ROW_CLASS: ClassName =
-    'relative flex h-8 cursor-default select-none items-center gap-2 rounded-[5px] px-2 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-foreground/[0.06] dark:data-[selected=true]:bg-indigo-100/8'
-  const LIST_CLASS: ClassName = 'max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto p-1'
+    'relative flex h-9 cursor-default select-none items-center gap-2 rounded-[4px] ps-2 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-sidebar-border/50 dark:data-[selected=true]:bg-indigo-100/8'
+  const LIST_CLASS: ClassName = 'max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto p-0.5'
   const HEADER_CLASS: ClassName = 'flex h-9 shrink-0 items-center gap-1.5 border-b border-border/35 px-1'
   const SEARCH_CLASS: ClassName =
     'h-8 w-full min-w-0 bg-transparent font-mono text-xs -tracking-[0.02em] outline-hidden placeholder:select-none placeholder:text-muted-foreground/80 px-1'
   const MUTED_ROW_LABEL_CLASS: ClassName = 'truncate text-muted-foreground'
   const SUMMARY_CLASS: ClassName = 'ml-auto truncate font-mono text-xs text-indigo-500 dark:text-indigo-300'
-  const CHECK_CLASS: ClassName = 'ml-auto size-3.5 shrink-0 text-indigo-500 dark:text-indigo-300'
+  const CHECK_CLASS: ClassName = 'ml-auto mr-1 size-3.5 shrink-0 text-indigo-500 dark:text-indigo-300'
   const EMPTY_CLASS: ClassName = 'py-6 text-center text-sm text-muted-foreground'
 
   interface FilterPanelProps {
@@ -56,7 +56,7 @@ component PanelChip
   button(
     ~ type='button'
     ~ onClick={onBack}
-    ~ className='flex h-6 shrink-0 items-center gap-1 rounded-[4px] ps-2 pe-1 font-sans text-sm hover:border-indigo-400/60 hover:bg-indigo-500/10 dark:bg-indigo-100/8'
+    ~ className='flex h-6 shrink-0 items-center gap-1 rounded-[3px] ps-2 pe-1 font-sans text-sm hover:border-indigo-400/60 hover:bg-indigo-500/10 dark:bg-indigo-100/8'
     ~ )
     span(className='truncate') #{label}
     Icon(name='select-caret' className='size-3 opacity-65')
@@ -95,7 +95,7 @@ component FacetedPanel
             ~ className='pointer-events-none'
             ~ )
           span(className='truncate') #{option.label}
-          span(className={cn('ml-auto mr-1 font-sans text-sm text-foreground/35', { 'text-indigo-500/80 dark:text-indigo-300/80': option.count > 0 })})
+          span(className={cn('ml-auto mr-2 font-sans text-sm text-foreground/35', { 'text-indigo-500/80 dark:text-indigo-300/80': option.count > 0 })})
             | #{option.count}
 
 component NumberRangePanel
@@ -187,7 +187,7 @@ component DatePanel
       Command.Item(value='Custom Date Range' onSelect={onCustomRange} className={ROW_CLASS})
         span(className='truncate') Custom Date Range
         span(className={SUMMARY_CLASS}) #{!isAny && !activePreset ? 'Set' : ''}
-        Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-40')
+        Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-50')
 
 component CustomDatePanel
   props { column, rawFilterValue }: FilterPanelProps
@@ -250,7 +250,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
     ~ aria-describedby={descriptionId}
     ~ aria-labelledby={labelId}
     ~ align='start'
-    ~ sideOffset={8}
+    ~ sideOffset={7}
     ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/60 bg-zinc-100/80 p-0! backdrop-blur-3xl dark:bg-zinc-900/70'
     ~ )
     h4(id={labelId} className='sr-only') Add Filter
@@ -258,7 +258,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
     Command(shouldFilter={hasSearch} loop={true} className='flex flex-col')
       div(className={HEADER_CLASS})
         if activeDefinition
-          div(className='flex shrink-0 items-center gap-1.5')
+          div(className='flex shrink-0 items-center gap-1')
             PanelChip(label={activeDefinition.label} onBack={isCustomDateRange ? () => setIsCustomDateRange(false) : goToRoot})
             span(className='h-9 w-px bg-border/25')
         if hasSearch
@@ -285,7 +285,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
                 ~ )
                 span(className='truncate') #{definition.label}
                 span(className={SUMMARY_CLASS}) #{getFilterSummary(definition, filterValuesById.get(definition.id))}
-                Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-40')
+                Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-50')
       elseif isCustomDateRange
         CustomDatePanel(column={activeColumn} rawFilterValue={activeFilterValue})
       elseif activeDefinition.variant === 'faceted'
