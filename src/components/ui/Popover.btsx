@@ -1,6 +1,9 @@
 import { Popover as PopoverPrimitive } from "@octanejs/base-ui/popover"
 import { cn } from "@/lib/utils"
 
+component PopoverRoot
+  props {...props}: PopoverPrimitive.Root.Props
+  PopoverPrimitive.Root(data-slot="popover" {...props})
 
 component PopoverTrigger
   props {className, ...props}: PopoverPrimitive.Trigger.Props
@@ -35,6 +38,6 @@ module
   export { PopoverTrigger, PopoverContent, PopoverTitle, PopoverDescription }
   export type { PopoverProps, PopoverTriggerProps, PopoverContentProps }
 
-props {...props}: PopoverPrimitive.Root.Props
-fragment
-  PopoverPrimitive.Root(data-slot="popover" {...props})
+
+props {...props}: PopoverProps
+PopoverRoot({...props})

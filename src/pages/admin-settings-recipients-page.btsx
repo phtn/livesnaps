@@ -71,7 +71,7 @@ InnerContainer
   header(className='flex flex-wrap items-end justify-between gap-4')
     div(className='py-4')
       p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Delivery
-      h1(className='mt-1 font-poly text-xl font-medium tracking-tight') Email Service
+      h1(className='mt-1 font-poly font-medium text-lg md:text-xl tracking-tight') Email Service
       p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Set your recipient lists used when #{account?.name ?? 'your account'} creates or sends a verification.
     div(className='hidden items-center gap-2 rounded-full border border-border/50 bg-sidebar/30 px-3 py-1.5 font-mono text-2xs uppercase tracking-wider text-muted-foreground sm:flex')
       Icon(name='email-body' className='size-3.5')
@@ -87,10 +87,10 @@ InnerContainer
   else
     div(className='mt-5 grid items-start gap-4 lg:grid-cols-2')
       section(className={cardClassName})
-        header(className='flex items-center justify-between border-b border-brand/40 bg-sidebar/20 px-4 py-4')
+        header(className='flex items-center justify-between border-b border-brand/40 bg-brand/8 px-4 py-4')
           div(className='flex items-start justify-between')
             div
-              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') Shared
+              p(className='font-mono text-2xs uppercase tracking-[0.18em] text-brand') Shared
               h2(className='mt-1 font-sans text-base font-medium') #{account?.name ?? ' Account'} List
 
           p(className='text-xs leading-5 text-muted-foreground') available to everyone
@@ -99,8 +99,8 @@ InnerContainer
             RecipientDefaultsForm(accountId={account.id} scope='account' emails={settings.accountEmails} onSaved={refresh})
           else
             fragment
-              div(className='bg-brand/8 px-3 py-2 text-xs leading-5 text-foreground/70') An account owner or administrator can update this list.
-              div(className='p-4 bg-brand/8')
+              div(className='px-3 py-2 font-mono text-foreground/70 text-xs -tracking-[0.02em] leading-5') An account owner or administrator can update this list.
+              div(className='p-4')
                 RecipientList(emails={settings.accountEmails})
       section(className={cardClassName})
         header(className='border-b border-active/15 bg-active/5 px-4 py-4')
