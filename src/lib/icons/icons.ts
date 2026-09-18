@@ -438,6 +438,12 @@ export const icons = {
     set: 'svg'
   },
   filter: {
+    symbol:
+      '<path fill="currentColor" fill-rule="evenodd" d="M1 2h14v1.5H1zm4 10h6v1.5H5zM3.75 7H3v1.5h10V7z" clip-rule="evenodd" shape-rendering="geometricprecision" transform-origin="0 0"/>',
+    viewBox: '0 0 16 16',
+    set: 'svg'
+  },
+  filters: {
     symbol: '<g transform="scale(0.667)"><path d="M21 4v2h-1l-6 9v7h-4v-7L4 6H3V4z" fill="currentColor"/></g>',
     viewBox: '0 0 16 16',
     set: 'svg'
@@ -534,7 +540,7 @@ export const icons = {
   },
   account: {
     symbol:
-      '<path d="m6.21 12.293-3.215-4.3 3.197-4.178-.617-.842-3.603 4.712-.005.603 3.62 4.847z" transform-origin="0 0" fill="currentColor"/><path d="M7.332 1.988H6.095l4.462 6.1-4.357 5.9h1.245L11.8 8.09z" transform-origin="0 0" fill="currentColor"/><path d="M9.725 1.988H8.472l4.533 6.027-4.533 5.973h1.255l4.303-5.67v-.603z" transform-origin="0 0" fill="currentColor"/>',
+      '<path fill="currentColor" d="M5.982 12.867 2.358 7.994l3.604-4.736-.696-.954-4.062 5.34-.005.684 4.081 5.493z" font-size="18" transform-origin="0 0"/><path fill="currentColor" d="M7.247 1.188H5.852l5.031 6.913-4.912 6.687h1.403l4.91-6.685z" font-size="18" transform-origin="0 0"/><path fill="currentColor" d="M9.945 1.188H8.532l5.111 6.83-5.111 6.77h1.415l4.851-6.426v-.684z" font-size="18" transform-origin="0 0"/>',
     viewBox: '0 0 16 16',
     set: 'svg'
   },

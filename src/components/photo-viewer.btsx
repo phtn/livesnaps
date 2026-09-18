@@ -1,6 +1,8 @@
 module "use strong";
 
 import { Dialog } from '@octanejs/base-ui/dialog'
+import { useBackDismiss } from '@/hooks/use-back-dismiss'
+import { useMobile } from '@/hooks/use-mobile'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'octane'
@@ -322,6 +324,13 @@ setup
   const clearPointerStart = useCallback(() => {
     pointerStartRef.current = null
   }, [])
+
+  const isMobile = useMobile()
+  const closeViewer = useCallback(() => onOpenChange(false), [onOpenChange])
+
+  // On phones the back gesture is the reflex for "get out of this fullscreen
+  // thing", so it closes the viewer rather than leaving the page behind it.
+  useBackDismiss(open && isMobile, closeViewer)
 
   const hasMobileActions = Boolean(activePhoto && (allowRotation || canDownload || onPrimaryAction))
   const showFooter = photos.length > 1 || hasMobileActions
