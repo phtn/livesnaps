@@ -23,6 +23,7 @@ type SnapDoc = Doc<'snaps'>
 type SendEmailArgs = {
   id: Id<'verificationEntries'>
   emailToAddress?: string
+  ccEmailAddress?: string
   attachments?: string[]
   subject?: string
   body?: string
@@ -442,6 +443,7 @@ export const sendEmail = action({
   args: {
     id: v.id('verificationEntries'),
     emailToAddress: v.optional(v.string()),
+    ccEmailAddress: v.optional(v.string()),
     attachments: v.optional(v.array(v.string())),
     subject: v.optional(v.string()),
     body: v.optional(v.string())
@@ -458,6 +460,13 @@ export const sendEmail = action({
     )
     if (!entry) throw new ConvexError('Entry not found.')
     const recipient = normalizeEmailAddress(args.emailToAddress ?? entry.emailToAddress, 'Recipient email address')
+    // The operator can retarget the CC at send time. Omitting the argument keeps
+    // whatever the entry was created with; sending an empty string drops the CC
+    // from this email. `normalizeOptionalEmailAddress` validates a real value.
+    const ccEmailAddress: string | undefined =
+      args.ccEmailAddress === undefined
+        ? entry.ccEmailAddress
+        : normalizeOptionalEmailAddress(args.ccEmailAddress)
 
     const normalizedAttachments: string[] = args.attachments
       ? args.attachments
@@ -636,7 +645,7 @@ export const sendEmail = action({
       const payload: Record<string, unknown> = {
         from: resendFrom,
         to: [recipient],
-        cc: entry.ccEmailAddress && entry.ccEmailAddress !== recipient ? [entry.ccEmailAddress] : undefined,
+        cc: ccEmailAddress && ccEmailAddress !== recipient ? [ccEmailAddress] : undefined,
         subject: emailSubject,
         text: emailBody,
         attachments: emailAttachments.map((attachment: EmailAttachment): ResendAttachmentPayload => ({
@@ -676,7 +685,8 @@ export const sendEmail = action({
         {
           id: args.id,
           attachments: finalAttachments,
-          emailToAddress: recipient
+          emailToAddress: recipient,
+          ccEmailAddress
         }
       )
 

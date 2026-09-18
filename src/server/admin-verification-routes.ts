@@ -242,6 +242,9 @@ export function handleAdminVerificationEntrySend(
       return client.action(api.verificationEntries.m.sendEmail, {
         id: id as Id<'verificationEntries'>,
         emailToAddress: typeof body.emailToAddress === 'string' ? body.emailToAddress.trim() : undefined,
+        // Not `readString`: that collapses '' to undefined, which the action
+        // reads as "leave the entry's CC alone" rather than "send without one".
+        ccEmailAddress: typeof body.ccEmailAddress === 'string' ? body.ccEmailAddress.trim() : undefined,
         attachments: readStringArray(body.attachments),
         subject: readString(body.subject),
         body: readString(body.body)

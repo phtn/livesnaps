@@ -57,6 +57,7 @@ export const CONTENT_BASE_CLASS =
   'fixed z-50 flex flex-col overflow-hidden border border-border/50 bg-sidebar text-foreground shadow-2xl outline-none'
 export const CONTENT_BOTTOM_CLASS = 'inset-x-0 bottom-0 h-[94dvh] rounded-t-2xl'
 export const CONTENT_RIGHT_CLASS = 'inset-y-0 right-0 w-full max-w-[38rem] rounded-l-2xl'
+export const VAUL_OVERLAY = 'fixed inset-0 z-50 bg-black/45'
 
 /** The shape either drawer needs to weigh an attachment: just the evidence. */
 export interface AttachmentSource {

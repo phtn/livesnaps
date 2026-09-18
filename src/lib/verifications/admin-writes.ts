@@ -24,6 +24,8 @@ export interface RemoveVerificationAttachmentInput {
 export interface SendVerificationEmailInput {
   id: string
   emailToAddress?: string
+  /** Omit to keep the entry's CC; pass '' to send without one. */
+  ccEmailAddress?: string
   attachments?: string[]
   subject?: string
   body?: string

@@ -36,16 +36,18 @@ export const markSubmittedInternal = internalMutation({
   args: {
     id: v.id('verificationEntries'),
     attachments: v.array(v.string()),
-    emailToAddress: v.optional(v.string())
+    emailToAddress: v.optional(v.string()),
+    ccEmailAddress: v.optional(v.string())
   },
   returns: verificationEntryDocumentSchema,
-  handler: async (ctx, { id, attachments, emailToAddress }) => {
+  handler: async (ctx, { id, attachments, emailToAddress, ccEmailAddress }) => {
     const entry = await ctx.db.get('verificationEntries', id)
     if (!entry) throw new ConvexError('Entry not found.')
     await requireVerificationEntryAccess(ctx, entry, 'member')
     await ctx.db.patch(id, {
       attachments,
       ...(emailToAddress !== undefined ? { emailToAddress } : {}),
+      ...(ccEmailAddress ? { ccEmailAddress } : {}),
       status: 'submitted' as const,
       updatedAt: Date.now()
     })
