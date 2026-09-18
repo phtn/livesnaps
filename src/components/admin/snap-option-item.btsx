@@ -55,7 +55,7 @@ setup
   const [failedImageUrls, setFailedImageUrls] = useState<string[]>([])
   const imageUrl = [snap.imageUrl, snap.imageFallbackUrl].find((url): url is string => Boolean(url) && !failedImageUrls.includes(url as string))
   const showImage = Boolean(imageUrl)
-  const Status = (className: ClassValue) => createElement(StatusBadge, { presentation: {...snapSessionStatus[snap.status], className} })
+  const Status = () => createElement(StatusBadge, { presentation: snapSessionStatus[snap.status] })
 
 div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-sm py-1.5', className)})
   span(className='relative size-10 shrink-0')
@@ -84,7 +84,8 @@ div(className={cn('flex w-full min-w-0 items-center gap-3 text-left rounded-sm p
   div(className='min-w-0 flex-1 space-y-1')
     p(className='flex items-center gap-3 text-foreground text-sm uppercase')
       span(className='font-poly text-base tracking-wide min-w-24') #{plateNumber}
-      Status(className='scale:70')
+      div(className='scale-90')
+        Status
     div(className='mt-0.5 flex min-w-0 items-center gap-1.5 font-mono text-xs text-foreground/80')
       span(className='truncate whitespace-nowrap') #{formatName(fullName) || 'Unknown applicant'}
       if email

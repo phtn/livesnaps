@@ -27,7 +27,7 @@ component LinkIdentity
     span(className='grid size-6 shrink-0 place-items-center rounded-full text-white shadow-sm' style={{ backgroundColor: submissionLinkColorHex(link.color) }})
     div(className='min-w-0 whitespace-nowrap')
       div(className='flex items-center gap-0.5')
-        p(className='truncate text-sm text-foreground') #{link.label}
+        p(className='truncate font-medium text-sm text-foreground') #{link.label}
         Icon(name={link.enabled ? 'circle-check' : 'not-started'} className={cn('size-3.5 text-mist-500', {'text-emerald-500!': link.enabled})})
       p(className='truncate font-mono text-xs text-muted-foreground') #{submissionShareUrl(accountSlug, link.slug)}
 

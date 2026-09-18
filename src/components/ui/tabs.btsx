@@ -2,6 +2,7 @@ import type { JSX } from 'octane/jsx-runtime'
 import { useLayoutEffect, useRef } from 'octane'
 import { Icon } from '@/lib/icons'
 import type { IconName } from '@/lib/icons'
+import { cn } from '@/lib/utils';
 
 module
   // Callers own their own id union and path shapes; the tab bar only needs ids
@@ -74,7 +75,7 @@ setup
 nav(
   ~ {...navProps}
   ~ ref={tabListRef}
-  ~ className={[baseClassName, items.length >= 3 && 'w-full', className]}
+  ~ className={cn(baseClassName, items.length >= 3 && 'w-full', className)}
   ~ aria-label={label}
   ~ role='tablist'
   ~ )
@@ -88,7 +89,7 @@ nav(
       ~ onClick={(event) => handleNavigate(event, item.href)}
       ~ )
       Icon(name={item.icon} className='size-5 md:opacity-80')
-      span(className='hidden lg:inline scale-95 font-sans font-medium lg:text-base text-sm -tracking-[0.016em]') #{item.label}
+      span(className='hidden lg:inline scale-95 font-sans lg:text-base text-sm -tracking-[0.016em]') #{item.label}
       span(className={`${items.length >= 3 ? 'hidden md:flex' : 'flex'}  scale-95 lg:hidden font-sans font-medium sm:text-base text-sm -tracking-[0.016em]`}) #{item.shortLabel}
   // div(
   //   ~ aria-hidden='true'

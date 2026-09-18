@@ -313,7 +313,7 @@ setup
 if entry
   Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
     Drawer.Portal
-      Drawer.Overlay(className='fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px]')
+      Drawer.Overlay(className='fixed inset-0 z-50 bg-black/45')
       Drawer.Content(className={cn(CONTENT_BASE_CLASS, isMobile ? CONTENT_BOTTOM_CLASS : CONTENT_RIGHT_CLASS)})
         form(className='flex min-h-0 flex-1 flex-col' onSubmit={submit})
 
@@ -328,7 +328,7 @@ if entry
               | Confirm the recipients, compose the message, choose the attachments, and send the verification email.
 
           div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
-            div(className='rounded-2xl border border-border/40 bg-popover p-4 shadow-sm')
+            div(className='rounded-2xl border border-border/40 bg-popover py-4 pe-4 ps-2 shadow-xs')
 
               Step(
                 ~ icon='person'

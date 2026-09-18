@@ -8,7 +8,7 @@ import { useField, useSelector } from '@octanejs/tanstack-form'
 import AttachmentRow from '@/components/admin/attachment-row.btsx'
 import SnapOptionItem from '@/components/admin/snap-option-item.btsx'
 import SnapOptionList from '@/components/admin/snap-option-list.btsx'
-import {Badge, Button, Input, ScrollArea } from '@/components/ui'
+import { Button, Input, ScrollArea } from '@/components/ui'
 import Step from '@/components/admin/verification-step.btsx'
 import { useMobile } from '@/hooks/use-mobile'
 import { Icon } from '@/lib/icons'
@@ -283,7 +283,7 @@ fragment
 
   Drawer.Root(open={isOpen} onOpenChange={handleOpenChange} direction={direction})
     Drawer.Portal
-      Drawer.Overlay(className='fixed inset-0 z-50 bg-black/45 backdrop-blur-[1px]')
+      Drawer.Overlay(className='fixed inset-0 z-50 bg-black/45')
       Drawer.Content(className={cn(CONTENT_BASE_CLASS, isMobile ? CONTENT_BOTTOM_CLASS : CONTENT_RIGHT_CLASS)})
         form(className='flex min-h-0 flex-1 flex-col' onSubmit={submit})
 
@@ -300,7 +300,7 @@ fragment
               | Select a completed snap, confirm the recipients, and create the verification entry.
 
           div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
-            div(className='rounded-2xl border border-border/0 bg-popover p-4 shadow-sm')
+            div(className='rounded-2xl border border-border/0 bg-popover py-4 ps-2 pe-4 shadow-xs')
 
               Step(
                 ~ icon='camera-enhance'
@@ -333,7 +333,7 @@ fragment
                         ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
                         ~ )
                     div(className='')
-                      ScrollArea(className='h-54 rounded-lg overflow-hidden')
+                      ScrollArea(className='h-58 rounded-lg overflow-hidden border border-sidebar-border')
                         div(className='bg-table-head/20')
                           if isLoadingSnaps
                             div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')
@@ -407,7 +407,7 @@ fragment
               if submitError
                 p(className={cn('mt-4 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive', ENTER_CLASS)} role='alert') #{submitError}
 
-          div(className='flex shrink-0 items-center justify-between gap-3 border-t border-border/50 px-4 py-3 sm:px-5')
+          div(className='flex shrink-0 items-center justify-between gap-3 px-4 py-3 sm:px-5')
             div(className='flex min-w-0 items-center gap-2')
               span(className={cn('size-1.5 shrink-0 rounded-full bg-current', statusToneClass, isSubmitting && 'animate-pulse')})
               span(className={cn('truncate font-sans text-xs', statusToneClass)}) #{statusLabel}

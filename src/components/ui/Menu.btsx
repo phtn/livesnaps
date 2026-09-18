@@ -1,30 +1,41 @@
-import { Menu as MenuPrimitive } from "@octanejs/base-ui/menu"
-import type { Ref } from "octane"
-import { cn } from "@/lib/utils"
+import { Menu as M } from '@octanejs/base-ui/menu'
+import type { ComponentProps, OctaneNode, ClassValue } from 'octane'
+import { cn } from '@/lib/utils'
 
 module
-  interface MenuItem {
+  type TriggerProps = ComponentProps<typeof M.Trigger>
+  type PositionerProps = ComponentProps<typeof M.Positioner>
+  type PortalProps = ComponentProps<typeof M.Portal>
+  type ItemProps = ComponentProps<typeof M.Item>
+
+  /** Placement props forwarded to the positioner rather than to the popup. */
+  type MenuPlacement = Pick<PositionerProps, 'side' | 'align' | 'sideOffset'>
+
+  export interface MenuItem extends Pick<ItemProps, 'label' > {
+    /** Stable key for the rendered list. */
     id: string
-    label: string
-    content: unknown
+    /** Rendered inside the item. `label` is what assistive tech announces. */
+    content: OctaneNode
     value?: string
+    /** Set to render a `LinkItem` instead of an `Item`. */
     href?: string
-    onClick?: () => void
+    /** Draws a separator directly above this item. */
+    separatorBefore?: boolean
+    className?: ClassValue
+    onClick?: VoidFunction
     disabled?: boolean
     closeOnClick?: boolean
-    className?: string
-    separatorBefore?: boolean
   }
 
-  interface MenuProps {
+  export interface MenuProps extends MenuPlacement {
     items: MenuItem[]
-    children?: unknown
-    beforeItems?: unknown
-    side?: "top" | "bottom" | "left" | "right" | "inline-end" | "inline-start"
-    align?: "start" | "center" | "end"
-    sideOffset?: number
-    portalContainer?: HTMLElement | ShadowRoot | null
-    triggerRef?: Ref<HTMLElement>
+    /** The trigger's own content. */
+    children?: OctaneNode
+    /** Rendered inside the popup, above the items. */
+    beforeItems?: OctaneNode
+    /** Portal target. Defaults to the document body. */
+    portalContainer?: PortalProps['container']
+    triggerRef?: TriggerProps['ref']
     triggerAriaLabel?: string
     triggerClassName?: string
     positionerClassName?: string
@@ -32,36 +43,61 @@ module
     separatorClassName?: string
   }
 
-  export type { MenuItem, MenuProps }
+  const BASE_TRIGGER_CLASS_NAME =
+    'flex items-center justify-center gap-1.5 rounded-md border border-border text-base font-normal text-foreground select-none active:bg-background data-popup-open:bg-background'
+  const BASE_POSITIONER_CLASS_NAME = 'z-60 outline-hidden'
+  const BASE_POPUP_CLASS_NAME =
+    'z-60 origin-(--transform-origin) rounded-md py-0 bg-background/10 backdrop-blur-3xl shadow-lg shadow-gray-200 border border-foreground/20 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:shadow-none'
+  const BASE_SEPARATOR_CLASS_NAME = 'my-1 h-px bg-border/40'
+  const DEFAULT_TRIGGER_LABEL = 'Menu'
 
-props { children, items, beforeItems, side = "bottom", align = "center", sideOffset = 8, portalContainer, triggerRef, triggerAriaLabel, triggerClassName, positionerClassName, popupClassName, separatorClassName }: MenuProps
-MenuPrimitive.Root
-  MenuPrimitive.Trigger(
+  /** Base UI parts are re-exported so advanced callers can compose custom menus. */
+  export const MenuRoot = M.Root
+  export const MenuTrigger = M.Trigger
+  export const MenuPortal = M.Portal
+  export const MenuPositioner = M.Positioner
+  export const MenuPopup = M.Popup
+  export const MenuArrow = M.Arrow
+  export const MenuBackdrop = M.Backdrop
+  export const MenuGroup = M.Group
+  export const MenuGroupLabel = M.GroupLabel
+  export const MenuCheckboxItem = M.CheckboxItem
+  export const MenuRadioGroup = M.RadioGroup
+  export const MenuRadioItem = M.RadioItem
+  export const MenuSubmenuRoot = M.SubmenuRoot
+  export const MenuSubmenuTrigger = M.SubmenuTrigger
+  export const MenuViewport = M.Viewport
+  export const MenuLinkItem = M.LinkItem
+  /** `MenuItem` is the data shape above, so the part keeps the `Part` suffix. */
+  export const MenuItemPart = M.Item
+
+props { children, items, beforeItems, side = 'bottom', align = 'center', sideOffset = 8, portalContainer, triggerRef, triggerAriaLabel, triggerClassName, positionerClassName, popupClassName, separatorClassName }: MenuProps
+
+M.Root
+  M.Trigger(
     ~ ref={triggerRef}
     ~ aria-label={triggerAriaLabel}
-    ~ className={cn("flex items-center justify-center gap-1.5 rounded-md border border-border text-base font-normal text-foreground select-none active:bg-background data-popup-open:bg-background", triggerClassName)}
+    ~ className={cn(BASE_TRIGGER_CLASS_NAME, triggerClassName)}
     ~ )
-    | #{children ?? "Menu"}
-  MenuPrimitive.Portal(container={portalContainer})
-    MenuPrimitive.Positioner(
-      ~ positionMethod="fixed"
+    | #{children ?? DEFAULT_TRIGGER_LABEL}
+  M.Portal(container={portalContainer})
+    M.Positioner(
+      ~ positionMethod='fixed'
       ~ side={side}
       ~ align={align}
       ~ sideOffset={sideOffset}
-      ~ className={cn("z-60 outline-hidden", positionerClassName)}
+      ~ className={cn(BASE_POSITIONER_CLASS_NAME, positionerClassName)}
       ~ )
-      MenuPrimitive.Popup(
-        ~ className={cn("z-60 origin-(--transform-origin) rounded-md py-0 bg-background/10 backdrop-blur-3xl shadow-lg shadow-gray-200 border border-foreground/20 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:shadow-none", popupClassName)}
-        ~ )
+      M.Popup(className={cn(BASE_POPUP_CLASS_NAME, popupClassName)})
         | #{beforeItems}
         each item in items key item.id
           // A separator and its item are two siblings, so the loop body needs an
           // explicit fragment: a code block may only render one node.
           fragment
             if item.separatorBefore
-              div(role="separator" className={cn("my-1 h-px bg-border/40", separatorClassName)})
+              div(role='separator' className={cn(BASE_SEPARATOR_CLASS_NAME, separatorClassName)})
             if item.href
-              MenuPrimitive.LinkItem(
+              M.LinkItem(
                 ~ href={item.href}
                 ~ label={item.label}
                 ~ closeOnClick={item.closeOnClick}
@@ -70,7 +106,7 @@ MenuPrimitive.Root
                 ~ )
                 | #{item.content}
             else
-              MenuPrimitive.Item(
+              M.Item(
                 ~ label={item.label}
                 ~ disabled={item.disabled}
                 ~ closeOnClick={item.closeOnClick}
