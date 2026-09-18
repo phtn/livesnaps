@@ -1,23 +1,27 @@
-import type { ColumnPinningState, ColumnVisibilityState, OctaneTable, SortingState } from '@octanejs/tanstack-table'
-import { useMemo } from 'octane'
-import { cn } from '@/lib/utils'
-import {Checkbox} from '@/components/ui'
+import { Checkbox } from '@/components/ui'
 import { TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { cn } from '@/lib/utils'
+import type { ColumnPinningState, ColumnVisibilityState, SortingState } from '@octanejs/tanstack-table'
+import type { OctaneNode } from 'octane'
+import { useMemo } from 'octane'
 import ColumnSort from './ColumnSort.btsx'
-import type { PinnedColumnLayout } from './column-pinning'
+import type { HyperHeader, HyperTableModel } from './table-contract'
 import { getColumnSize, getPinnedColumnLayouts, getPinnedColumnStyle, orderColumnsByPinning } from './column-pinning'
+import type { DefaultColumnPinningPosition, PinnedColumnLayout } from './column-pinning'
+import { DEFAULT_SELECT_COLUMN_ID } from './selection'
 import { isColumnVisible } from './visibility'
 
 module
-  interface Props {
-    children?: unknown
+  export interface HyperTableProps {
+    children?: OctaneNode
     columnPinning: ColumnPinningState
     columnVisibility: ColumnVisibilityState
     loading?: boolean
     onSelectAllChange?: (event: Event) => void
     selectAllChecked?: boolean
+    /** Column carrying the select-all checkbox. */
     selectColumnId?: string
-    table: OctaneTable<any, any, any>
+    table: HyperTableModel
     title?: string
   }
 
@@ -26,9 +30,19 @@ module
     width: number
   }
 
+  /**
+   * One header position, resolved before render. A discriminated union rather
+   * than an optional `header` field on purpose: narrowing a property path is
+   * lost inside a closure, whereas narrowing the `slot` binding itself survives,
+   * so the branch holds however the template's condition is lowered.
+   */
+  type HeaderSlot =
+    | { id: string; kind: 'header'; header: HyperHeader; pinnedColumnLayout?: PinnedColumnLayout }
+    | { id: string; kind: 'placeholder' }
+
   interface HeaderCellProps {
     columnVisibility: ColumnVisibilityState
-    header: any
+    header: HyperHeader
     onSelectAllChange?: (event: Event) => void
     pinnedColumnLayout?: PinnedColumnLayout
     selectAllChecked: boolean
@@ -36,43 +50,86 @@ module
     sorting: SortingState
   }
 
+  const COLUMN_DEFINITION_CLASS = 'transition-[width] duration-200 ease-out motion-reduce:transition-none'
+
+  const HEAD_CLASS = 'mx-2 h-9 overflow-hidden font-mono font-normal text-sm md:text-sm md:h-10 -tracking-[0.015em]'
+  const HEAD_PINNED_CLASS = 'sticky z-30 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none'
+  const HEAD_HIDDEN_CLASS = 'pointer-events-none'
+  const HIDDEN_HEAD_CLASS = 'h-8 pointer-events-none opacity-0 md:h-9'
+
+  const HEAD_BOUNDARY_CLASSES = {
+    start: 'shadow-[4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
+    end: 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]'
+  } as const satisfies Record<DefaultColumnPinningPosition, string>
+
+  const HEAD_CONTENT_CLASS = 'relative flex h-full min-w-0 items-center overflow-hidden px-0 transition-opacity duration-150 ease-out motion-reduce:transition-none'
+  const HEAD_CONTENT_CLASSES = {
+    visible: cn(HEAD_CONTENT_CLASS, 'opacity-100 delay-75'),
+    hidden: cn(HEAD_CONTENT_CLASS, 'opacity-0 delay-0')
+  }
+
+  const RESIZE_HANDLE_CLASS = `absolute right-0 top-0 z-100 h-full w-1 mt-0.5 touch-none rounded-full border-0 bg-transparent outline-none hover:bg-active/0 p-0 after:absolute after:right-0 after:top-0 after:h-[36px] after:w-1 after:rounded-full after:bg-brand/0 after:content-[''] hover:after:w-1 hover:after:bg-active hover:after:cursor-col-resize`
+  const RESIZE_HANDLE_CLASSES = {
+    idle: cn(RESIZE_HANDLE_CLASS),
+    resizing: cn(RESIZE_HANDLE_CLASS, 'bg-active/10')
+  }
+
+  // Same bounded-variant caching as HyperCell: a header has at most 12 distinct
+  // appearances, so each is merged once rather than on every render of every
+  // column. The remaining per-header work (width, sort state) genuinely varies.
+  const headClassNames = new Map<string, string>()
+
+  const getHeadClassName = (layout: PinnedColumnLayout | undefined, isVisible: boolean) => {
+    const position = layout?.position
+    const isBoundary = layout?.isBoundary === true
+    const cacheKey = `${position ?? 'unpinned'}:${isBoundary}:${isVisible}`
+    const cached = headClassNames.get(cacheKey)
+    if (cached !== undefined) return cached
+
+    const className = cn(
+      HEAD_CLASS,
+      position && HEAD_PINNED_CLASS,
+      position && isBoundary && HEAD_BOUNDARY_CLASSES[position],
+      !isVisible && HEAD_HIDDEN_CLASS
+    )
+    headClassNames.set(cacheKey, className)
+
+    return className
+  }
+
 component ColumnDefinition
   props { visible, width }: ColumnDefinitionProps
   col(
     ~ data-column-visible={visible}
-    ~ className='transition-[width] duration-200 ease-out motion-reduce:transition-none'
+    ~ className={COLUMN_DEFINITION_CLASS}
     ~ style={{ width }}
     ~ )
 
 component HeaderCell
   props { columnVisibility, header, onSelectAllChange, pinnedColumnLayout, selectAllChecked, selectColumnId, sorting }: HeaderCellProps
   setup
-    const visible = header.column
+    const isVisible = header.column
       .getLeafColumns()
       .some((column) => isColumnVisible(column.id, columnVisibility, column.getCanHide()))
     const sort = sorting.find((entry) => entry.id === header.column.id)
     const sorted = sort ? (sort.desc ? 'desc' : 'asc') : false
-    const headerClassName = cn(
-      'mx-2 h-9 overflow-hidden font-mono font-normal text-sm md:text-sm md:h-10 -tracking-[0.015em]',
-      pinnedColumnLayout && 'sticky z-30 bg-sidebar transition-[inset-inline-start,inset-inline-end] duration-200 ease-out motion-reduce:transition-none',
-      pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'start' && 'shadow-[4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
-      pinnedColumnLayout?.isBoundary && pinnedColumnLayout.position === 'end' && 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]',
-      !visible && 'pointer-events-none',
-    )
-    const contentClassName = cn(
-      'relative flex h-full min-w-0 items-center overflow-hidden px-0 transition-opacity duration-150 ease-out motion-reduce:transition-none',
-      visible ? 'opacity-100 delay-75' : 'opacity-0 delay-0'
-    )
+    const canSort = header.column.getCanSort()
+    const pinnedPosition = pinnedColumnLayout?.position
+    const headClassName = getHeadClassName(pinnedColumnLayout, isVisible)
+    const contentClassName = isVisible ? HEAD_CONTENT_CLASSES.visible : HEAD_CONTENT_CLASSES.hidden
+    const headStyle = { ...getPinnedColumnStyle(pinnedColumnLayout), width: `${header.getSize()}px` }
+    const ariaSort = isVisible && canSort ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined
+
   TableHead(
-    ~ aria-hidden={visible ? undefined : true}
-    ~ aria-sort={visible && header.column.getCanSort() ? (sorted === 'asc' ? 'ascending' : sorted === 'desc' ? 'descending' : 'none') : undefined}
+    ~ aria-hidden={isVisible ? undefined : true}
+    ~ aria-sort={ariaSort}
     ~ colspan={header.colSpan}
-    ~ data-column-pinned={pinnedColumnLayout?.position || undefined}
-    ~ data-column-visible={visible}
-    ~ inert={!visible}
+    ~ data-column-pinned={pinnedPosition}
+    ~ data-column-visible={isVisible}
+    ~ inert={!isVisible}
     ~ scope='col'
-    ~ style={{...getPinnedColumnStyle(pinnedColumnLayout), width: `${header.getSize()}px`}}
-    ~ className={headerClassName}
+    ~ style={headStyle}
+    ~ className={headClassName}
     ~ )
     div(className={contentClassName})
       if header.column.id === selectColumnId && onSelectAllChange
@@ -87,7 +144,7 @@ component HeaderCell
         button(
           ~ type='button'
           ~ aria-label={`Resize ${header.column.id} column`}
-          ~ className={cn(`absolute right-0 top-0 z-100 h-full w-3 mt-0.5 touch-none rounded-[2px] border-0 bg-transparent outline-none hover:bg-active/0 p-0 after:absolute after:right-0 after:top-0 after:h-[36px] after:w-1 after:rounded-full after:bg-brand/0 after:content-[''] hover:after:w-1 hover:after:bg-active hover:after:cursor-col-resize`, {'bg-active': header.column.getIsResizing()})}
+          ~ className={header.column.getIsResizing() ? RESIZE_HANDLE_CLASSES.resizing : RESIZE_HANDLE_CLASSES.idle}
           ~ onMouseDown={header.getResizeHandler()}
           ~ onTouchStart={header.getResizeHandler()}
           ~ onDoubleClick={() => header.column.resetSize()}
@@ -96,14 +153,17 @@ component HeaderCell
 component HiddenHeaderCell
   TableHead(
     ~ aria-hidden='true'
-    ~ colSpan={1}
+    ~ colspan={1}
     ~ inert
-    ~ className='h-8 pointer-events-none opacity-0 md:h-9'
+    ~ className={HIDDEN_HEAD_CLASS}
     ~ )
 
-props { children, columnPinning, columnVisibility, loading = false, onSelectAllChange, selectAllChecked = false, selectColumnId = 'select', table, title }: Props
+props { children, columnPinning, columnVisibility, loading = false, onSelectAllChange, selectAllChecked = false, selectColumnId = DEFAULT_SELECT_COLUMN_ID, table, title }: HyperTableProps
 
 setup
+  // `table.state.columnSizing` is listed deliberately: the closure reads sizes
+  // through `getColumnSize(column)` rather than touching that state directly, so
+  // without it a column resize would not recompute widths. Do not drop it.
   const layout = useMemo(() => {
     const orderedLeafColumns = orderColumnsByPinning(table.getAllLeafColumns(), columnPinning)
     const pinnedColumnLayouts = getPinnedColumnLayouts(orderedLeafColumns, columnPinning, columnVisibility)
@@ -122,8 +182,18 @@ setup
         headerGroup.headers.map((header) => [header.column.id, header] as const),
       ),
     )
+    // Resolve each column's header and pinning here rather than in the template.
+    // A `has`/`get` pair in the loop costs two lookups per column and still hands
+    // the call site a `HyperHeader | undefined`, because TypeScript does not
+    // relate `Map.has` to `Map.get`. Deciding the branch once, up front, does.
+    const headerSlots: HeaderSlot[] = orderedLeafColumns.map((column) => {
+      const header = headersByColumnId.get(column.id)
+      if (!header) return { id: column.id, kind: 'placeholder' }
 
-    return { columnWidths, headersByColumnId, orderedLeafColumns, pinnedColumnLayouts, visibleTableSize }
+      return { id: column.id, kind: 'header', header, pinnedColumnLayout: pinnedColumnLayouts.get(column.id) }
+    })
+
+    return { columnWidths, headerSlots, orderedLeafColumns, visibleTableSize }
   }, [table, columnPinning, columnVisibility, table.state.columnSizing])
 
 table(
@@ -136,19 +206,19 @@ table(
   colgroup
     each column in layout.orderedLeafColumns key column.id
       ColumnDefinition(visible={layout.columnWidths.get(column.id)?.visible ?? false} width={layout.columnWidths.get(column.id)?.width ?? 0})
-  TableHeader(className='')
+  TableHeader
     TableRow(className='sticky top-0 z-20 h-7 md:h-8')
-      each column in layout.orderedLeafColumns key column.id
-        if layout.headersByColumnId.has(column.id)
+      each slot in layout.headerSlots key slot.id
+        if slot.kind === 'header'
           HeaderCell(
-            ~ header={layout.headersByColumnId.get(column.id)}
+            ~ header={slot.header}
             ~ sorting={table.state.sorting}
             ~ columnVisibility={columnVisibility}
-            ~ pinnedColumnLayout={layout.pinnedColumnLayouts.get(column.id)}
+            ~ pinnedColumnLayout={slot.pinnedColumnLayout}
             ~ selectColumnId={selectColumnId}
             ~ selectAllChecked={selectAllChecked}
             ~ onSelectAllChange={onSelectAllChange}
             ~ )
-        if !layout.headersByColumnId.has(column.id)
+        else
           HiddenHeaderCell
   | #{children}

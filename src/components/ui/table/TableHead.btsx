@@ -1,19 +1,20 @@
 import type { JSX } from 'octane/jsx-runtime'
+import type {ClassValue} from 'octane'
 
 module
   type NativeTableHeadProps = JSX.IntrinsicElements['th']
 
-  type Props = Omit<NativeTableHeadProps, 'class' | 'className'> & {
-    className?: NativeTableHeadProps['className']
-  }
+  type Props = {
+    className?: ClassValue
+  } & NativeTableHeadProps
 
   // const baseClassName = 'sticky top-0 z-[2] border-y border-r border-border/50 bg-slate-100/80 dark:bg-slate-100/2 py-0 text-left text-foreground backdrop-blur-sm'
-  const baseClassName = 'sticky top-0 z-[2] bg-table-head dark:bg-sunken/60 md:first:rounded-s-lg py-0 text-left text-[#71717B] backdrop-blur-xl'
+  const baseClassName = 'sticky top-0 z-[2] bg-table-head dark:bg-sunken/60 md:first:rounded-s-sm py-0 text-left text-[#71717B] backdrop-blur-xl'
 
-props { children, className, ...headProps }: Props
+props { children, className, ...props }: Props
 
 th(
-  ~ {...headProps}
+  ~ {...props}
   ~ className={[baseClassName, className]}
   ~ )
   fragment #{children}

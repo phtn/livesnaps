@@ -55,23 +55,26 @@ MenuPrimitive.Root
         ~ )
         | #{beforeItems}
         each item in items key item.id
-          if item.separatorBefore
-            div(role="separator" className={cn("my-1 h-px bg-border/40", separatorClassName)})
-          if item.href
-            MenuPrimitive.LinkItem(
-              ~ href={item.href}
-              ~ label={item.label}
-              ~ closeOnClick={item.closeOnClick}
-              ~ onClick={item.onClick}
-              ~ className={item.className}
-              ~ )
-              | #{item.content}
-          else
-            MenuPrimitive.Item(
-              ~ label={item.label}
-              ~ disabled={item.disabled}
-              ~ closeOnClick={item.closeOnClick}
-              ~ onClick={item.onClick}
-              ~ className={item.className}
-              ~ )
-              | #{item.content}
+          // A separator and its item are two siblings, so the loop body needs an
+          // explicit fragment: a code block may only render one node.
+          fragment
+            if item.separatorBefore
+              div(role="separator" className={cn("my-1 h-px bg-border/40", separatorClassName)})
+            if item.href
+              MenuPrimitive.LinkItem(
+                ~ href={item.href}
+                ~ label={item.label}
+                ~ closeOnClick={item.closeOnClick}
+                ~ onClick={item.onClick}
+                ~ className={item.className}
+                ~ )
+                | #{item.content}
+            else
+              MenuPrimitive.Item(
+                ~ label={item.label}
+                ~ disabled={item.disabled}
+                ~ closeOnClick={item.closeOnClick}
+                ~ onClick={item.onClick}
+                ~ className={item.className}
+                ~ )
+                | #{item.content}

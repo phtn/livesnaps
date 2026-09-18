@@ -1,5 +1,5 @@
 import { functionalUpdate, useTable } from '@octanejs/tanstack-table'
-import type { ColumnPinningState, ColumnVisibilityState, PaginationState, SortingState } from '@octanejs/tanstack-table'
+import type { ColumnDef, ColumnPinningState, ColumnVisibilityState, PaginationState, RowData, SortingState } from '@octanejs/tanstack-table'
 import { useMemo, useState } from 'octane'
 import { Button } from '@/components/ui/'
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
@@ -10,6 +10,7 @@ import HyperTable from '@/components/ui/table/hyper/HyperTable.btsx'
 import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
 import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
 import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
+import { DEFAULT_SELECT_COLUMN_ID } from '@/components/ui/table/hyper/selection'
 import { snapsFeatures } from '@/components/admin/table-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import type { OctaneNode } from 'octane'
@@ -18,8 +19,6 @@ import TableEmptyState from '@/components/ui/table/table-empty-state.btsx'
 import { cn } from '@/lib/utils'
 import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from '@octanejs/nuqs'
 import { createColumnFiltersParser, createColumnOrderParser, createColumnVisibilityParser } from '@/components/ui/table/hyper/parsers'
-// import IconButton from "../icon-button.btsx";
-import IconButton from '@/components/ui/icon-button.btsx'
 
 module
   /**
@@ -27,9 +26,9 @@ module
    * intentionally supplied by the consumer so this component has no knowledge
    * of a particular API, entity, or field name.
    */
-  interface Props {
-    columns: any[]
-    data: ReadonlyArray<any>
+  export interface DataTableProps {
+    columns: Array<ColumnDef<typeof snapsFeatures, any>>
+    data: ReadonlyArray<RowData>
     /**
      * Optional call to action for the empty panel — typically "create the first
      * record". The table never learns what it does; it only decides when to
@@ -47,6 +46,13 @@ module
      * callback, so the table stays unaware of any particular entity's filters.
      */
     filterList?: (props: DataTableFilterListProps<any, typeof snapsFeatures>) => unknown
+    /**
+     * The `any` in `filterList` and here is the row type, which this component
+     * cannot name: Beast has no syntax for a type parameter on a component
+     * (`props <TData>{ … }` does not parse), so `DataTable` cannot be generic.
+     * Both sit in parameter position, where `any` is what lets a consumer pass a
+     * callback typed to its own row — `RowData` would reject `(row) => row._id`.
+     */
     getRowId?: (row: any, index: number) => string
     initialColumnPinning?: ColumnPinningState
     initialColumnVisibility?: ColumnVisibilityState
@@ -58,7 +64,7 @@ module
      * runs one. Left unset the table filters synchronously and the progress
      * readouts stay hidden.
      */
-    queryState?: QueryState
+    queryState?: DataTableQueryProgress
     title?: string
     /** A compact table-scoping control rendered directly after the filter control. */
     titleActions?: OctaneNode
@@ -76,7 +82,8 @@ module
      */
     toolbarActions?: OctaneNode
   }
-  interface QueryState {
+  /** Progress of a consumer-run async filter/sort pass. */
+  export interface DataTableQueryProgress {
     completed: number
     elapsedMs: number
     error: string | null
@@ -87,7 +94,7 @@ module
 
   const DEFAULT_PAGE_SIZES = [50, 100, 250, 500]
   const DEFAULT_PINNING: ColumnPinningState = { start: [], end: [] }
-  const IDLE_QUERY_STATE: QueryState = {
+  const IDLE_QUERY_STATE: DataTableQueryProgress = {
     completed: 0,
     elapsedMs: 0,
     error: null,
@@ -132,7 +139,7 @@ props {
   ~ urlKeyPrefix = '',
   ~ children,
   ~ toolbarActions,
-  ~ title = ''}: Props
+  ~ title = ''}: DataTableProps
 
 setup
 
@@ -145,7 +152,14 @@ setup
   const defaultSort = initialSorting[0]
   // Only real column ids are accepted from the URL, so `?sort=` can't be used
   // to push an arbitrary key into the sorting state.
-  const sortIds = columns.map((column) => String(column.id)).filter((id) => id.length > 0)
+  const sortIds = useMemo(
+    () => columns.map((column) => String(column.id)).filter((id) => id.length > 0),
+    [columns],
+  )
+  const pageSizeOptions = useMemo(
+    () => safePageSizes.map((size) => ({ value: String(size), label: String(size) })),
+    [safePageSizes.join(',')],
+  )
 
   // Whether the mobile search field has taken over the toolbar row. Owned here
   // rather than inside `HyperSearch` because the controls it hides are the
@@ -197,12 +211,8 @@ setup
   // echoes back would clear `?page` before the reader ever sees it, so every
   // handler drops updates that don't actually change anything.
   const isSameState = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
-  const trace = (what: string, next: unknown, current: unknown) => {
-    console.log('DTTRACE', what, JSON.stringify(next), '<-', JSON.stringify(current))
-  }
   const setPagination = (updater: unknown) => {
     const next = functionalUpdate(updater, pagination) as PaginationState
-    trace('pagination', next, pagination)
     if (isSameState(next, pagination)) return
     void setQuery({ page: next.pageIndex + 1, size: next.pageSize })
   }
@@ -218,7 +228,6 @@ setup
       state: { columnFilters, columnOrder, columnPinning, columnVisibility, globalFilter, pagination, sorting },
       onColumnFiltersChange: (updater) => {
         const next = functionalUpdate(updater, columnFilters)
-        trace('filters', next, columnFilters)
         if (isSameState(next, columnFilters)) return
         // Narrowing the result set can strand the reader on a page that no
         // longer exists, so every filter/search change rewinds to page 1.
@@ -226,28 +235,24 @@ setup
       },
       onColumnOrderChange: (updater) => {
         const next = functionalUpdate(updater, columnOrder)
-        trace('order', next, columnOrder)
         if (isSameState(next, columnOrder)) return
         void setQuery({ order: next })
       },
       onColumnPinningChange: setColumnPinning,
       onColumnVisibilityChange: (updater) => {
         const next = functionalUpdate(updater, columnVisibility)
-        trace('visibility', next, columnVisibility)
         if (isSameState(next, columnVisibility)) return
         void setQuery({ visibility: next })
       },
       columnResizeMode: 'onChange',
       onGlobalFilterChange: (updater) => {
         const next = String(functionalUpdate(updater, globalFilter) ?? '')
-        trace('globalFilter', next, globalFilter)
         if (next === globalFilter) return
         void setQuery({ q: next, page: 1 })
       },
       onPaginationChange: setPagination,
       onSortingChange: (updater) => {
         const next = functionalUpdate(updater, sorting) as SortingState
-        trace('sorting', next, sorting)
         if (isSameState(next, sorting)) return
         const primary = next[0]
         void setQuery({ sort: primary?.id ?? null, desc: primary?.desc ?? null })
@@ -267,6 +272,18 @@ setup
     }),
   )
   const visibleRows = table.getRowModel().rows
+  // Read the table's resolved state once. These are distinct from the local
+  // `columnPinning`/`columnVisibility` above: those are what we ask for, these
+  // are what the table settled on, and the rows must be handed the latter.
+  const tableColumnPinning = table.state.columnPinning
+  const tableColumnVisibility = table.state.columnVisibility
+  const tablePagination = table.state.pagination
+  const leafColumns = table.getAllLeafColumns()
+  // Hoisted out of the row loop: this was one lookup per row, per render, for a
+  // value that is the same for every row. Probing `leafColumns` rather than
+  // calling `table.getColumn`, which logs "Column with id 'select' does not
+  // exist" on a miss — a miss is the normal case for a table without checkboxes.
+  const showSelectColumn = leafColumns.some((column) => column.id === DEFAULT_SELECT_COLUMN_ID)
   const pinnedColumnLayouts = useMemo(
     () => getPinnedColumnLayouts(
       orderColumnsByPinning(table.getAllLeafColumns(), table.state.columnPinning),
@@ -309,17 +326,17 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
   // unmounted: they keep their own state and the row is whole again the moment
   // the field closes. `HyperSearch` never reports expanded on desktop.
   div(className='flex items-center justify-between h-12 px-2 md:px-0.5 pb-2 pt-3 dark:bg-sunken dark:md:bg-surface md:pb-4')
-    div(className={cn('flex items-center md:gap-0.75 gap-1.5', isSearchExpanded && 'hidden md:flex')})
+    div(className={cn('flex items-center gap-1.5 md:gap-2', isSearchExpanded && 'hidden md:flex')})
       ColumnView(
-        ~ cols={table.getAllLeafColumns()}
-        ~ columnVisibility={table.state.columnVisibility}
+        ~ cols={leafColumns}
+        ~ columnVisibility={tableColumnVisibility}
         ~ onColumnVisibilityChange={table.setColumnVisibility}
         ~ columnOrder={table.state.columnOrder}
         ~ onColumnOrderChange={table.setColumnOrder}
         ~ )
       if FilterList
         FilterList(
-          ~ columns={table.getAllLeafColumns()}
+          ~ columns={leafColumns}
           ~ columnFilters={columnFilters}
           ~ onReset={handleResetFilters}
           ~ )
@@ -350,8 +367,8 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
       HyperTable(
         ~ table={table}
         ~ title={title}
-        ~ columnPinning={table.state.columnPinning}
-        ~ columnVisibility={table.state.columnVisibility}
+        ~ columnPinning={tableColumnPinning}
+        ~ columnVisibility={tableColumnVisibility}
         ~ selectAllChecked={table.getIsAllPageRowsSelected()}
         ~ onSelectAllChange={table.getToggleAllPageRowsSelectedHandler()}
         ~ )
@@ -363,9 +380,9 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
               ~ isEditing={false}
               ~ isPinned={false}
               ~ isSelected={row.getIsSelected()}
-              ~ showSelectColumn={table.getColumn('select') !== undefined}
-              ~ columnPinning={table.state.columnPinning}
-              ~ columnVisibility={table.state.columnVisibility}
+              ~ showSelectColumn={showSelectColumn}
+              ~ columnPinning={tableColumnPinning}
+              ~ columnVisibility={tableColumnVisibility}
               ~ pinnedColumnLayouts={pinnedColumnLayouts}
               ~ )
 
@@ -374,13 +391,13 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
       ~ className='text-xs'
       ~ controlClassName='bg-surface! border-0! text-sm text-muted-foreground'
       ~ menuPlacement='top'
-      ~ value={String(table.state.pagination.pageSize)}
+      ~ value={String(tablePagination.pageSize)}
       ~ onChange={(value) => table.setPageSize(Number(value))}
-      ~ options={safePageSizes.map((size) => ({ value: String(size), label: String(size) }))}
+      ~ options={pageSizeOptions}
       ~ direction='up'
       ~ )
     div(className='flex items-center gap-4 md:gap-8')
-      p(className='m-0 font-normal text-muted-foreground/80') #{table.state.pagination.pageIndex + 1} / #{Math.max(1, table.getPageCount()).toLocaleString()}
+      p(className='m-0 font-normal text-muted-foreground/80') #{tablePagination.pageIndex + 1} / #{Math.max(1, table.getPageCount()).toLocaleString()}
       div(className='flex items-center overflow-hidden h-9.5 rounded-sm divide-x divide-border')
         Button(className='rounded-none h-full! w-10! rotate-180' variant='ghost' size='icon-lg' aria-label='First page' icon='chevrons-right' disabled={!table.getCanPreviousPage()} onClick={() => table.firstPage()})
         Button(className='rounded-none h-full! w-10! rotate-180' variant='ghost' size='icon-lg' aria-label='Previous page' icon='chevron-right' disabled={!table.getCanPreviousPage()} onClick={() => table.previousPage()})

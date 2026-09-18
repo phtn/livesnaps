@@ -1,8 +1,16 @@
 import type { ColumnPinningPosition, ColumnPinningState, ColumnVisibilityState } from '@octanejs/tanstack-table'
-import type { JSX } from 'octane/jsx-runtime'
+import type { CSSProperties } from 'octane'
 import { isColumnVisible } from './visibility'
 
-type CellStyle = JSX.IntrinsicElements['td']['style']
+/**
+ * The offsets a pinned cell needs, as a plain object.
+ *
+ * Deliberately not `JSX.IntrinsicElements['td']['style']`: that is the type of
+ * the *attribute*, which resolves to `BoundStyle<string | CSSProperties |
+ * undefined>` and so cannot be spread — callers that merge in their own width
+ * would fail with "Spread types may only be created from object types".
+ */
+export type PinnedColumnStyle = Pick<CSSProperties, 'insetInlineStart' | 'insetInlineEnd'>
 
 export type DefaultColumnPinningPosition = Exclude<ColumnPinningPosition, false>
 
@@ -146,8 +154,21 @@ export const getPinnedColumnLayouts = (
   return layouts
 }
 
-export const getPinnedColumnStyle = (layout: PinnedColumnLayout | undefined): CellStyle | undefined => {
+// Every rendered cell in a pinned column shares the one layout object that
+// `getPinnedColumnLayouts` produced for it, so one style object per layout is
+// enough. Caching keeps that object reference-stable across rows and renders,
+// which lets the renderer skip re-applying the inline style entirely.
+const pinnedColumnStyles = new WeakMap<PinnedColumnLayout, PinnedColumnStyle>()
+
+export const getPinnedColumnStyle = (layout: PinnedColumnLayout | undefined): PinnedColumnStyle | undefined => {
   if (!layout) return undefined
 
-  return layout.position === 'start' ? { insetInlineStart: layout.offset } : { insetInlineEnd: layout.offset }
+  const cached = pinnedColumnStyles.get(layout)
+  if (cached) return cached
+
+  const style: PinnedColumnStyle =
+    layout.position === 'start' ? { insetInlineStart: layout.offset } : { insetInlineEnd: layout.offset }
+  pinnedColumnStyles.set(layout, style)
+
+  return style
 }

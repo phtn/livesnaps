@@ -1,10 +1,11 @@
 import { flexRender } from '@octanejs/tanstack-table'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
+import type { HyperHeader } from './table-contract'
 
 module
   interface Props {
-    header: any
+    header: HyperHeader
     sorted: 'asc' | 'desc' | false
   }
 

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useState } from 'octane'
+import { lazy, Suspense, useId, useMemo, useState, type ClassValue } from 'octane'
 import type { DateRange } from '@octanejs/day-picker'
 import { Command } from '@octanejs/cmdk'
 import type { ColumnFiltersState } from '@octanejs/tanstack-table'
@@ -6,7 +6,6 @@ import Popover, { PopoverContent } from '@/components/ui/Popover.btsx'
 import { Button, Checkbox, Input } from '@/components/ui'
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
-import type { ClassName } from '@/types'
 import FilterTrigger from './FilterTrigger.btsx'
 import { createInclusiveDateRangeFilterValue, createRangeFilterValue, getRangeBounds, getRangeDate, getRangeInputValue, isOpenRangeBound, OPEN_RANGE_BOUND } from './filter-ranges'
 import { DATE_PRESETS, getActiveFilterCount, getFilterOptions, getFilterSummary, getSelectedValues, matchDatePreset } from './filter-list-config'
@@ -30,16 +29,16 @@ module
 
   // Shared row geometry: every list row is a uniform 32px tall with the same
   // inset, root page or drilled in.
-  const ROW_CLASS: ClassName =
-    'relative flex h-9 cursor-default select-none items-center gap-2 rounded-[4px] ps-2 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-sidebar-border/50 dark:data-[selected=true]:bg-indigo-100/8'
-  const LIST_CLASS: ClassName = 'max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto p-0.5'
-  const HEADER_CLASS: ClassName = 'flex h-9 shrink-0 items-center gap-1.5 border-b border-border/35 px-1'
-  const SEARCH_CLASS: ClassName =
+  const ROW_CLASS: ClassValue =
+    'relative flex h-9 cursor-default select-none items-center gap-2 rounded-[2px] ps-2 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-sidebar dark:data-[selected=true]:bg-indigo-100/8'
+  const LIST_CLASS: ClassValue = 'max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto p-0.5 bg-surface/70'
+  const HEADER_CLASS: ClassValue = 'flex h-9 shrink-0 items-center gap-1.5 border-b border-border/35 px-1 bg-surface'
+  const SEARCH_CLASS: ClassValue =
     'h-8 w-full min-w-0 bg-transparent font-mono text-xs -tracking-[0.02em] outline-hidden placeholder:select-none placeholder:text-muted-foreground/80 px-1'
-  const MUTED_ROW_LABEL_CLASS: ClassName = 'truncate text-muted-foreground'
-  const SUMMARY_CLASS: ClassName = 'ml-auto truncate font-mono text-xs text-indigo-500 dark:text-indigo-300'
-  const CHECK_CLASS: ClassName = 'ml-auto mr-1 size-3.5 shrink-0 text-indigo-500 dark:text-indigo-300'
-  const EMPTY_CLASS: ClassName = 'py-6 text-center text-sm text-muted-foreground'
+  const MUTED_ROW_LABEL_CLASS: ClassValue = 'truncate text-muted-foreground'
+  const SUMMARY_CLASS: ClassValue = 'ml-auto truncate font-mono text-xs text-indigo-500 dark:text-indigo-300'
+  const CHECK_CLASS: ClassValue = 'ml-auto mr-1 size-3.5 shrink-0 text-indigo-500 dark:text-indigo-300'
+  const EMPTY_CLASS: ClassValue = 'py-6 text-center text-sm text-muted-foreground'
 
   interface FilterPanelProps {
     column: FilterListColumn
@@ -56,7 +55,7 @@ component PanelChip
   button(
     ~ type='button'
     ~ onClick={onBack}
-    ~ className='flex h-6 shrink-0 items-center gap-1 rounded-[3px] ps-2 pe-1 font-sans text-sm hover:border-indigo-400/60 hover:bg-indigo-500/10 dark:bg-indigo-100/8'
+    ~ className='flex h-7 shrink-0 items-center gap-1 rounded-[3px] ps-2 pe-1 font-sans text-sm hover:border-indigo-400/60 hover:bg-indigo-500/10 dark:bg-indigo-100/8'
     ~ )
     span(className='truncate') #{label}
     Icon(name='select-caret' className='size-3 opacity-65')
@@ -251,7 +250,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
     ~ aria-labelledby={labelId}
     ~ align='start'
     ~ sideOffset={7}
-    ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/60 bg-zinc-100/80 p-0! backdrop-blur-3xl dark:bg-zinc-900/70'
+    ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/80  bg-zinc-200/20 dark:bg-zinc-900/50 p-0! backdrop-blur-3xl'
     ~ )
     h4(id={labelId} className='sr-only') Add Filter
     p(id={descriptionId} className='sr-only') #{description ?? 'Narrow this table down to the rows you want.'}

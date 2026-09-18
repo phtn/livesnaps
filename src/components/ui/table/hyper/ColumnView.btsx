@@ -2,7 +2,6 @@ import { Button as BaseButton } from '@octanejs/base-ui/button'
 import { Menu } from '@octanejs/base-ui/menu'
 import type { Column, ColumnOrderState, ColumnVisibilityState, RowData, TableFeatures } from '@octanejs/tanstack-table'
 import { createElement, lazy, Suspense, useCallback, useMemo, useState } from 'octane'
-
 import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { mergeColumnOrder } from './column-order'
@@ -43,12 +42,12 @@ component ColumnViewTrigger
   BaseButton(
     ~ {...buttonProps}
     ~ className={cn(
-    ~   'relative h-8 py-1 md:w-auto flex items-center justify-center rounded-[4px] portrait:aspect-square',
-    ~   'select-none text-foreground text-sm mx-1 md:space-x-1 md:px-2 gap-1 w-9',
-    ~   'data-pressed:bg-zinc-200/50 dark:data-pressed:bg-zinc-800',
-    ~   'border border-zinc-200/50 dark:border-zinc-200/10 bg-zinc-200/50 dark:bg-zinc-200/8 hover:border-orange-400',
-    ~   'hover:bg-orange-200/20 dark:hover:bg-mist-100/5 transition-colors duration-75',
-    ~   'active:bg-zinc-300 dark:active:bg-zinc-700/40',
+    ~   'relative h-8 py-1 md:w-auto flex items-center justify-center rounded-[4px]',
+    ~   'select-none text-foreground text-sm md:space-x-1 md:px-2 gap-1 w-9',
+    ~   'border border-zinc-200/55 dark:border-zinc-200/2 hover:border-orange-400',
+    ~   'bg-zinc-200/20 dark:bg-zinc-200/8 hover:bg-orange-200/20 dark:hover:bg-mist-100/5',
+    ~   'data-pressed:bg-zinc-200/75 data-pressed:border-zinc-200 dark:data-pressed:bg-zinc-900/80 dark:data-pressed:border-zinc-200/10',
+    ~   'active:bg-zinc-300 dark:active:bg-zinc-700/40 transition-colors duration-100',
     ~   'focus-visible:bg-none focus-visible:-outline-offset-1 focus-visible:outline-1',
     ~   {'gap-0.5! md:ps-1.5 md:pe-2 border-orange-400/60! dark:border-zinc-200/10! bg-orange-100/5!': invisibleCount > 0},
     ~   className,
@@ -138,8 +137,8 @@ setup
 Menu.Root
   Menu.Trigger(render={createElement(ColumnViewTrigger, { invisibleCount })})
   Menu.Portal
-    Menu.Positioner(align='start' className='isolate z-50 outline-none' sideOffset={3})
-      Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:text-zinc-200')
+    Menu.Positioner(align='start' className='isolate z-50 outline-none' sideOffset={7})
+      Menu.Popup(className=' pt-1 select-none origin-(--transform-origin) w-64 rounded-sm border border-border/80 bg-zinc-200/20 dark:bg-zinc-900/50 backdrop-blur-3xl text-origin shadow-none outline-gray-200 transition-[transform,scale,opacity] data-ending-style:scale-90 data-ending-style:opacity-0 data-starting-style:scale-90 data-starting-style:opacity-0 dark:text-zinc-200')
         div(className='flex items-center justify-between border-b border-dashed border-border px-4 py-1 font-sans text-sm')
           span(className='font-sans text-sm text-muted-foreground')
             | #{positioningEnabled ? 'Position Columns' : 'View Options'}
