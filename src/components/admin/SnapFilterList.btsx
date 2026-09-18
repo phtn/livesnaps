@@ -1,26 +1,14 @@
-import { lazy, Suspense, useId, useMemo, useState } from 'octane'
-import type { DateRange } from '@octanejs/day-picker'
-import { Command } from '@octanejs/cmdk'
-import { startOfDay, startOfMonth, subDays, subHours } from 'date-fns'
-import Popover, { PopoverContent } from '@/components/ui/Popover.btsx'
-import { Button, Checkbox, Input } from '@/components/ui'
-import { getFilterValueLabel, getFilterValueToken } from '@/components/ui/table/hyper/filter-utils'
+import FilterList from '@/components/ui/table/hyper/FilterList.btsx'
+import { titleCase } from '@/components/ui/table/hyper/filter-list-config'
+import type { FilterDefinition } from '@/components/ui/table/hyper/filter-list-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
-import { Icon } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
-import { cn } from '@/lib/utils'
-import type { ClassName } from '@/types'
 import type { snapsFeatures } from './table-config'
 import { IPC_MATCH_TOKENS } from './snap-columns'
-import { createInclusiveDateRangeFilterValue, createRangeFilterValue, getRangeBounds, getRangeDate, getRangeInputValue, isOpenRangeBound, OPEN_RANGE_BOUND } from './snaps-filter-ranges'
-import FilterTrigger from '../ui/table/hyper/FilterTrigger.btsx'
 
 module
   type SnapRow = AdminSnapListItem
-
-  // day-picker only renders once someone drills into the custom date page, so
-  // the closed filter button never pays for the calendar bundle.
-  const LazyCalendar = lazy(() => import('@/components/ui/calendar.btsx'))
+  type SnapFilterProps = DataTableFilterListProps<SnapRow, typeof snapsFeatures>
 
   // Matches the `status` union in `snapListItemSchema`; `pending` is the
   // fallback `listForAdmin` applies when a snap has no location session.
@@ -33,45 +21,6 @@ module
     'invalidated'
   ]
 
-  type SnapFilterProps = DataTableFilterListProps<SnapRow, typeof snapsFeatures>
-  type SnapFilterColumn = SnapFilterProps['columns'][number]
-
-  type SnapFilterDefinitionBase = {
-    id: string
-    label: string
-  }
-
-  type SnapFacetedFilterDefinition = SnapFilterDefinitionBase & {
-    variant: 'faceted'
-    values?: readonly unknown[]
-    getValueLabel?: (value: unknown) => string
-  }
-
-  type SnapNumberRangeFilterDefinition = SnapFilterDefinitionBase & {
-    variant: 'number-range'
-    min?: number
-    max?: number
-    step?: number
-    unit?: string
-  }
-
-  type SnapDateRangeFilterDefinition = SnapFilterDefinitionBase & {
-    variant: 'date-range'
-  }
-
-  type SnapFilterDefinition = SnapFacetedFilterDefinition | SnapNumberRangeFilterDefinition | SnapDateRangeFilterDefinition
-
-  type SnapFilterOption = {
-    count: number
-    label: string
-    value: string
-  }
-
-  const titleCase = (value: unknown) =>
-    String(value)
-      .replace(/[-_]/g, ' ')
-      .replace(/\b\w/g, (character) => character.toUpperCase())
-
   const IPC_MATCH_LABELS: Record<string, string> = {
     match: 'Verified',
     mismatch: 'Mismatch',
@@ -80,7 +29,7 @@ module
 
   // Every `id` here must name a real column, otherwise the filter silently
   // disappears. `snap-columns.ts` is the source of truth for that list.
-  const DEFAULT_FILTERABLE = [
+  const SNAP_FILTERS = [
     { id: 'status', label: 'Status', variant: 'faceted', values: SNAP_STATUS_FILTERS, getValueLabel: titleCase },
     { id: 'make', label: 'Make', variant: 'faceted' },
     { id: 'model', label: 'Model', variant: 'faceted' },
@@ -93,377 +42,17 @@ module
     },
     { id: 'bestAccuracyMeters', label: 'Accuracy', variant: 'number-range', min: 0, step: 1, unit: 'meters' },
     { id: 'createdAt', label: 'Created', variant: 'date-range' }
-  ] as const satisfies readonly SnapFilterDefinition[]
+  ] as const satisfies readonly FilterDefinition[]
 
-  type SnapDatePreset = {
-    id: string
-    label: string
-    getStart: () => Date
-  }
-
-  // Every preset is open-ended at the top so only the lower bound has to be
-  // recognised when the panel reopens.
-  const DATE_PRESETS: readonly SnapDatePreset[] = [
-    { id: 'last-hour', label: 'Last Hour', getStart: () => subHours(new Date(), 1) },
-    { id: 'last-24-hours', label: 'Last 24 Hours', getStart: () => subHours(new Date(), 24) },
-    { id: 'last-7-days', label: 'Last 7 Days', getStart: () => startOfDay(subDays(new Date(), 6)) },
-    { id: 'last-30-days', label: 'Last 30 Days', getStart: () => startOfDay(subDays(new Date(), 29)) },
-    { id: 'this-month', label: 'This Month', getStart: () => startOfMonth(new Date()) }
-  ]
-
-  // The day-aligned presets round-trip exactly; the two relative ones drift by
-  // however long the popover has been sitting open, so matching is fuzzy.
-  const DATE_PRESET_TOLERANCE_MS = 5 * 60 * 1000
-
-  const matchDatePreset = (value: unknown) => {
-    const [rawFrom, rawTo] = getRangeBounds(value)
-    if (!isOpenRangeBound(rawTo)) return undefined
-
-    const from = getRangeDate(rawFrom)
-    if (!from) return undefined
-
-    return DATE_PRESETS.find((preset) => Math.abs(preset.getStart().getTime() - from.getTime()) <= DATE_PRESET_TOLERANCE_MS)
-  }
-
-  const getSnapFilterOptions = (
-    column: SnapFilterColumn,
-    definition: SnapFacetedFilterDefinition,
-    selectedValues: readonly unknown[]
-  ): SnapFilterOption[] => {
-    const countByValue = new Map<string, number>()
-    const rawValueByToken = new Map<string, unknown>()
-
-    for (const [rawValue, count] of column.getFacetedUniqueValues()) {
-      const token = getFilterValueToken(rawValue)
-      if (!token) continue
-
-      countByValue.set(token, (countByValue.get(token) ?? 0) + count)
-      if (!rawValueByToken.has(token)) rawValueByToken.set(token, rawValue)
-    }
-
-    for (const selectedValue of selectedValues) {
-      const token = getFilterValueToken(selectedValue)
-      if (token && !rawValueByToken.has(token)) rawValueByToken.set(token, selectedValue)
-    }
-
-    const optionSource = definition.values ?? Array.from(rawValueByToken.values())
-    const options = new Map<string, SnapFilterOption>()
-
-    for (const rawValue of optionSource) {
-      const value = getFilterValueToken(rawValue)
-      if (!value || options.has(value)) continue
-
-      options.set(value, {
-        count: countByValue.get(value) ?? 0,
-        label: definition.getValueLabel?.(rawValue) ?? getFilterValueLabel(rawValue),
-        value
-      })
-    }
-
-    const resolvedOptions = Array.from(options.values())
-    // A declared value list is already in a meaningful order; a derived one is not.
-    return definition.values ? resolvedOptions : resolvedOptions.sort((left, right) => left.label.localeCompare(right.label))
-  }
-
-  const getSelectedValues = (rawFilterValue: unknown): readonly unknown[] =>
-    Array.isArray(rawFilterValue) ? rawFilterValue : rawFilterValue === undefined ? [] : [rawFilterValue]
-
-  const getActiveFilterCount = (definition: SnapFilterDefinition, value: unknown) => {
-    if (definition.variant === 'faceted') {
-      return Array.isArray(value) ? (value.length > 0 ? 1 : 0) : value === undefined ? 0 : 1
-    }
-
-    const [min, max] = getRangeBounds(value)
-    return isOpenRangeBound(min) && isOpenRangeBound(max) ? 0 : 1
-  }
-
-  // The short line the root list shows on the right of a row so an active
-  // filter is readable without drilling into it.
-  const getFilterSummary = (definition: SnapFilterDefinition, value: unknown) => {
-    if (definition.variant === 'faceted') {
-      const selected = getSelectedValues(value)
-      if (selected.length === 0) return ''
-      if (selected.length > 1) return `${selected.length} selected`
-      return definition.getValueLabel?.(selected[0]) ?? getFilterValueLabel(selected[0])
-    }
-
-    const [min, max] = getRangeBounds(value)
-    if (isOpenRangeBound(min) && isOpenRangeBound(max)) return ''
-
-    if (definition.variant === 'date-range') return matchDatePreset(value)?.label ?? 'Custom'
-
-    const minLabel = getRangeInputValue(min) || 'Any'
-    const maxLabel = getRangeInputValue(max) || 'Any'
-    return `${minLabel} – ${maxLabel}`
-  }
-
-  // Shared row geometry: the design's list rows are a uniform 32px tall with
-  // the same inset on every page, root or drilled in.
-  const ROW_CLASS: ClassName =
-    'relative flex h-8 cursor-default select-none items-center gap-2 rounded-[5px] px-2 text-sm outline-hidden data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-foreground/[0.06] dark:data-[selected=true]:bg-indigo-100/8'
-  const LIST_CLASS: ClassName = 'max-h-80 scroll-py-1 overflow-x-hidden overflow-y-auto p-1'
-  const HEADER_CLASS: ClassName = 'flex h-9 shrink-0 items-center gap-1.5 border-b border-border/40 px-2'
-  const SEARCH_CLASS: ClassName =
-    'h-8 w-full min-w-0 bg-transparent font-mono text-xs -tracking-[0.02em] outline-hidden placeholder:select-none placeholder:text-muted-foreground/80'
-  const MUTED_ROW_LABEL_CLASS: ClassName = 'truncate text-muted-foreground'
-  const CHECK_CLASS: ClassName = 'ml-auto size-3.5 shrink-0 text-indigo-500 dark:text-indigo-300'
-
-  type SnapFilterPanelProps = {
-    column: SnapFilterColumn
-    rawFilterValue: unknown
-  }
-
-  type SnapFacetedPanelProps = SnapFilterPanelProps & { definition: SnapFacetedFilterDefinition }
-  type SnapNumberRangePanelProps = SnapFilterPanelProps & { definition: SnapNumberRangeFilterDefinition }
-  type SnapDatePanelProps = SnapFilterPanelProps & { onCustomRange: () => void }
-
-component PanelChip
-  props { label, onBack }: { label: string; onBack: () => void }
-
-  button(
-    ~ type='button'
-    ~ onClick={onBack}
-    ~ className='flex h-6 shrink-0 items-center gap-1 rounded-[5px] bg-table-head ps-2 pe-px font-sans text-sm hover:border-indigo-400/60 hover:bg-indigo-500/10 dark:bg-indigo-100/8'
-    ~ )
-    span(className='truncate') #{label}
-    Icon(name='select-caret' className='size-3 opacity-60')
-
-component CalendarFallback
-  div(className='grid h-72 place-items-center')
-    Icon(name='spinner-ring' className='size-4 opacity-60')
-
-component SnapFacetedPanel
-  props { column, definition, rawFilterValue }: SnapFacetedPanelProps
-  setup
-    const selectedValues = getSelectedValues(rawFilterValue)
-    const selectedTokens = [...new Set(selectedValues.map(getFilterValueToken).filter(Boolean))]
-    const options = getSnapFilterOptions(column, definition, selectedValues)
-    const toggle = (token: string) => {
-      const next = selectedTokens.includes(token)
-        ? selectedTokens.filter((current) => current !== token)
-        : [...selectedTokens, token]
-      column.setFilterValue(next.length ? next : undefined)
-    }
-
-  Command.List(className={LIST_CLASS})
-    Command.Empty(className='py-6 text-center text-sm text-muted-foreground') No values found.
-    Command.Group(value='snap-filter-values')
-      Command.Item(value={`Any ${definition.label}`} onSelect={() => column.setFilterValue(undefined)} className={ROW_CLASS})
-        span(className={MUTED_ROW_LABEL_CLASS}) #{`Any ${definition.label}`}
-        if selectedTokens.length === 0
-          Icon(name='check' className={CHECK_CLASS})
-      each option in options key option.value
-        Command.Item(value={option.value} keywords={[option.label]} onSelect={() => toggle(option.value)} className={ROW_CLASS})
-          Checkbox(
-            ~ checked={selectedTokens.includes(option.value)}
-            ~ readOnly={true}
-            ~ tabIndex={-1}
-            ~ aria-hidden='true'
-            ~ className='pointer-events-none'
-            ~ )
-          span(className='truncate') #{option.label}
-          span(className={cn('ml-auto font-mono text-xs text-foreground/35', { 'text-indigo-500/80 dark:text-indigo-300/80': option.count > 0 })})
-            | #{option.count}
-
-component SnapNumberRangePanel
-  props { column, definition, rawFilterValue }: SnapNumberRangePanelProps
-  setup
-    const [rawMin, rawMax] = getRangeBounds(rawFilterValue)
-    const min = getRangeInputValue(rawMin)
-    const max = getRangeInputValue(rawMax)
-    const isAny = isOpenRangeBound(rawMin) && isOpenRangeBound(rawMax)
-    // base-ui's Input is controlled through `onValueChange`; an `onChange`
-    // handler alone lets it revert every keystroke back to the bound value.
-    const handleMinChange = (nextMin: string) => {
-      column.setFilterValue((currentValue: unknown) => {
-        const [, currentMax] = getRangeBounds(currentValue)
-        return createRangeFilterValue(nextMin, getRangeInputValue(currentMax))
-      })
-    }
-    const handleMaxChange = (nextMax: string) => {
-      column.setFilterValue((currentValue: unknown) => {
-        const [currentMin] = getRangeBounds(currentValue)
-        return createRangeFilterValue(getRangeInputValue(currentMin), nextMax)
-      })
-    }
-    // The wrapper owns the focus ring so the two fields read as one control.
-    const numberInputClassName =
-      'h-7! w-full border-none! bg-transparent! px-0 text-center font-mono text-xs outline-none! placeholder:text-muted-foreground/40 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
-
-  div(className='p-1')
-    button(type='button' onClick={() => column.setFilterValue(undefined)} className={cn(ROW_CLASS, 'w-full hover:bg-foreground/[0.06] dark:hover:bg-indigo-100/8')})
-      span(className={MUTED_ROW_LABEL_CLASS}) #{`Any ${definition.label}`}
-      if isAny
-        Icon(name='check' className={CHECK_CLASS})
-    div(className='mt-1 flex h-9 items-center gap-2 rounded-[5px] border border-border/50 bg-foreground/[0.03] px-2 focus-within:border-indigo-400/60 focus-within:bg-indigo-500/5')
-      label(htmlFor={`${column.id}-min`} className='shrink-0 font-mono text-[10px] tracking-widest opacity-60') MIN
-      Input(
-        ~ id={`${column.id}-min`}
-        ~ type='number'
-        ~ inputMode='decimal'
-        ~ min={definition.min}
-        ~ max={definition.max}
-        ~ step={definition.step ?? 'any'}
-        ~ value={min}
-        ~ placeholder='Any'
-        ~ aria-label={`${definition.label} minimum`}
-        ~ className={numberInputClassName}
-        ~ onChange={(e) => handleMinChange}
-        ~ )
-      span(className='h-4 w-px shrink-0 bg-border/70')
-      label(htmlFor={`${column.id}-max`} className='shrink-0 font-mono text-[10px] tracking-widest opacity-60') MAX
-      Input(
-        ~ id={`${column.id}-max`}
-        ~ type='number'
-        ~ inputMode='decimal'
-        ~ min={definition.min}
-        ~ max={definition.max}
-        ~ step={definition.step ?? 'any'}
-        ~ value={max}
-        ~ placeholder='Any'
-        ~ aria-label={`${definition.label} maximum`}
-        ~ className={numberInputClassName}
-        ~ onChange={(e) => handleMaxChange}
-        ~ )
-      if definition.unit
-        span(className='shrink-0 font-mono text-[10px] uppercase opacity-40') #{definition.unit}
-
-component SnapDatePanel
-  props { column, rawFilterValue, onCustomRange }: SnapDatePanelProps
-  setup
-    const [rawFrom, rawTo] = getRangeBounds(rawFilterValue)
-    const isAny = isOpenRangeBound(rawFrom) && isOpenRangeBound(rawTo)
-    const activePreset = matchDatePreset(rawFilterValue)
-    const applyPreset = (preset: SnapDatePreset) => {
-      column.setFilterValue(createRangeFilterValue(preset.getStart().toISOString(), OPEN_RANGE_BOUND))
-    }
-
-  Command.List(className={LIST_CLASS})
-    Command.Empty(className='py-6 text-center text-sm text-muted-foreground') No ranges found.
-    Command.Group(value='snap-filter-dates')
-      Command.Item(value='Any Date' onSelect={() => column.setFilterValue(undefined)} className={ROW_CLASS})
-        span(className={MUTED_ROW_LABEL_CLASS}) Any Date
-        if isAny
-          Icon(name='check' className={CHECK_CLASS})
-      each preset in DATE_PRESETS key preset.id
-        Command.Item(value={preset.label} onSelect={() => applyPreset(preset)} className={ROW_CLASS})
-          span(className='truncate') #{preset.label}
-          if activePreset?.id === preset.id
-            Icon(name='check' className={CHECK_CLASS})
-      Command.Item(value='Custom Date Range' onSelect={onCustomRange} className={ROW_CLASS})
-        span(className='truncate') Custom Date Range
-        span(className='ml-auto truncate font-mono text-xs text-indigo-500 dark:text-indigo-300')
-          | #{!isAny && !activePreset ? 'Set' : ''}
-        Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-40')
-
-component SnapCustomDatePanel
-  props { column, rawFilterValue }: SnapFilterPanelProps
-  setup
-    const [rawFrom, rawTo] = getRangeBounds(rawFilterValue)
-    const from = getRangeDate(rawFrom)
-    const to = getRangeDate(rawTo)
-    const selectedRange = from || to ? { from, to } : undefined
-    // The stored bounds stay whole-day inclusive ISO timestamps, so a day
-    // picked in the calendar filters the same rows the presets above do.
-    const handleSelect = (range: DateRange | undefined) => {
-      column.setFilterValue(createInclusiveDateRangeFilterValue(range?.from, range?.to))
-    }
-
-  div(className='p-1')
-    Suspense(fallback={CalendarFallback})
-      LazyCalendar(selectedRange={selectedRange} handleSelect={handleSelect} numberOfMonths={1} className='w-full bg-transparent p-1')
+  const SNAP_FILTER_DESCRIPTION =
+    'Filter the snaps table by status, vehicle, location match, accuracy, or creation date.'
 
 props { columns, columnFilters, onReset }: SnapFilterProps
-setup
-  const [open, setOpen] = useState(false)
-  const [activeFilterId, setActiveFilterId] = useState<string | null>(null)
-  const [isCustomDateRange, setIsCustomDateRange] = useState(false)
-  const [search, setSearch] = useState('')
-  const baseId = useId()
-  const labelId = `${baseId}-label`
-  const descriptionId = `${baseId}-description`
-  const columnsById = useMemo(() => new Map(columns.map((column) => [column.id, column])), [columns])
-  const filterValuesById = useMemo(() => new Map(columnFilters.map((filter) => [filter.id, filter.value] as const)), [columnFilters])
-  const activeFilterCount = DEFAULT_FILTERABLE.reduce(
-    (total, definition) => total + getActiveFilterCount(definition, filterValuesById.get(definition.id)),
-    0
-  )
-  const activeFilterLabel = activeFilterCount > 99 ? '99+' : String(activeFilterCount)
-  const activeDefinition = DEFAULT_FILTERABLE.find((definition) => definition.id === activeFilterId)
-  const activeColumn = activeDefinition ? columnsById.get(activeDefinition.id) : undefined
-  const activeFilterValue = activeDefinition ? filterValuesById.get(activeDefinition.id) : undefined
-  // A range panel has nothing to search, and the calendar owns its own page.
-  const hasSearch = !isCustomDateRange && activeDefinition?.variant !== 'number-range'
-  const goToRoot = () => {
-    setActiveFilterId(null)
-    setIsCustomDateRange(false)
-    setSearch('')
-  }
-  const goToFilter = (id: string) => {
-    setActiveFilterId(id)
-    setIsCustomDateRange(false)
-    setSearch('')
-  }
-  // The popover unmounts its content, so navigation resets with it rather than
-  // reopening three pages deep.
-  const handleOpenChange = (next: boolean) => {
-    setOpen(next)
-    if (!next) goToRoot()
-  }
 
-Popover(open={open} onOpenChange={handleOpenChange})
-  FilterTrigger(activeFilterCount={activeFilterCount} activeFilterLabel={activeFilterLabel})
-  PopoverContent(
-    ~ aria-describedby={descriptionId}
-    ~ aria-labelledby={labelId}
-    ~ align='start'
-    ~ sideOffset={8}
-    ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/60 bg-zinc-100/80 p-0! backdrop-blur-3xl dark:bg-zinc-900/70'
-    ~ )
-    h4(id={labelId} className='sr-only') Add Filter
-    p(id={descriptionId} className='sr-only') Filter the snaps table by status, vehicle, location match, accuracy, or creation date.
-    Command(shouldFilter={hasSearch} loop={true} className='flex flex-col')
-      div(className={HEADER_CLASS})
-        if activeDefinition
-          div(className='flex shrink-0 items-center gap-1.5')
-            PanelChip(label={activeDefinition.label} onBack={isCustomDateRange ? () => setIsCustomDateRange(false) : goToRoot})
-            span(className='h-9 w-px bg-border/25')
-        if hasSearch
-          Command.Input(
-            ~ value={search}
-            ~ onValueChange={setSearch}
-            ~ placeholder='Filter by...'
-            ~ autoFocus={true}
-            ~ className={SEARCH_CLASS}
-            ~ )
-        else
-          span(className='font-sans text-sm text-muted-foreground/60')
-            | #{isCustomDateRange ? 'Pick a range' : 'Set a range'}
-      if !activeDefinition || !activeColumn
-        Command.List(className={LIST_CLASS})
-          Command.Empty(className='py-6 text-center text-sm text-muted-foreground') No filters found.
-          Command.Group(value='snap-filters')
-            each definition in DEFAULT_FILTERABLE key definition.id
-              Command.Item(
-                ~ value={definition.label}
-                ~ keywords={[definition.id]}
-                ~ onSelect={() => goToFilter(definition.id)}
-                ~ className={ROW_CLASS}
-                ~ )
-                span(className='truncate') #{definition.label}
-                span(className='ml-auto truncate font-mono text-xs text-indigo-500 dark:text-indigo-300')
-                  | #{getFilterSummary(definition, filterValuesById.get(definition.id))}
-                Icon(name='chevron-right' className='size-3.5 shrink-0 opacity-40')
-      elseif isCustomDateRange
-        SnapCustomDatePanel(column={activeColumn} rawFilterValue={activeFilterValue})
-      elseif activeDefinition.variant === 'faceted'
-        SnapFacetedPanel(column={activeColumn} definition={activeDefinition} rawFilterValue={activeFilterValue})
-      elseif activeDefinition.variant === 'number-range'
-        SnapNumberRangePanel(column={activeColumn} definition={activeDefinition} rawFilterValue={activeFilterValue})
-      else
-        SnapDatePanel(column={activeColumn} rawFilterValue={activeFilterValue} onCustomRange={() => setIsCustomDateRange(true)})
-      if activeFilterCount > 0
-        div(className='flex justify-end border-t border-dashed border-border/60 p-1')
-          Button(type='button' variant='ghost' size='sm' onClick={onReset} className='h-7 rounded-[5px]')
-            Icon(name='no-filter' className='size-3.5')
-            span Reset Filters
+FilterList(
+  ~ columns={columns}
+  ~ columnFilters={columnFilters}
+  ~ onReset={onReset}
+  ~ filters={SNAP_FILTERS}
+  ~ description={SNAP_FILTER_DESCRIPTION}
+  ~ )
