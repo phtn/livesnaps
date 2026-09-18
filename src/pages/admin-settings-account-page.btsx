@@ -14,6 +14,7 @@ import { ACCOUNT_PLAN_LABEL, ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_TONE, formatAc
 import { EMPTY_ACCOUNT_PROFILE_VALUES, accountLogoUrl, fetchAccountProfile, saveAccountProfile, toAccountProfileValues, uploadAccountLogo, type AccountProfile, type AccountProfileValues } from '@/lib/admin/account-profile'
 import { useScrollBox } from '@/hooks/use-scroll-box';
 import Footer from "../components/footer.btsx";
+import InnerContainer from "../components/admin/inner-container.btsx";
 
 
 module
@@ -130,11 +131,11 @@ setup
   const boxRef = useRef<HTMLDivElement|null>(null)
   const scrollPct = useScrollBox<HTMLDivElement>(boxRef)
 
-section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
+InnerContainer
   header(className='flex flex-wrap items-end justify-between gap-4 py-4')
     div
       p(className='font-mono text-2xs uppercase tracking-[0.2em] text-muted-foreground') Workspace
-      h1(className='mt-1 font-poly text-xl font-medium tracking-tight') Account details
+      h1(className='mt-1 font-poly text-xl font-medium tracking-tight capitalize') #{activeProfile?.account.name}
       p(className='mt-1 max-w-3xl text-sm leading-6 text-muted-foreground') Manage the identity, contact information, and branding used across your account.
     if activeProfile
       div(className='flex items-center gap-2')
@@ -153,7 +154,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
     form(className='grid items-start gap-4 pb-36 lg:grid-cols-[minmax(0,1fr)_20rem]' onSubmit={(event: SubmitEvent) => { event.preventDefault(); void form.handleSubmit() }})
       div(ref={boxRef} className='grid gap-4')
         section(className={cardClassName})
-          SectionHeading(eyebrow='Identity' title='Account specifics' description='The account slug, status, and billing plan remain managed separately.')
+          SectionHeading(eyebrow='Identity' title='Account Info' description='The account slug, status, and billing plan remain managed separately.')
           div(className='grid gap-4 p-4 sm:grid-cols-2')
             ProfileField(form={form} name='name' label='Account name' disabled={!canEdit || isSubmitting} className='sm:col-span-2')
             label(className='flex flex-col gap-1.5')
@@ -167,7 +168,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
             ProfileField(form={form} name='billingEmail' label='Billing email' type='email' disabled={!canEdit || isSubmitting})
 
         section(className={cardClassName})
-          SectionHeading(eyebrow='Primary contact' title='Account contact' description='This is the person LiveSnaps uses for account communication.')
+          SectionHeading(eyebrow='Primary contact' title='Account Contact' description='This is the person LiveSnaps uses for account communication.')
           div(className='grid gap-4 p-4 sm:grid-cols-2')
             ProfileField(form={form} name='contactName' label='Name' disabled={!canEdit || isSubmitting})
             ProfileField(form={form} name='contactTitle' label='Title' disabled={!canEdit || isSubmitting})
@@ -198,7 +199,7 @@ section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smoot
           p(className='rounded-sm border border-border/60 bg-sidebar/30 px-3 py-2 text-sm text-muted-foreground') Only account owners and administrators can edit these details.
 
       aside(className={cn(cardClassName, 'lg:sticky lg:top-0')})
-        SectionHeading(eyebrow='Branding' title='Account logo' description='Up to 4 MB : PNG, JPEG, WebP, GIF.')
+        SectionHeading(eyebrow='Branding' title='Account Logo' description='Up to 4 MB : PNG, JPEG, WebP, GIF.')
         div(className='p-4')
           div(className='grid aspect-square w-full place-items-center overflow-hidden rounded-lg border border-dashed border-border/70 bg-sunken/50')
             if activeProfile.account.logoR2Key

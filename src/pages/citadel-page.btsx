@@ -10,7 +10,6 @@ import { Link, Outlet } from '@octanejs/tanstack-router'
 import { Group, Panel, Separator, usePanelRef } from '@octanejs/resizable-panels'
 import { parseAsBoolean, useQueryState } from '@octanejs/nuqs'
 import ThemeToggle from '@/components/theme-toggle.btsx'
-import Container from '../components/admin/container.btsx'
 import Sidebar from '@/components/ui/sidebar.btsx'
 
 module
@@ -238,7 +237,7 @@ else
             Icon(name='spinner-ferris')
             p(className='text-sm md:text-base text-muted-foreground') Verifying your administrator session
         elseif status === 'ready'
-          Container
+          div
             Outlet
         elseif status === 'unauthorized'
           div(className='grid min-h-screen place-items-center px-6 text-center')

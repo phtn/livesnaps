@@ -9,6 +9,7 @@ import { ACCOUNT_MEMBER_ROLE_LABEL, ACCOUNT_MEMBER_STATUS_LABEL, ACCOUNT_MEMBER_
 import InviteMemberPanel from '@/components/admin/invite-member-panel.btsx'
 import MembersSkeleton from '@/components/admin/members-skeleton.btsx'
 import HyperSearch from '@/components/ui/table/hyper/HyperSearch.btsx'
+import InnerContainer from "./inner-container.btsx";
 
 module
   type RosterStatus = 'loading' | 'ready' | 'error'
@@ -73,7 +74,8 @@ setup
   const handleSearchInputChange = (event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)
   const handleClearSearch = () => setQuery('')
 
-section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
+// section(className='relative h-[calc(100vh-98px)] overflow-y-scroll scroll-smooth p-4')
+InnerContainer
   if workspace?.account === null && rosterStatus === 'ready'
     div(className='rounded-sm border border-dashed border-orange-400/60 px-4 py-10 text-center')
       p(className='text-sm text-muted-foreground') This administrator is not a member of any account.

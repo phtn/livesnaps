@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from '@octanejs/tanstack-router'
 import Tabs from '@/components/ui/tabs.btsx'
 import type { PanelRoute } from '@/components/ui/tabs.btsx'
+import Container from '../components/admin/container.btsx'
 
 module
   // One entry per child route under `citadelAccountsRoute` in `router.ts`.
@@ -24,7 +25,9 @@ setup
     void navigate({ to: href })
   }
 
-main(className='min-h-screen')
+
+// section(className='relative h-[calc(100vh-112px)] overflow-y-scroll scroll-smooth p-4')
+Container
   div(className='flex items-end h-12 md:h-16 border-b border-border/70')
     Tabs(
       ~ activeId={activeId}

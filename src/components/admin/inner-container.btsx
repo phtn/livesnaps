@@ -1,0 +1,5 @@
+import {OctaneNode} from 'octane'
+
+props {children}: {children?: OctaneNode}
+section(className='relative md:h-[calc(100vh-82px)] h-[calc(100vh-98px)] overflow-y-scroll scroll-smooth p-4')
+  fragment #{children}

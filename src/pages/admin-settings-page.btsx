@@ -6,10 +6,10 @@ import {Container} from '@/components/admin'
 module
   // Visible destinations under `adminSettingsRoute` in `router.ts`.
   export const panelRoutes: readonly PanelRoute[] = [
-    { id: 'staff', href: '/admin-settings', label: 'Staff', shortLabel: 'Staff', icon: 'member' },
-    { id: 'recipients', href: '/admin-settings/recipients', label: 'Email recipients', shortLabel: 'Recipients', icon: 'at' },
+    { id: 'staff', href: '/admin-settings', label: 'Staff Members', shortLabel: 'Staff', icon: 'member' },
+    { id: 'recipients', href: '/admin-settings/recipients', label: 'Email recipients', shortLabel: 'Recipients', icon: 'email-setting' },
     { id: 'links', href: '/admin-settings/links', label: 'Submission links', shortLabel: 'Links', icon: 'link' },
-    { id: 'account', href: '/admin-settings/account', label: 'Account', shortLabel: 'Account', icon: 'account' }
+    { id: 'account', href: '/admin-settings/account', label: 'Account Info', shortLabel: 'Account', icon: 'account' }
   ]
 
   // Longest href wins, otherwise the `/admin-settings` index would claim every
@@ -29,7 +29,7 @@ setup
   }
 
 Container
-  div(className='flex items-end h-12 border-b border-border/70')
+  div(className='flex items-end md:h-8 h-12 border-b border-border/50')
     Tabs(
       ~ activeId={activeId}
       ~ items={panelRoutes}

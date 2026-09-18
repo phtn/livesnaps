@@ -18,7 +18,7 @@ module
   }
 
 component AppWordmark
-  h1(className='inline-flex items-center gap-0 font-poly font-medium tracking-tight text-foreground/90')
+  h1(className='inline-flex items-center gap-0 font-poly font-medium text-foreground/90 text-base tracking-tight')
     span(className='uppercase text-beach dark:text-foreground') Live
     span(className='uppercase dark:text-lime-200') Snaps
     span(className='text-sand dark:text-foreground') Now
@@ -36,7 +36,7 @@ component SidebarTrigger
       Link(to='/' aria-label='App home')
         AppWordmark
     DrawerTrigger(type='button' aria-label='Open navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-foreground/70 transition-colors hover:bg-sidebar hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-      Icon(name='sidebar' className='md:size-5 size-6')
+      Icon(name='sidebar' className='size-5 opacity-80')
 
 component SidebarHeader
   props { brand }: { brand: MobileSidebarBrand }
@@ -44,13 +44,13 @@ component SidebarHeader
     div(className='flex h-16 items-center justify-between gap-3 px-5')
       if brand === 'citadel'
         Link(className='inline-flex items-center gap-3 font-poly text-xl font-medium tracking-tight text-foreground/90' to='/citadel' aria-label='Citadel home')
-          Icon(name='re-up.ph' className='size-6')
+          Icon(name='re-up.ph' className='size-5')
           span(className='dark:text-lime-200') Citadel
       else
         Link(className='text-[clamp(1.1rem,5vw,1.4rem)]' to='/' aria-label='App home')
           AppWordmark
       DrawerClose(type='button' aria-label='Close navigation' className='grid size-9 touch-manipulation place-items-center rounded-lg text-2xl leading-none text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring')
-        Icon(name='sidebar' className='size-6')
+        Icon(name='sidebar' className='size-5 opacity-80')
 
 props { children, open, onOpenChange, title, brand = 'admin', triggerLabel, className }: SidebarProps
 setup const trigger = createElement(SidebarTrigger, { brand, label: triggerLabel })
@@ -63,7 +63,7 @@ Drawer(
   ~ description='Swipe right or use the close button to close navigation.'
   ~ trigger={trigger}
   ~ className={cn('will-change-transform', className)}
-  ~ contentClassName='bg-inherit backdrop-blur-none! relative'
+  ~ contentClassName='bg-inherit backdrop-blur-sm relative'
   ~ backdropClassName='bg-black/20! backdrop-blur-none!'
   ~ )
   div(className='absolute -right-48 -top-64 size-152 rounded-full bg-beach/8 blur-3xl dark:bg-lime-200/3 pointer-events-none')

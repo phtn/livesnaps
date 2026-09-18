@@ -84,12 +84,12 @@ nav(
       ~ id={`route-${item.id}`}
       ~ aria-label={item.label}
       ~ aria-current={activeId === item.id ? 'page' : undefined}
-      ~ className={`relative z-10 flex items-center justify-center md:gap-1 cursor-pointer font-sans hover:text-foreground -tracking-[0.01em] ps-3 pe-5 sm:px-5 md:px-3 py-2.5 ${items.length >= 3 ? 'w-full' : ''} ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
+      ~ className={`relative z-10 flex items-center justify-center md:gap-1 cursor-pointer font-sans hover:text-foreground -tracking-[0.01em] px-4 sm:ps-3 sm:pe-5 md:px-3 py-2.5 capitalize whitespace-nowrap ${items.length >= 3 ? 'w-full' : ''} ${activeId === item.id ? 'text-foreground' : 'text-muted-foreground/80'}`}
       ~ onClick={(event) => handleNavigate(event, item.href)}
       ~ )
-      Icon(name={item.icon} size={18})
-      span(className='hidden lg:inline font-sans font-medium text-sm -tracking-[0.01em]') #{item.label}
-      span(className={`${items.length >= 3 ? 'hidden md:flex' : 'flex'} lg:hidden font-sans font-medium text-sm -tracking-[0.01em]`}) #{item.shortLabel}
+      Icon(name={item.icon} size={18} className='opacity-80')
+      span(className='hidden lg:inline font-sans font-medium lg:text-base text-sm -tracking-[0.01em]') #{item.label}
+      span(className={`${items.length >= 3 ? 'hidden md:flex' : 'flex'} lg:hidden font-sans font-medium sm:text-base text-sm -tracking-[0.01em]`}) #{item.shortLabel}
   // div(
   //   ~ aria-hidden='true'
   //   ~ className='pointer-events-none absolute -bottom-0.25 left-0 z-0 h-0.5 rounded-e-full -translate-y-1/2 bg-border/40 w-full'
