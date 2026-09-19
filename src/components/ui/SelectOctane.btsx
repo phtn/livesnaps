@@ -20,6 +20,8 @@ module
   export type SelectOctaneProps = Omit<Props<Option, false>, 'onChange' | 'options' | 'value'> & {
     className?: string
     chevronClassName?: string
+    /** Lets the user commit typed text that is not among `options`. */
+    creatable?: boolean
     controlClassName?: string
     menuClassName?: string
     menuItemClassName?: string
@@ -145,6 +147,7 @@ props {
   ~ className,
   ~ classNames,
   ~ chevronClassName,
+  ~ creatable = false,
   ~ controlClassName,
   ~ menuClassName,
   ~ menuItemClassName,
@@ -162,13 +165,27 @@ setup
   const resolvedStyles = styles ? mergeStyles(DEFAULT_STYLES, styles) : DEFAULT_STYLES
 
 fragment
-  SelectBase(
-    ~ {...selectProps}
-    ~ className={className}
-    ~ classNames={resolvedClassNames}
-    ~ onChange={handleChange}
-    ~ options={options}
-    ~ styles={resolvedStyles}
-    ~ unstyled={unstyled}
-    ~ value={selectedOption}
-    ~ )
+  if creatable
+    CreatableSelect(
+      ~ {...selectProps}
+      ~ className={className}
+      ~ classNames={resolvedClassNames}
+      ~ formatCreateLabel={(input: string) => input}
+      ~ isValidNewOption={(input: string) => input.trim().length > 0}
+      ~ onChange={handleChange}
+      ~ options={options}
+      ~ styles={resolvedStyles}
+      ~ unstyled={unstyled}
+      ~ value={selectedOption}
+      ~ )
+  else
+    SelectBase(
+      ~ {...selectProps}
+      ~ className={className}
+      ~ classNames={resolvedClassNames}
+      ~ onChange={handleChange}
+      ~ options={options}
+      ~ styles={resolvedStyles}
+      ~ unstyled={unstyled}
+      ~ value={selectedOption}
+      ~ )

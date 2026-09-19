@@ -12,5 +12,6 @@ footer(className={cn("border-t border-border/20 border-dashed w-full fixed botto
     div(className="flex items-center gap-4 uppercase tracking-wide")
       Link(to='/legal/$slug' params={{ slug: 'privacy-policy' }} className="hover:text-foreground transition") Privacy
       Link(to='/legal/$slug' params={{ slug: 'terms-of-use' }} className="hover:text-foreground transition") Terms
-      a(id='dev-team' href="https://beast-docs-adv.beastjs.workers.dev/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 border-l border-border/50 pl-4")
+      a(id='dev-team' href="https://beast-docs-adv.beastjs.workers.dev/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 ml-0 font-mono text-2xs -tracking-[0.02em] border-l border-border/50 pl-4")
+        span(className='sr-only') DEV
         Icon(name="re-up.ph" className="size-3 text-muted-foreground")

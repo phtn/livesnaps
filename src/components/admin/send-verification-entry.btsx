@@ -102,8 +102,6 @@ setup
   const account = useWorkspace()
   const { settings: recipientDefaults } = useRecipientDefaults(account?.id, open)
   const recipientValues = recipientChoices(recipientDefaults)
-  const recipientOptions = recipientValues.map((email) => ({ value: email, label: email }))
-  const menuPortalTarget = typeof document === 'undefined' ? undefined : document.body
   const recipientForm = useForm({
     formId: entry ? `send-recipient-${entry._id}` : 'send-recipient-empty',
     defaultValues: { emailToAddress: entry?.emailToAddress ?? '', ccEmailAddress: entry?.ccEmailAddress ?? '' },
@@ -143,15 +141,13 @@ setup
   const emailToAddress = useSelector(recipientForm.store, state => state.values.emailToAddress)
   const ccEmailAddress = useSelector(recipientForm.store, state => state.values.ccEmailAddress)
   const isPending = useSelector(recipientForm.store, state => state.isSubmitting)
+  // A typed address that is not a saved one becomes an option of its own, so
+  // the selected value always has something to display.
+  const recipientOptions = (emailToAddress && !recipientValues.includes(emailToAddress) ? [...recipientValues, emailToAddress] : recipientValues).map((email) => ({ value: email, label: email }))
+  const ccOptions = (ccEmailAddress && !recipientValues.includes(ccEmailAddress) ? [...recipientValues, ccEmailAddress] : recipientValues).map((email) => ({ value: email, label: email }))
   const isRecipientValid = isVerificationEmailAddress(emailToAddress.trim())
   // Empty is valid: the CC is optional.
   const isCcValid = !ccEmailAddress.trim() || isVerificationEmailAddress(ccEmailAddress.trim())
-  const savedRecipientValue = recipientValues.includes(emailToAddress) ? emailToAddress : ''
-  const handleRecipientInputChange = (value: string, meta: { action: string }) => {
-    if (meta.action === 'input-change') recipientForm.setFieldValue('emailToAddress', value)
-  }
-  const filterRecipientOption = (candidate: { label: string }, inputValue: string) =>
-    recipientValues.includes(emailToAddress) || candidate.label.toLowerCase().includes(inputValue.trim().toLowerCase())
 
   useEffect(() => {
     if (!open || entry?.status !== 'draft') return
@@ -396,32 +392,33 @@ if entry
                         ~ aria-invalid={!isRecipientValid}
                         ~ className='w-full min-w-0'
                         ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
-                        ~ filterOption={filterRecipientOption}
-                        ~ inputValue={emailToAddress}
                         ~ isDisabled={isPending}
+                        ~ creatable={true}
                         ~ isSearchable={true}
-                        ~ menuPortalTarget={menuPortalTarget}
-                        ~ menuPosition='fixed'
                         ~ noOptionsMessage={() => 'Type a recipient email'}
                         ~ onChange={(value) => recipientForm.setFieldValue('emailToAddress', value)}
-                        ~ onInputChange={handleRecipientInputChange}
                         ~ options={recipientOptions}
                         ~ placeholder='recipient@example.com'
-                        ~ value={savedRecipientValue}
+                        ~ value={emailToAddress}
                         ~ )
                     div(className='flex flex-col gap-1.5')
                       label(className={fieldLabelClassName} htmlFor='send-email-cc') CC
-                      Input(
-                        ~ id='send-email-cc'
-                        ~ type='email'
-                        ~ autoComplete='email'
-                        ~ className='rounded-xs'
-                        ~ placeholder='Optional'
-                        ~ value={ccEmailAddress}
-                        ~ disabled={isPending}
+                      SelectOctane(
+                        ~ inputId='send-email-cc'
+                        ~ aria-label='CC'
                         ~ aria-invalid={!isCcValid}
                         ~ aria-describedby={isCcValid ? undefined : 'send-email-cc-error'}
-                        ~ onInput={(event: Event) => recipientForm.setFieldValue('ccEmailAddress', (event.currentTarget as HTMLInputElement).value)}
+                        ~ className='w-full min-w-0'
+                        ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
+                        ~ creatable={true}
+                        ~ isClearable={true}
+                        ~ isDisabled={isPending}
+                        ~ isSearchable={true}
+                        ~ noOptionsMessage={() => 'Type a CC email'}
+                        ~ onChange={(value) => recipientForm.setFieldValue('ccEmailAddress', value)}
+                        ~ options={ccOptions}
+                        ~ placeholder='Optional'
+                        ~ value={ccEmailAddress}
                         ~ )
                       if !isCcValid
                         p(id='send-email-cc-error' className='font-mono text-2xs text-destructive' role='alert') Enter a valid CC email, or clear the field.

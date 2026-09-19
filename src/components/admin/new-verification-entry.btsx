@@ -51,41 +51,31 @@ component EmailField
     const controlId = `verification-${name}`
     const errorId = `${controlId}-error`
     const message = field.state.meta.isTouched ? readValidationMessage(field.state.meta.errors) : null
-    const recipientOptions = options.map((email) => ({ value: email, label: email }))
-    const savedRecipientValue = options.includes(field.state.value) ? field.state.value : ''
-    const menuPortalTarget = typeof document === 'undefined' ? undefined : document.body
-    const handleRecipientInputChange = (value: string, meta: { action: string }) => {
-      if (meta.action === 'input-change') field.handleChange(value)
-    }
-    // A selected saved address is also the controlled input value. Treat that
-    // state as an unopened search so the menu still shows both personal and
-    // shared account recipients; free-typed text continues to filter the list.
-    const filterRecipientOption = (candidate: { label: string }, inputValue: string) =>
-      options.includes(field.state.value) || candidate.label.toLowerCase().includes(inputValue.trim().toLowerCase())
+    // A typed address that is not a saved one becomes an option of its own, so
+    // the selected value always has something to display.
+    const current = field.state.value
+    const recipientOptions = (current && !options.includes(current) ? [...options, current] : options).map((email) => ({ value: email, label: email }))
 
   div(className='flex flex-col gap-1.5')
     label(className={fieldLabelClassName} htmlFor={controlId}) #{label}
-    if name === 'emailToAddress'
+    if options.length > 0 || name === 'emailToAddress'
       SelectOctane(
         ~ inputId={controlId}
         ~ aria-label={label}
         ~ aria-invalid={message !== null}
         ~ aria-describedby={message === null ? undefined : errorId}
-        ~ aria-required={true}
+        ~ aria-required={required}
+        ~ isClearable={!required}
         ~ className='w-full min-w-0'
         ~ controlClassName='h-9 min-h-9! rounded-xs border-sidebar-border bg-sidebar/50'
-        ~ filterOption={filterRecipientOption}
-        ~ inputValue={field.state.value}
+        ~ creatable={true}
         ~ isSearchable={true}
-        ~ menuPortalTarget={menuPortalTarget}
-        ~ menuPosition='fixed'
         ~ noOptionsMessage={() => 'Type a recipient email'}
         ~ onBlur={field.handleBlur}
         ~ onChange={field.handleChange}
-        ~ onInputChange={handleRecipientInputChange}
         ~ options={recipientOptions}
         ~ placeholder={placeholder}
-        ~ value={savedRecipientValue}
+        ~ value={current}
         ~ )
     else
       Input(
@@ -375,7 +365,7 @@ fragment
                     div(id='verification-email-from' className={readonlyFieldClassName}) #{emailFromAddress || 'Signing in…'}
                   div(className='grid gap-3 sm:grid-cols-2')
                     EmailField(form={entryForm} name='emailToAddress' label='To' placeholder='recipient@example.com' required={true} options={options})
-                    EmailField(form={entryForm} name='ccEmailAddress' label='CC' placeholder='Optional')
+                    EmailField(form={entryForm} name='ccEmailAddress' label='CC' placeholder='Optional' options={options})
                   if recipientDefaultsError
                     p(className='text-xs text-destructive' role='alert') Saved recipients could not be loaded. You can still type an address.
 

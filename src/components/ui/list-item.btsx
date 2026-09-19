@@ -92,4 +92,4 @@ li(id={id} className={itemClassName} style={style} aria-label={ariaLabel})
       div(className={LIST_ITEM_DESCRIPTION_CLASS}) #{description}
     | #{children}
     if actions !== undefined
-      button(className={LIST_ITEM_ACTIONS_CLASS} onClick={actions}) click
+      button(className={LIST_ITEM_ACTIONS_CLASS} onClick={actions ? () => actions : undefined}) click
