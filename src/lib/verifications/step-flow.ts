@@ -15,7 +15,7 @@ export type StepState = 'idle' | 'active' | 'done'
 
 export const STEP_TILE_CLASS = {
   idle: 'border border-border/40 bg-muted/40 text-muted-foreground/50',
-  active: 'bg-active text-white shadow-[0_3px_10px_-3px_var(--color-active)]',
+  active: 'bg-active text-white shadow-[0_1px_2px_-1px_var(--color-active)]',
   done: 'border border-[#01bf7c]/96 bg-[#01bf7c]/96 text-white'
 } as const satisfies Record<StepState, string>
 

@@ -282,14 +282,14 @@ fragment
               Drawer.Handle(className='mb-4')
             div(className='flex items-center justify-between gap-3')
               Drawer.Title(className='font-poly text-lg leading-none tracking-tight') Create verification
-              span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full bg-border/20 border border-border/30 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
+              span(className='inline-flex shrink-0 items-center gap-1.5 rounded-full bg-sidebar-border border border-border/30 px-2.5 py-1 font-mono text-2xs text-muted-foreground')
                 span(className='') #{eligibleSnaps.length}
                 span(className='opacity-50') #{`/`}
                 span(className='') eligible
             Drawer.Description(className='sr-only')
               | Select a completed snap, confirm the recipients, and create the verification entry.
 
-          div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
+          div(className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-0 pb-2 sm:px-3 sm:pb-3')
             div(className='rounded-2xl border border-border/0 bg-popover py-4 ps-2 pe-4 shadow-xs')
 
               Step(
@@ -297,33 +297,33 @@ fragment
                 ~ title='Snap'
                 ~ state={snapState}
                 ~ index={0}
-                ~ meta={selectedSnap ? undefined : `${filteredSnaps.length} of ${eligibleSnaps.length}`}
+                ~ meta={selectedSnap ? undefined : `Select an entry`}
                 ~ )
                 if selectedSnap
                   div(className={cn('relative flex items-center justify-between rounded-lg border border-border/50 bg-muted/30 p-3', ENTER_CLASS)})
                     SnapOptionItem(snap={selectedSnap} isSelected={true})
-                    div(className='absolute top-0 right-0 border')
+                    div(className='absolute top-0 right-0.5')
                       button(
                         ~ type='button'
                         ~ onClick={clearSnap}
-                        ~ className={cn(ghostButtonClassName, 'absolute top-1 right-2 h-7 px-1 font-mono text-2xs uppercase tracking-wider hover:text-destructive')}
+                        ~ className={cn(ghostButtonClassName, 'absolute top-0.5 right-0 h-6 text-muted-foreground/60 hover:opacity-100 hover:text-destructive transition-all duration-180 active:scale-97 ease-out')}
                         ~ )
-                        Icon(name='circle-minus' className='size-3 opacity-80')
-                        span Clear
+                        Icon(name='circle-minus' className='size-3.5')
+                        span
                 else
-                  div(className={cn('grid gap-2', ENTER_CLASS)})
+                  div(className={cn('grid', ENTER_CLASS)})
                     div(className='relative')
                       Input(
                         ~ id='verification-snap-search'
                         ~ type='search'
                         ~ autoComplete='off'
-                        ~ className='rounded-xs pl-3'
+                        ~ className='rounded-t-lg rounded-b-none pl-3 h-10!'
                         ~ placeholder='Search plate, name, email, make, model…'
                         ~ value={searchQuery}
                         ~ onInput={(event: Event) => setSearchQuery((event.currentTarget as HTMLInputElement).value)}
                         ~ )
                     div(className='')
-                      ScrollArea(className='h-58 rounded-lg overflow-hidden border border-sidebar-border')
+                      ScrollArea(className='h-58 rounded-b-lg overflow-hidden border border-sidebar-border border-t-0')
                         div(className='bg-table-head/20')
                           if isLoadingSnaps
                             div(className='grid place-items-center gap-2 px-3 py-10 text-sm text-muted-foreground')
