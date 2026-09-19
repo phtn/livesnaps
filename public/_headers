@@ -1,0 +1,31 @@
+# Cloudflare Workers Assets answers every asset with its default
+# `cache-control: public, max-age=0, must-revalidate`, so the browser
+# revalidates content-hashed bundles on each load and can never serve one from
+# its own HTTP cache without a round trip. Two visible costs:
+#
+#   * repeat visits pay a conditional request per chunk before rendering;
+#   * `public/service-worker.js` re-downloads the entry chunks during install.
+#     Its `cache.addAll()` of the assets scraped out of the shell HTML is a
+#     normal fetch — the spec only sets those requests' service-workers mode to
+#     "none", leaving the cache mode alone — so it reads the HTTP cache when the
+#     entry is still fresh, and re-fetches when it is not. That is the duplicate
+#     `main.<hash>.css` the Network tab attributes to the service worker.
+#
+# Everything under `static/` carries a content hash in its name, so a rebuild
+# publishes a new URL and the old one can never go stale.
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# `public/fonts`, `public/images` and `public/livesnaps-icons` are published
+# verbatim, so these URLs stay stable across builds (see the note in
+# `index.html`) and cannot be immutable — replacing a face would be unreachable
+# for anyone holding a year-long entry. A month still keeps the four preloaded
+# faces off the revalidation path on repeat visits.
+/fonts/*
+  Cache-Control: public, max-age=2592000
+
+/images/*
+  Cache-Control: public, max-age=2592000
+
+/livesnaps-icons/*
+  Cache-Control: public, max-age=2592000

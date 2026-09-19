@@ -48,10 +48,20 @@ export default {
   output: {
     clean: true,
     publicPath: '/',
-    filename: '[name].[contenthash:8].js',
-    chunkFilename: '[name].[contenthash:8].js',
-    cssFilename: '[name].[contenthash:8].css',
-    cssChunkFilename: '[name].[contenthash:8].css'
+    // Hashed build output is grouped under `static/` so one `_headers` rule can
+    // mark the whole directory immutable. At the bundle root that rule would
+    // have to be a `/*.js` glob, which also catches `public/service-worker.js` —
+    // and a worker script must keep revalidating or a stale one pins the app to
+    // an old build. `_headers` joins duplicate Cache-Control values with a
+    // comma instead of letting a later rule override, so the exception could
+    // not be expressed; a separate directory sidesteps the overlap.
+    filename: 'static/[name].[contenthash:8].js',
+    chunkFilename: 'static/[name].[contenthash:8].js',
+    cssFilename: 'static/[name].[contenthash:8].css',
+    cssChunkFilename: 'static/[name].[contenthash:8].css',
+    // Covers the emitted `asset/resource` files — the takumi wasm binary, the
+    // pdf.js worker, and bundled images — which are content-hashed too.
+    assetModuleFilename: 'static/[hash][ext][query]'
   },
   optimization: {
     splitChunks: {
