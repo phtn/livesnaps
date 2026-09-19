@@ -19,22 +19,10 @@
       "purpose": "any"
     },
     {
-      "src": "/livesnaps-icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
       "src": "/livesnaps-icons/apple-icon.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
-    {
-      "src": "/livesnaps-icons/favicon.ico",
-      "sizes": "any",
-      "type": "image/x-icon",
-      "purpose": "any"
-    }
   ]
 }
