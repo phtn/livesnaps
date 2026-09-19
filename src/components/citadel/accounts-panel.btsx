@@ -437,6 +437,7 @@ component CreateAccountForm
         ~ title='Account'
         ~ state={identityState}
         ~ index={0}
+        ~ stepCount={5}
         ~ meta={slugCandidate || undefined}
         ~ )
         div(className='grid gap-4 md:grid-cols-2')
@@ -455,6 +456,7 @@ component CreateAccountForm
         ~ title='Primary contact'
         ~ state={contactState}
         ~ index={1}
+        ~ stepCount={5}
         ~ meta={isLinked ? 'linked' : undefined}
         ~ )
         div(className='grid gap-3')
@@ -505,7 +507,7 @@ component CreateAccountForm
             TextField(form={accountForm} name='contactPhone' label='Contact phone' type='tel' placeholder='Optional')
             TextField(form={accountForm} name='contactTitle' label='Contact title' placeholder='Optional')
 
-      Step(icon='plans' title='Plan' state={planState} index={2} meta={ACCOUNT_PLAN_LABEL[planValue]})
+      Step(icon='plans' title='Plan' state={planState} index={2} stepCount={5} meta={ACCOUNT_PLAN_LABEL[planValue]})
         PlanField(form={accountForm})
 
       Step(
@@ -513,6 +515,7 @@ component CreateAccountForm
         ~ title='Organization'
         ~ state={organizationState}
         ~ index={3}
+        ~ stepCount={5}
         ~ meta={`${organizationFilled} of 5 · optional`}
         ~ )
         div(className='grid gap-4')
@@ -530,7 +533,7 @@ component CreateAccountForm
               ~ )
           TextField(form={accountForm} name='notes' label='Notes' placeholder='Optional')
 
-      Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
+      Step(icon='sparkle' title='Create' state={createState} index={4} stepCount={5} isLast={true})
         if canSubmit
           p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Create the account and email the contact a link to confirm admin access.
         else

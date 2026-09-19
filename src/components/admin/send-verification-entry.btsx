@@ -349,6 +349,7 @@ if entry
                 ~ title='Applicant'
                 ~ state={applicantState}
                 ~ index={0}
+                ~ stepCount={5}
                 ~ meta={entry.plateNumber || undefined}
                 ~ )
                 if snap
@@ -377,6 +378,7 @@ if entry
                 ~ title='Recipients'
                 ~ state={recipientState}
                 ~ index={1}
+                ~ stepCount={5}
                 ~ meta={ccEmailAddress.trim() ? '+1 cc' : undefined}
                 ~ )
                 div(className='grid gap-3')
@@ -430,6 +432,7 @@ if entry
                 ~ title='Message'
                 ~ state={messageState}
                 ~ index={2}
+                ~ stepCount={5}
                 ~ meta={`${body.trim().length} chars`}
                 ~ )
                 div(className='grid gap-3')
@@ -457,6 +460,7 @@ if entry
                 ~ title='Attachments'
                 ~ state={attachmentState}
                 ~ index={3}
+                ~ stepCount={5}
                 ~ meta={attachmentTotal ? `${selectedAttachments.length + uploads.length} selected · ${attachmentTotal}` : `${selectedAttachments.length + uploads.length} selected`}
                 ~ )
                 div(className='grid')
@@ -511,7 +515,7 @@ if entry
                 p(className='mt-2 font-mono text-2xs text-muted-foreground/70')
                   | Photos are read from storage at send time. A browsed file is uploaded now and sent as itself.
 
-              Step(icon='send' title='Send' state={sendState} index={4} isLast={true})
+              Step(icon='send' title='Send' state={sendState} index={4} stepCount={5} isLast={true})
                 if canSend
                   p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)})
                     | Deliver the entry to #{emailToAddress}.

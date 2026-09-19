@@ -297,6 +297,7 @@ fragment
                 ~ title='Snap'
                 ~ state={snapState}
                 ~ index={0}
+                ~ stepCount={5}
                 ~ meta={selectedSnap ? undefined : `Select an entry`}
                 ~ )
                 if selectedSnap
@@ -341,6 +342,7 @@ fragment
                 ~ title='Applicant'
                 ~ state={applicantState}
                 ~ index={1}
+                ~ stepCount={5}
                 ~ meta={selectedSnap ? snapVehicle(selectedSnap) || undefined : undefined}
                 ~ )
                 if selectedSnap
@@ -357,6 +359,7 @@ fragment
                 ~ title='Recipients'
                 ~ state={recipientState}
                 ~ index={2}
+                ~ stepCount={5}
                 ~ meta={hasSender ? undefined : 'no sender'}
                 ~ )
                 div(className='grid gap-3')
@@ -374,6 +377,7 @@ fragment
                 ~ title='Attachments'
                 ~ state={attachmentState}
                 ~ index={3}
+                ~ stepCount={5}
                 ~ meta={attachmentTotal ? `${attachments.length} of ${DEFAULT_VERIFICATION_ATTACHMENTS.length} · ${attachmentTotal}` : `${attachments.length} of ${DEFAULT_VERIFICATION_ATTACHMENTS.length}`}
                 ~ )
                 div(className='grid')
@@ -387,7 +391,7 @@ fragment
                       ~ onToggle={() => toggleAttachment(option)}
                       ~ )
 
-              Step(icon='sparkle' title='Create' state={createState} index={4} isLast={true})
+              Step(icon='sparkle' title='Create' state={createState} index={4} stepCount={5} isLast={true})
                 if canSubmit
                   p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Queue the entry and hand it to the send dialog.
                 else
@@ -404,7 +408,6 @@ fragment
             div(className='flex shrink-0 items-center gap-2')
               Button(
                 ~ type='button'
-                ~ size='sm'
                 ~ variant='ghost'
                 ~ label='Cancel'
                 ~ disabled={isSubmitting}
@@ -412,7 +415,6 @@ fragment
                 ~ )
               Button(
                 ~ type='submit'
-                ~ size='sm'
                 ~ variant='dark'
                 ~ icon='chevrons-right'
                 ~ iconPosition='right'

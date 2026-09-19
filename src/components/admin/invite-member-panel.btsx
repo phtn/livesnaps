@@ -313,13 +313,14 @@ else
           ~ title='Person'
           ~ state={personState}
           ~ index={0}
+          ~ stepCount={4}
           ~ meta={isEmailValid ? emailValue.trim() : undefined}
           ~ )
           div(className='grid gap-4 md:grid-cols-2')
             RegisteredUserEmailField(form={memberForm} accountId={account?.id})
             TextField(form={memberForm} name='name' label='Name' placeholder='Ada Reyes')
 
-        Step(icon='key' title='Access Role' state={roleState} index={1} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
+        Step(icon='key' title='Access Role' state={roleState} index={1} stepCount={4} meta={ACCOUNT_MEMBER_ROLE_LABEL[roleValue]})
           RoleField(form={memberForm} actorRole={account?.role ?? 'viewer'})
 
         Step(
@@ -327,11 +328,12 @@ else
           ~ title='Details'
           ~ state={detailsState}
           ~ index={2}
+          ~ stepCount={4}
           ~ meta='optional'
           ~ )
           TextField(form={memberForm} name='title' label='Position' placeholder='Lead Verifier')
 
-        Step(icon='send' title='Invite' state={inviteState} index={3} isLast={true})
+        Step(icon='send' title='Invite' state={inviteState} index={3} stepCount={4} isLast={true})
           if canSubmit
             p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Email the invitation and hold the seat until it is accepted.
           else

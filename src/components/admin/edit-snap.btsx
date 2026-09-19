@@ -139,12 +139,12 @@ Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
 
         div(className='min-h-0 flex-1 overflow-y-auto px-2 pb-2 sm:px-3 sm:pb-3')
           div(className='rounded-2xl border border-border/0 bg-popover ps-2 pe-4 py-4 shadow-xs')
-            Step(icon='person' title='Applicant' state={applicantState} index={0})
+            Step(icon='person' title='Applicant' state={applicantState} index={0} stepCount={4})
               div(className={cn('grid gap-3 sm:grid-cols-2', ENTER_CLASS)})
                 EditSnapField(form={form} name='fullName' label='Applicant name' maxLength={120} placeholder='Applicant name')
                 EditSnapField(form={form} name='phone' label='Phone' type='tel' maxLength={32} placeholder='Phone number')
 
-            Step(icon='car-front' title='Vehicle' state={vehicleState} index={1} meta={values.plateNumber.trim() || undefined})
+            Step(icon='car-front' title='Vehicle' state={vehicleState} index={1} stepCount={4} meta={values.plateNumber.trim() || undefined})
               div(className={cn('grid gap-3', ENTER_CLASS)})
                 EditSnapField(form={form} name='plateNumber' label='Plate number' maxLength={32} placeholder='Plate number')
                 div(className='grid gap-3 sm:grid-cols-2')
@@ -152,11 +152,11 @@ Drawer.Root(open={open} onOpenChange={handleOpenChange} direction={direction})
                   EditSnapField(form={form} name='model' label='Model (optional)' maxLength={80} placeholder='Vehicle model')
                 EditSnapField(form={form} name='year' label='Year (optional)' type='number' min={1886} max={new Date().getFullYear() + 1} step={1} placeholder='Model year')
 
-            Step(icon='car-odo' title='Odometer' state={mileageState} index={2} meta={values.mileage.trim() ? `${values.mileage} km` : 'optional'})
+            Step(icon='car-odo' title='Odometer' state={mileageState} index={2} stepCount={4} meta={values.mileage.trim() ? `${values.mileage} km` : 'optional'})
               div(className={ENTER_CLASS})
                 EditSnapField(form={form} name='mileage' label='Mileage (km)' type='number' min={0} max={9999999.9} step='any' placeholder='Optional')
 
-            Step(icon='sparkle' title='Save' state={saveState} index={3} isLast={true})
+            Step(icon='sparkle' title='Save' state={saveState} index={3} stepCount={4} isLast={true})
               if canSubmit
                 p(className={cn('font-mono text-xs text-muted-foreground', ENTER_CLASS)}) Update this snap with the details above.
               else
