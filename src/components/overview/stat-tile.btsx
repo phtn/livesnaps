@@ -38,7 +38,7 @@ setup
   const deltaTone = direction === 'flat' ? FLAT : isGoodNews ? RISING : FALLING
   const arrow = direction === 'up' ? '↑' : direction === 'down' ? '↓' : '·'
 
-div(className={cn('flex flex-col justify-between gap-5 rounded-lg border border-border/45 bg-card/35 p-5', className)})
+div(className={cn('overview-stat flex flex-col justify-between gap-5', className)})
   div
     p(className='font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground') #{label}
     div(className='mt-3 flex items-end gap-3')

@@ -1,3 +1,4 @@
+import './overview.css'
 import AreaChart from './area-chart.btsx'
 import ColumnChart from './column-chart.btsx'
 import Distribution from './distribution.btsx'
