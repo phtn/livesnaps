@@ -6,6 +6,30 @@ import type { VisionCar, VisionTestMediaType } from './vision-test-contract'
 
 const META_FILE_DELETE_TIMEOUT_MS = 5_000
 
+// Meta can return model_not_found transiently for a model still in its catalog.
+// The SDK does not retry 404s; retry this specific inference failure once.
+const withMetaModelRetry = async <T>(input: MetaVisionTestInput, request: () => Promise<T>): Promise<T> => {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await request()
+    } catch (error) {
+      if (!(error instanceof OpenAI.APIError) || error.status !== 404 || error.code !== 'model_not_found') {
+        throw error
+      }
+      input.abortSignal.throwIfAborted()
+      if (attempt === 0) continue
+
+      const requestId = error.requestID
+      throw new Error(
+        `Meta could not serve model "${input.model}" on /v1/responses after two attempts. ` +
+          `The model may be temporarily unavailable or inaccessible to this API key. ` +
+          `Provider error: ${error.message}${requestId ? ` Request ID: ${requestId}.` : ''}`,
+        { cause: error }
+      )
+    }
+  }
+}
+
 export type MetaVisionClient = {
   files: Pick<OpenAI['files'], 'create' | 'delete'>
   responses: Pick<OpenAI['responses'], 'parse'>
@@ -105,36 +129,38 @@ export const runMetaVisionTest = async (
   withMetaVisionFile(
     input,
     async ({ client, fileId }) => {
-      const response = await client.responses.parse(
-        {
-          input: [
-            {
-              role: 'system',
-              content: input.systemPrompt
-            },
-            {
-              role: 'user',
-              content: [
-                { type: 'input_text', text: input.prompt },
-                {
-                  type: 'input_image',
-                  file_id: fileId,
-                  detail: 'auto'
-                }
-              ]
+      const response = await withMetaModelRetry(input, () =>
+        client.responses.parse(
+          {
+            input: [
+              {
+                role: 'system',
+                content: input.systemPrompt
+              },
+              {
+                role: 'user',
+                content: [
+                  { type: 'input_text', text: input.prompt },
+                  {
+                    type: 'input_image',
+                    file_id: fileId,
+                    detail: 'auto'
+                  }
+                ]
+              }
+            ],
+            max_output_tokens: 1_536,
+            model: input.model,
+            reasoning: { effort: 'low' },
+            store: false,
+            text: {
+              format: zodTextFormat(visionCarSchema, 'vision_car', {
+                description: 'Visible vehicle identity, plate, condition, damage, and miscellaneous observations.'
+              })
             }
-          ],
-          max_output_tokens: 1_536,
-          model: input.model,
-          reasoning: { effort: 'low' },
-          store: false,
-          text: {
-            format: zodTextFormat(visionCarSchema, 'vision_car', {
-              description: 'Visible vehicle identity, plate, condition, damage, and miscellaneous observations.'
-            })
-          }
-        },
-        { signal: input.abortSignal }
+          },
+          { signal: input.abortSignal }
+        )
       )
 
       if (response.error) {

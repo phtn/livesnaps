@@ -12,6 +12,7 @@ import { isColumnVisible } from './visibility.ts'
 
 module
   export interface HyperRowProps {
+    className?: string
     row: HyperRowModel
     columnPinning: ColumnPinningState
     columnVisibility: ColumnVisibilityState
@@ -79,7 +80,7 @@ module
     return className
   }
 
-props { row, columnPinning, columnVisibility, dropPosition = null, isActive, isDragging = false, isEditing, isPinned, isSelected, pinnedColumnLayouts, selectColumnId = DEFAULT_SELECT_COLUMN_ID, showSelectColumn, onDragOver, onDrop }: HyperRowProps
+props { className, row, columnPinning, columnVisibility, dropPosition = null, isActive, isDragging = false, isEditing, isPinned, isSelected, pinnedColumnLayouts, selectColumnId = DEFAULT_SELECT_COLUMN_ID, showSelectColumn, onDragOver, onDrop }: HyperRowProps
 
 setup
   const isHighlighted = isEditing || isActive
@@ -103,7 +104,7 @@ TableRow(
   ~ data-state={isSelected ? 'selected' : undefined}
   ~ data-drop-position={dropPosition ?? undefined}
   ~ data-reorder-row-id={row.id}
-  ~ className={rowClassName}
+  ~ className={cn(rowClassName, className)}
   ~ onClick={handleRowClick}
   ~ onDragOver={handleDragOver}
   ~ onDrop={handleDrop}

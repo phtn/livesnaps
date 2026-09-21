@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 import { createOpenAI } from '@ai-sdk/openai'
 import { generateText } from 'ai'
+import OpenAI from 'openai'
 import { runMetaVisionTest } from './meta-vision-files'
 import type { VisionCar } from './vision-test-contract'
 
@@ -110,6 +111,56 @@ const expectedCar: VisionCar = {
 }
 
 describe('Meta Files API vision test', () => {
+  for (const scenario of ['transient', 'persistent', 'unrelated', 'aborted'] as const) {
+    test(`handles ${scenario} model errors without reuploading or leaking the file`, async () => {
+      const controller = new AbortController()
+      const input = { ...createMetaVisionTestInput(), abortSignal: controller.signal }
+      const error = new OpenAI.APIError(
+        404,
+        {
+          code: scenario === 'unrelated' ? 'file_not_found' : 'model_not_found',
+          message: 'The requested model was not found.'
+        },
+        undefined,
+        new Headers({ 'x-request-id': 'meta-request-123' })
+      )
+      let uploads = 0
+      let requests = 0
+      const deleted: string[] = []
+      const client = {
+        files: {
+          create: async () => {
+            uploads += 1
+            return { id: 'file-retry' }
+          },
+          delete: async (id: string) => {
+            deleted.push(id)
+          }
+        },
+        responses: {
+          parse: async (body: { model: string; input: unknown }) => {
+            requests += 1
+            assert.equal(body.model, input.model)
+            assert.match(JSON.stringify(body.input), /file-retry/)
+            if (scenario === 'aborted') controller.abort()
+            if (scenario !== 'transient' || requests === 1) throw error
+            return { output_parsed: expectedCar, status: 'completed' }
+          }
+        }
+      } as unknown as MetaVisionClient
+
+      const result = runMetaVisionTest(input, { client })
+      if (scenario === 'transient') assert.deepEqual((await result).car, expectedCar)
+      else if (scenario === 'persistent') {
+        await assert.rejects(result, /muse-spark-test.*after two attempts.*meta-request-123/)
+      } else if (scenario === 'aborted') await assert.rejects(result, { name: 'AbortError' })
+      else await assert.rejects(result, (caught) => caught === error)
+      assert.equal(uploads, 1)
+      assert.equal(requests, scenario === 'transient' || scenario === 'persistent' ? 2 : 1)
+      assert.deepEqual(deleted, ['file-retry'])
+    })
+  }
+
   test('uploads the image, references its file ID, and deletes it after the response', async () => {
     const capture: {
       responseBody: Record<string, unknown> | null

@@ -65,6 +65,9 @@ module
      * readouts stay hidden.
      */
     queryState?: DataTableQueryProgress
+    showHeader?: boolean
+    rowClassName?: string
+    viewportClassName?: string
     title?: string
     /** A compact table-scoping control rendered directly after the filter control. */
     titleActions?: OctaneNode
@@ -139,6 +142,9 @@ props {
   ~ urlKeyPrefix = '',
   ~ children,
   ~ toolbarActions,
+  ~ showHeader = true,
+  ~ rowClassName,
+  ~ viewportClassName = VIEWPORT_CLASS_NAME,
   ~ title = ''}: DataTableProps
 
 setup
@@ -317,9 +323,10 @@ setup
   const queryLabel = queryState.phase === 'sorting' ? 'Ranking' : 'Searching'
 
 section(className='relative overflow-hidden rounded-xs md:bg-surface')
-  div(className='hidden md:flex items-center justify-between p-2')
-    Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
-    fragment #{children}
+  if showHeader
+    div(className='hidden md:flex items-center justify-between p-2')
+      Header(eyebrow={eyebrow} title={title} description='Browse, sort, filter, and select your data.')
+      fragment #{children}
 
   // On a phone the search field takes over this row when it opens, so every
   // other control in it stands down for the duration. Hidden rather than
@@ -353,7 +360,7 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
       Search(value={globalFilter} onChange={handleSearchChange} onClear={handleClearSearch} onExpandedChange={setIsSearchExpanded})
 
   if isEmpty
-    div(className={VIEWPORT_CLASS_NAME})
+    div(className={viewportClassName})
       TableEmptyState(
         ~ title={hasActiveQuery ? FILTERED_EMPTY_TITLE : emptyTitle}
         ~ description={hasActiveQuery ? FILTERED_EMPTY_DESCRIPTION : emptyDescription}
@@ -363,7 +370,7 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
         ~ actionLabel={emptyActionLabel}
         ~ )
   else
-    div(className={cn(VIEWPORT_CLASS_NAME, SCROLLBAR_CLASS_NAME)})
+    div(className={cn(viewportClassName, SCROLLBAR_CLASS_NAME)})
       HyperTable(
         ~ table={table}
         ~ title={title}
@@ -376,6 +383,7 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
           each row in visibleRows key row.id
             HyperRow(
               ~ row={row}
+              ~ className={rowClassName}
               ~ isActive={false}
               ~ isEditing={false}
               ~ isPinned={false}
