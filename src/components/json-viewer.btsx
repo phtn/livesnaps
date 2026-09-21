@@ -7,23 +7,38 @@ module
     ~ };
   type JsonArray = JsonValue[];
   export interface JsonViewerProps {
-    ~ data: object | null;
+    ~ data: unknown;
     ~ maxHeight?: string;
     ~ withToolbar?: boolean;
     ~ children?: OctaneNode;
     ~ }
   interface RenderValueProps {
-    ~ value: string
-    ~ path: string
-    ~ depth: number
-    ~ isChild: boolean
-    ~ isExpanded: boolean
+    ~ value: JsonValue;
+    ~ path?: string;
+    ~ depth?: number;
+    ~ isChild?: boolean;
+    ~ isExpanded: (path: string) => boolean;
+    ~ togglePath: (path: string) => void;
+    ~ isExpandable: (value: JsonValue) => boolean;
+    ~ }
+  interface ObjectEntryProps {
+    ~ parentPath: string;
+    ~ entryKey: string;
+    ~ entryValue: JsonValue;
+    ~ depth?: number;
+    ~ isExpanded: (path: string) => boolean;
+    ~ togglePath: (path: string) => void;
+    ~ isExpandable: (value: JsonValue) => boolean;
     ~ }
   type ViewMode = "tree" | "raw";
-// lifted from the renderValue helper; isExpanded, togglePath, isExpandable came from the component around it
-// its props type is the one thing the conversion cannot infer — annotate it
 component RenderValue
   props { value, path = "", depth = 0, isChild = false, isExpanded, togglePath, isExpandable }: RenderValueProps
+  setup
+    const stringValue = typeof value === "string" ? value : "";
+    const displayValue = stringValue.length > 100 ? `${stringValue.substring(0, 100)}...` : stringValue;
+    const recordValue = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : null;
+    const keys = recordValue ? Object.keys(recordValue) : [];
+    const expanded = isExpanded(path);
   if value === null
     span(className="font-mono text-zinc-500 dark:text-rose-300 italic") null
   elseif typeof value === "number"
@@ -31,164 +46,144 @@ component RenderValue
   elseif typeof value === "boolean"
     span(className="font-mono text-indigo-600 dark:text-indigo-400") #{String(value)}
   elseif typeof value === "string"
-    scope
-      setup const displayValue = value.length > 100 ? `${value.substring(0, 100)}...` : value;
-      span(className="text-orange-500 dark:text-orange-300")
-        | &quot;
-        span.wrap-break-words #{displayValue}
-        | &quot;
+    span(className="text-orange-500 dark:text-orange-300")
+      | &quot;
+      span.wrap-break-words #{displayValue}
+      | &quot;
   elseif Array.isArray(value)
     if value.length === 0
       span(className="text-zinc-500 dark:text-zinc-400") []
     else
-      scope
-        setup const expanded = isExpanded(path);
-        if isChild
-          if !expanded
-            span(className="text-zinc-400 dark:text-zinc-500")
-              | [
-              span(className="text-zinc-600 dark:text-zinc-400") #{value.length} item#{value.length !== 1 ? "s" : ""}
-              | ]
-          else
-            div(className="mt-0.5")
-              div(className="space-y-1.5")
-                each item, index in value key index
-                  div(className="flex items-start justify-start gap-2")
-                    span(className="text-zinc-500 dark:text-zinc-500 text-xs shrink-0 mt-0.5") #{index}
-                    div(className="flex-1 min-w-0")
-                      RenderValue(
-                        ~ value={item}
-                        ~ path={`${path}[${index}]`}
-                        ~ depth={depth + 1}
-                        ~ isExpanded={isExpanded}
-                        ~ togglePath={togglePath}
-                        ~ isExpandable={isExpandable}
-                        ~ )
+      if isChild
+        if !expanded
+          span(className="text-zinc-400 dark:text-zinc-500")
+            | [
+            span(className="text-zinc-600 dark:text-zinc-400") #{value.length} item#{value.length !== 1 ? "s" : ""}
+            | ]
         else
-          div
-            button(
-              ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
-              ~ onClick={() => togglePath(path)}
-              ~ )
-              span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-                if expanded
-                  | #{"▼"}
-                else
-                  | #{"▶"}
-              span(className="text-zinc-400 dark:text-zinc-500") [
-              span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{value.length} item#{value.length !== 1 ? "s" : ""}
-              span(className="text-zinc-400 dark:text-zinc-500") ]
-            if expanded
-              div(className="mt-1.5 space-y-1.5")
-                each item, index in value key index
-                  div(className="flex items-center gap-1")
-                    span(className="text-zinc-500 dark:text-zinc-500 text-[8px] shrink-0 mt-0.5") #{index}
-                    div(className="flex-1 min-w-0")
-                      RenderValue(
-                        ~ value={item}
-                        ~ path={`${path}[${index}]`}
-                        ~ depth={depth + 1}
-                        ~ isExpanded={isExpanded}
-                        ~ togglePath={togglePath}
-                        ~ isExpandable={isExpandable}
-                        ~ )
-  elseif typeof value === "object"
-    scope
-      setup
-        const obj = value as JsonObject;
-        const keys = Object.keys(obj);
-      if keys.length === 0
-        span(className="text-zinc-500 dark:text-zinc-400") #{"()"}
+          div(className="mt-0.5")
+            div(className="space-y-1.5")
+              each item, index in value key index
+                div(className="flex items-start justify-start gap-2")
+                  span(className="text-zinc-500 dark:text-zinc-500 text-xs shrink-0 mt-0.5") #{index}
+                  div(className="flex-1 min-w-0")
+                    RenderValue(
+                      ~ value={item}
+                      ~ path={`${path}[${index}]`}
+                      ~ depth={depth + 1}
+                      ~ isExpanded={isExpanded}
+                      ~ togglePath={togglePath}
+                      ~ isExpandable={isExpandable}
+                      ~ )
       else
-        scope
-          setup const expanded = isExpanded(path);
-          if isChild
-            if !expanded
-              span(className="text-zinc-400 dark:text-zinc-500")
-                | #{"("}
-                span(className="text-zinc-600 dark:text-zinc-400") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
-                | #{")"}
-            else
-              div(className="mt-0.5")
-                div(className="space-y-1.5")
-                  each key in keys key key
-                    scope
-                      setup
-                        const keyPath = path ? `${path}.${key}` : key;
-                        const childValue = obj[key];
-                        const childExpandable = isExpandable(childValue);
-                        const childExpanded = isExpanded(keyPath);
-                      div(className="flex items-start gap-2")
-                        if childExpandable
-                          button(
-                            ~ className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group shrink-0"
-                            ~ onClick={() => togglePath(keyPath)}
-                            ~ )
-                            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-                              if childExpanded
-                                | #{"▼"}
-                              else
-                                | #{"▶"}
-                            span.font-medium #{key}:
-                        else
-                          span(className="text-zinc-700 dark:text-zinc-300 font-medium shrink-0") #{key}:
-                        div(className="flex-1 min-w-0")
-                          RenderValue(
-                            ~ value={childValue}
-                            ~ path={keyPath}
-                            ~ depth={depth + 1}
-                            ~ isExpanded={isExpanded}
-                            ~ togglePath={togglePath}
-                            ~ isExpandable={isExpandable}
-                            ~ )
-          else
-            div
-              button(
-                ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
-                ~ onClick={() => togglePath(path)}
-                ~ )
-                span(className="text-zinc-400 dark:text-zinc-600 select-none text-[10px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-                  if expanded
-                    | #{"▼"}
-                  else
-                    | #{"▶"}
-                span(className="text-zinc-400 dark:text-zinc-500") #{"{"}
-                span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
-                span(className="text-zinc-400 dark:text-zinc-500") #{"}"}
+        div
+          button(
+            ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
+            ~ onClick={() => togglePath(path)}
+            ~ )
+            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
               if expanded
-                div(className="mt-1.5 space-y-1.5")
-                  each key in keys key key
-                    scope
-                      setup
-                        const keyPath = path ? `${path}.${key}` : key;
-                        const childValue = obj[key];
-                        const childExpandable = isExpandable(childValue);
-                        const childExpanded = isExpanded(keyPath);
-                      div(className="flex items-start gap-2")
-                        if childExpandable
-                          button(
-                            ~ className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group shrink-0"
-                            ~ onClick={() => togglePath(keyPath)}
-                            ~ )
-                            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[10px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-                              if childExpanded
-                                | #{"▼"}
-                              else
-                                | #{"▶"}
-                            span.font-medium #{key}:
-                        else
-                          span(className="text-zinc-700 dark:text-zinc-300 font-medium shrink-0") #{key}:
-                        div(className="flex-1 min-w-0")
-                          RenderValue(
-                            ~ value={childValue}
-                            ~ path={keyPath}
-                            ~ depth={depth + 1}
-                            ~ isExpanded={isExpanded}
-                            ~ togglePath={togglePath}
-                            ~ isExpandable={isExpandable}
-                            ~ )
+                | #{"▼"}
+              else
+                | #{"▶"}
+            span(className="text-zinc-400 dark:text-zinc-500") [
+            span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{value.length} item#{value.length !== 1 ? "s" : ""}
+            span(className="text-zinc-400 dark:text-zinc-500") ]
+          if expanded
+            div(className="mt-1.5 space-y-1.5")
+              each item, index in value key index
+                div(className="flex items-center gap-1")
+                  span(className="text-zinc-500 dark:text-zinc-500 text-[8px] shrink-0 mt-0.5") #{index}
+                  div(className="flex-1 min-w-0")
+                    RenderValue(
+                      ~ value={item}
+                      ~ path={`${path}[${index}]`}
+                      ~ depth={depth + 1}
+                      ~ isExpanded={isExpanded}
+                      ~ togglePath={togglePath}
+                      ~ isExpandable={isExpandable}
+                      ~ )
+  elseif typeof value === "object"
+    if keys.length === 0
+      span(className="text-zinc-500 dark:text-zinc-400") #{"()"}
+    else
+      if isChild
+        if !expanded
+          span(className="text-zinc-400 dark:text-zinc-500")
+            | #{"("}
+            span(className="text-zinc-600 dark:text-zinc-400") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
+            | #{")"}
+        else
+          div(className="mt-0.5")
+            div(className="space-y-1.5")
+              each key in keys key key
+                ObjectEntry(
+                  ~ parentPath={path}
+                  ~ entryKey={key}
+                  ~ entryValue={(value as JsonObject)[key]}
+                  ~ depth={depth}
+                  ~ isExpanded={isExpanded}
+                  ~ togglePath={togglePath}
+                  ~ isExpandable={isExpandable}
+                  ~ )
+      else
+        div
+          button(
+            ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
+            ~ onClick={() => togglePath(path)}
+            ~ )
+            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[10px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
+              if expanded
+                | #{"▼"}
+              else
+                | #{"▶"}
+            span(className="text-zinc-400 dark:text-zinc-500") #{"{"}
+            span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
+            span(className="text-zinc-400 dark:text-zinc-500") #{"}"}
+          if expanded
+            div(className="mt-1.5 space-y-1.5")
+              each key in keys key key
+                ObjectEntry(
+                  ~ parentPath={path}
+                  ~ entryKey={key}
+                  ~ entryValue={(value as JsonObject)[key]}
+                  ~ depth={depth}
+                  ~ isExpanded={isExpanded}
+                  ~ togglePath={togglePath}
+                  ~ isExpandable={isExpandable}
+                  ~ )
   else
     span(className="text-zinc-600 dark:text-zinc-400") #{String(value)}
+component ObjectEntry
+  props { parentPath, entryKey, entryValue, depth = 0, isExpanded, togglePath, isExpandable }: ObjectEntryProps
+  setup
+    const keyPath = parentPath ? `${parentPath}.${entryKey}` : entryKey;
+    const expandable = isExpandable(entryValue);
+    const childExpanded = isExpanded(keyPath);
+  div(className="flex items-start gap-2")
+    if expandable
+      button(
+        ~ className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group shrink-0"
+        ~ onClick={() => togglePath(keyPath)}
+        ~ )
+        span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
+          if childExpanded
+            | #{"▼"}
+          else
+            | #{"▶"}
+        span.font-medium #{entryKey}:
+    else
+      span(className="text-zinc-700 dark:text-zinc-300 font-medium shrink-0") #{entryKey}:
+    div(className="flex-1 min-w-0")
+      RenderValue(
+        ~ value={entryValue}
+        ~ path={keyPath}
+        ~ depth={depth + 1}
+        ~ isChild={true}
+        ~ isExpanded={isExpanded}
+        ~ togglePath={togglePath}
+        ~ isExpandable={isExpandable}
+        ~ )
 component JsonViewerRoot
   props { data, maxHeight = "max-h-96", withToolbar = false, children }: JsonViewerProps
   setup

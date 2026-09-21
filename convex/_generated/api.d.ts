@@ -31,6 +31,7 @@ import type * as lib_workspaceAccess from "../lib/workspaceAccess.js";
 import type * as resendWebhooks_d from "../resendWebhooks/d.js";
 import type * as resendWebhooks_m from "../resendWebhooks/m.js";
 import type * as resendWebhooks_q from "../resendWebhooks/q.js";
+import type * as sheets from "../sheets.js";
 import type * as snapSettings_d from "../snapSettings/d.js";
 import type * as snapSettings_m from "../snapSettings/m.js";
 import type * as snapSettings_q from "../snapSettings/q.js";
@@ -88,6 +89,7 @@ declare const fullApi: ApiFromModules<{
   "resendWebhooks/d": typeof resendWebhooks_d;
   "resendWebhooks/m": typeof resendWebhooks_m;
   "resendWebhooks/q": typeof resendWebhooks_q;
+  sheets: typeof sheets;
   "snapSettings/d": typeof snapSettings_d;
   "snapSettings/m": typeof snapSettings_m;
   "snapSettings/q": typeof snapSettings_q;

@@ -1,0 +1,226 @@
+import { useMemo, useRef, useState } from 'octane'
+import {columnFilteringFeature, createFilteredRowModel, createPaginatedRowModel, createSortedRowModel, filterFn_includesString, flexRender, globalFilteringFeature, rowPaginationFeature, rowSortingFeature, sortFn_alphanumeric, tableFeatures } from '@octanejs/tanstack-table'
+import { type ColumnDef, useTable } from '@octanejs/tanstack-table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import TableEmptyState from '@/components/ui/table/table-empty-state.btsx'
+import { Button } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { loadSheetFile, loadSheetsJsonp, type SheetTable } from '@/lib/tools/sheets'
+
+module
+  type SheetRow = string[]
+
+  const sheetFeatures = tableFeatures({
+    globalFilteringFeature,
+    columnFilteringFeature,
+    filteredRowModel: createFilteredRowModel(),
+    filterFns: { includesString: filterFn_includesString },
+    rowSortingFeature,
+    sortedRowModel: createSortedRowModel(),
+    sortFns: { alphanumeric: sortFn_alphanumeric },
+    rowPaginationFeature,
+    paginatedRowModel: createPaginatedRowModel()
+  })
+
+  const ACCEPT = '.csv,.tsv,.txt,.md,.markdown,.xls,.xlsx,.xlsm,.xlsb,.ods,.psv,.ssv,.list'
+  const PAGE_SIZES = [50, 100, 250]
+
+  const inputClass = 'h-10 w-full rounded-sm border border-border/60 bg-background px-3 text-sm'
+  const subtleButton = 'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-border/80 px-3 font-mono text-2xs uppercase tracking-wider text-muted-foreground transition-colors hover:border-active/40 hover:bg-active/10 hover:text-active disabled:opacity-50'
+
+  const buildColumns = (names: string[]): Array<ColumnDef<typeof sheetFeatures, SheetRow>> =>
+    names.map((name, index) => ({
+      id: `col-${index}`,
+      header: name,
+      accessorFn: (row) => row[index] ?? '',
+      sortingFn: 'alphanumeric'
+    }))
+
+  const sortLabel = (dir: string | false) => (dir === 'asc' ? 'ascending' : dir === 'desc' ? 'descending' : 'none')
+  const sortMark = (dir: string | false) => (dir === 'asc' ? '▲' : dir === 'desc' ? '▼' : '')
+
+setup
+  const [sheet, setSheet] = useState<SheetTable | null>(null)
+  const [sourceName, setSourceName] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
+  const [url, setUrl] = useState('')
+  const [query, setQuery] = useState('')
+  const dragDepth = useRef(0)
+  const fileInput = useRef<HTMLInputElement | null>(null)
+
+  const columns = useMemo(() => buildColumns(sheet?.columns ?? []), [sheet])
+  const data = useMemo(() => sheet?.rows ?? [], [sheet])
+
+  const table = useTable({
+    key: sheet?.name ?? 'empty',
+    features: sheetFeatures,
+    data,
+    columns,
+    getRowId: (_row, index) => String(index),
+    initialState: { pagination: { pageIndex: 0, pageSize: 100 } }
+  })
+
+  const pagination = table.state.pagination
+  const pageCount = table.getPageCount()
+  const visibleRows = table.getRowModel().rows
+  const filteredCount = table.getFilteredRowModel().rows.length
+
+  const acceptSheet = (next: SheetTable, name: string) => {
+    setSheet(next)
+    setSourceName(name)
+    setError(null)
+    setQuery('')
+  }
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return
+    setLoading(true)
+    setError(null)
+    try {
+      acceptSheet(await loadSheetFile(file), file.name)
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Could not read that file.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const pickFile = () => fileInput.current?.click()
+  const handleInputChange = (event: Event) => {
+    const input = event.currentTarget as HTMLInputElement
+    void handleFile(input.files?.[0])
+    input.value = ''
+  }
+  const handleDragEnter = (event: Event) => {
+    event.preventDefault()
+    dragDepth.current += 1
+    setDragActive(true)
+  }
+  const handleDragOver = (event: Event) => {
+    event.preventDefault()
+    const transfer = (event as DragEvent).dataTransfer
+    if (transfer) transfer.dropEffect = 'copy'
+  }
+  const handleDragLeave = (event: Event) => {
+    event.preventDefault()
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragActive(false)
+  }
+  const handleDrop = (event: Event) => {
+    event.preventDefault()
+    dragDepth.current = 0
+    setDragActive(false)
+    const files = (event as DragEvent).dataTransfer?.files
+    void handleFile(files?.[0])
+  }
+  const handleUrlSubmit = (event: Event) => {
+    event.preventDefault()
+    const trimmed = url.trim()
+    if (!trimmed || loading) return
+    setLoading(true)
+    setError(null)
+    loadSheetsJsonp(trimmed).then(
+      (next) => {
+        acceptSheet(next, trimmed)
+        setLoading(false)
+      },
+      (failure: unknown) => {
+        setError(failure instanceof Error ? failure.message : 'Could not import that sheet.')
+        setLoading(false)
+      }
+    )
+  }
+  const handleSearch = (event: Event) => {
+    const value = (event.currentTarget as HTMLInputElement).value
+    setQuery(value)
+    table.setGlobalFilter(value)
+  }
+  const handlePageSize = (event: Event) => {
+    table.setPageSize(Number((event.currentTarget as HTMLSelectElement).value))
+  }
+  const handleClear = () => {
+    setSheet(null)
+    setSourceName('')
+    setError(null)
+    setQuery('')
+    setUrl('')
+  }
+
+div(className='space-y-6')
+  if data.length === 0
+    section(
+      ~ aria-label='Sheet source'
+      ~ onDragEnter={handleDragEnter}
+      ~ onDragOver={handleDragOver}
+      ~ onDragLeave={handleDragLeave}
+      ~ onDrop={handleDrop}
+      ~ className={cn('relative rounded-sm border border-dashed p-6 text-center transition-colors sm:p-8 h-75vh', dragActive ? 'border-active/60 bg-active/5' : 'border-border/60 bg-muted/20')}
+      ~ )
+      input(ref={fileInput} type='file' accept={ACCEPT} className='hidden' aria-hidden={true} tabIndex={-1} onChange={handleInputChange})
+      if dragActive
+        div(className='pointer-events-none absolute inset-0 grid place-items-center rounded-sm bg-background/60')
+          p(className='font-poly text-lg font-medium') Drop to load the sheet
+      div(className='flex flex-col items-center gap-3 min-h-60vh')
+        span(className='grid place-items-center text-muted')
+          Icon(name='table' className='size-12')
+        div(className='max-w-xl space-y-1')
+          p(className='font-poly text-lg font-medium') Drop a sheet file here
+          p(className='text-xs leading-5 text-muted-foreground') CSV, TSV, Excel (.xls, .xlsx, .ods), Markdown tables, or plain line lists. Parsed in your browser — nothing is uploaded.
+        div(className='flex flex-wrap items-center justify-center gap-2')
+          Button(type='button' variant='dark' size='sm' label={loading ? 'Reading…' : 'Browse files'} icon='add' onClick={pickFile} disabled={loading})
+          if sheet
+            button(type='button' onClick={handleClear} className={subtleButton})
+              Icon(name='close' className='size-3.5')
+              span Clear
+      form(onSubmit={handleUrlSubmit} className='mx-auto mt-5 flex max-w-xl gap-2')
+        label(htmlFor='sheet-url' className='sr-only') Google Sheets link
+        input(id='sheet-url' type='url' value={url} disabled={loading} onInput={(event: Event) => setUrl((event.currentTarget as HTMLInputElement).value)} placeholder='Or paste a Google Sheets link…' className={inputClass})
+        Button(type='submit' variant='dark' size='sm' label='Import' icon='link' pending={loading} disabled={!url.trim() || loading})
+  if error
+    p(role='alert' className='rounded-sm bg-destructive/5 px-4 py-3 text-sm text-destructive') #{error}
+  if loading && !sheet
+    p(role='status' className='py-8 text-center text-sm text-muted-foreground') Reading sheet…
+  // if !sheet && !loading
+  //   TableEmptyState(title='No sheet yet' description='Drop a file above or import a Sheets link and the table renders here.')
+  if sheet
+    section(aria-label='Sheet data' className='space-y-3')
+      div(className='flex flex-wrap items-end justify-between gap-3')
+        div(className='flex items-center gap-4 min-w-0')
+          h2(className='truncate font-poly font-medium text-lg') #{sourceName}
+          p(className='mt-0.5 text-xs md:text-sm text-muted-foreground') #{sheet.columns.length} columns · #{sheet.totalRows} rows#{sheet.truncated ? ` · showing first ${sheet.rows.length}` : ''}
+        label(className='flex w-full items-center gap-2 sm:w-64')
+          span(className='sr-only') Search rows
+          input(type='search' value={query} onInput={handleSearch} placeholder='Search rows…' className={inputClass})
+      if filteredCount === 0
+        p(role='status' className='rounded-sm border border-border/60 px-4 py-8 text-center text-sm text-muted-foreground') No rows match this search.
+      else
+        div(className='h-[100vh-110px] overflow-auto rounded-sm border border-border/60')
+          Table
+            TableHeader
+              TableRow
+                each header in table.getHeaderGroups()[0]?.headers ?? [] key header.id
+                  TableHead(scope='col' aria-sort={sortLabel(header.column.getIsSorted())})
+                    if header.column.getCanSort()
+                      button(type='button' onClick={header.column.getToggleSortingHandler()} title={`Sort by ${String(header.column.columnDef.header)}`} className='inline-flex items-center gap-1 font-medium hover:text-foreground')
+                        span #{flexRender(header.column.columnDef.header, header.getContext())}
+                        span(aria-hidden={true} className='text-2xs text-muted-foreground') #{sortMark(header.column.getIsSorted())}
+                    else
+                      span #{flexRender(header.column.columnDef.header, header.getContext())}
+            TableBody
+              each row in visibleRows key row.id
+                TableRow
+                  each cell in row.getAllCells() key cell.id
+                    TableCell(className='max-w-72 truncate') #{flexRender(cell.column.columnDef.cell, cell.getContext())}
+      div(className='flex flex-wrap items-center justify-between gap-3')
+        p(className='text-xs text-muted-foreground' role='status') Page {pagination.pageIndex + 1} of {Math.max(1, pageCount)} · {filteredCount} matching rows
+        div(className='flex items-center gap-2')
+          label(className='flex items-center gap-2 text-xs text-muted-foreground')
+            span Rows
+            select(value={pagination.pageSize} onChange={handlePageSize} className='h-8 rounded-sm border border-border/60 bg-background px-2 text-xs')
+              each size in PAGE_SIZES key size
+                option(value={size}) #{size}
+          button(type='button' onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} className={subtleButton}) Previous
+          button(type='button' onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} className={subtleButton}) Next

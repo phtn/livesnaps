@@ -12,7 +12,7 @@ import { DragDropProvider,
   ~ type DragEndEvent,
   ~ type DragOverlayProps } from '@octanejs/dnd-kit'
 import { isSortable, useSortable } from '@octanejs/dnd-kit/sortable'
-import { useRender } from '@octanejs/base-ui/use-render'
+import { useRender, type TState } from '@octanejs/base-ui/use-render'
 import type { JSX } from 'octane/jsx-runtime'
 import { createContext,
   ~ createElement,
@@ -25,6 +25,7 @@ import { createContext,
 
 import { cn } from '@/lib/utils'
 import { useComposedRefs } from './composition'
+import { ComponentProps } from '@/components/utils';
 
 module
   const ROOT_NAME = 'Sortable'
@@ -46,6 +47,7 @@ module
   type DivProps = JSX.IntrinsicElements['div']
   type ButtonProps = JSX.IntrinsicElements['button']
   type RenderProp = Parameters<typeof useRender<Record<string, unknown>>>[0]['render']
+  // type RenderProp = <E extends JSX.ElementType>() => useRender.Parameters<TState, E as JSX.Element, boolean | undefined>
   type ProviderHandler<Name extends 'onDragStart' | 'onDragMove' | 'onDragOver' | 'onDragEnd'> =
     NonNullable<DragDropProviderProps[Name]>
 
