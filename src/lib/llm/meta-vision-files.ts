@@ -70,8 +70,10 @@ export const withMetaVisionFile = async <T>(
   try {
     const uploadedFile = await client.files.create(
       {
-        file: new File([input.bytes as unknown as BlobPart], input.filename, { type: input.mediaType }),
-        purpose: META_FILES_API_PURPOSE
+        purpose: META_FILES_API_PURPOSE,
+        // Expire temporary images even if the worker exits before finally can delete them.
+        expires_after: { anchor: 'created_at', seconds: 3_600 },
+        file: new File([input.bytes as unknown as BlobPart], input.filename, { type: input.mediaType })
       },
       { signal: input.abortSignal }
     )

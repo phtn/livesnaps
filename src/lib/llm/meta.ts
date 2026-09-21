@@ -11,7 +11,7 @@ export type MetaConfigOverrides = {
 export const getMetaConfig = (overrides: MetaConfigOverrides = {}) => ({
   apiKey: overrides.apiKey?.trim() || process.env.META_API_KEY?.trim() || '',
   baseURL: overrides.baseURL?.trim() || process.env.META_BASE_URL?.trim() || 'https://api.meta.ai/v1',
-  model: overrides.model?.trim() || process.env.META_MODEL?.trim() || 'muse-spark-1.2-contributor'
+  model: overrides.model?.trim() || process.env.META_MODEL?.trim() || 'muse-spark-1.3-contributor'
 })
 
 export const isMetaConfigured = () => {

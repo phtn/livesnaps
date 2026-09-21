@@ -73,5 +73,5 @@ export const getProviderDisplayLabel = (provider: LlmProvider): string => {
 export const getMetaEnvDefaults = () => ({
   apiKey: process.env.META_API_KEY ?? '',
   baseURL: process.env.META_BASE_URL ?? 'https://api.meta.ai/v1',
-  model: process.env.META_MODEL ?? 'muse-spark-1.2-contributor'
+  model: process.env.META_MODEL?.trim() || 'muse-spark-1.3-contributor'
 })

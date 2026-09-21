@@ -113,7 +113,7 @@ describe('Meta Files API vision test', () => {
   test('uploads the image, references its file ID, and deletes it after the response', async () => {
     const capture: {
       responseBody: Record<string, unknown> | null
-      uploadBody: { file: File; purpose: string } | null
+      uploadBody: { file: File; purpose: string; expires_after?: { anchor: string; seconds: number } } | null
     } = {
       responseBody: null,
       uploadBody: null
@@ -152,12 +152,13 @@ describe('Meta Files API vision test', () => {
     } as unknown as MetaVisionClient
 
     const result = await runMetaVisionTest(createMetaVisionTestInput(), { client })
-    const uploadBody = capture.uploadBody as { file: File; purpose: string } | null
+    const uploadBody = capture.uploadBody as NonNullable<typeof capture.uploadBody> | null
     const responseBody = capture.responseBody as Record<string, unknown> | null
 
     assert.ok(uploadBody)
     assert.ok(responseBody)
     assert.equal(uploadBody.purpose, 'user_data')
+    assert.deepEqual(uploadBody.expires_after, { anchor: 'created_at', seconds: 3_600 })
     assert.equal(uploadBody.file.name, 'test.png')
     assert.equal(uploadBody.file.type, 'image/png')
     assert.deepEqual(responseBody.input, [

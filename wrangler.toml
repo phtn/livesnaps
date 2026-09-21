@@ -5,6 +5,7 @@ main = "./src/worker.ts"
 
 [vars]
 CONVEX_URL = "https://dusty-jay-470.convex.cloud"
+META_MODEL = "muse-spark-1.3-contributor"
 
 [build]
 command = "bun run build"
