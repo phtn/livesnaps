@@ -75,7 +75,7 @@ module
   const BUTTON_SIZE_CLASSES = {
     icon: "size-6",
     'icon-lg': "h-8 w-9",
-    sm: "h-[32px] rounded-full",
+    sm: "h-[32px] rounded-full [&_svg]:size-4",
     md: "h-[36px] rounded-lg",
     lg: "h-[40px] rounded-xl",
   } as const satisfies Record<ButtonSize, string>
@@ -107,8 +107,8 @@ module
   const BUTTON_CONTENT_GAP_CLASSES = {
     icon: "gap-0",
     'icon-lg': "gap-0",
-    sm: "gap-1.5",
-    md: "gap-2",
+    sm: "gap-1",
+    md: "gap-1.5",
     lg: "gap-2",
   } as const satisfies Record<ButtonSize, string>
 
@@ -118,7 +118,7 @@ module
 
   const BUTTON_VARIANT_CLASSES = {
     default: "bg-[linear-gradient(in_oklab_180deg,oklab(92.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] hover:bg-[linear-gradient(in_oklab_180deg,oklab(95.2%_0_0)_0%,oklab(91.3%_0_0)_100%)] text-[#121212]! shadow-[inset_0_1px_0_#FFFFFF54,0_3px_4px_-1px_#00000026,0_0_0_1px_#D4D4D4]",
-    dark: "bg-[linear-gradient(in_oklab_180deg,oklab(31.7%_0_0)_0%,oklab(25.2%_0_0)_100%)] text-[#FCFCFC]! shadow-[inset_0_0.5px_1px_#FFFFFF26,inset_0_-1px_1.2px_0.35px_#121212,0_2px_4px_-1px_#0D0D0D80,0_0_0_1px_#333333] hover:brightness-110 disabled:hover:brightness-100 aria-disabled:hover:brightness-100",
+    dark: "bg-[linear-gradient(in_oklab_180deg,oklab(31.7%_0_0)_0%,oklab(25.2%_0_0)_100%)] text-[#FCFCFC]! shadow-[inset_0_0.5px_1px_#F0F0F020,inset_0_-1px_1.2px_0.35px_#12121280,0_2px_4px_-1px_#0D0D0D40,0_0_0_1px_#0F0F0F50] hover:brightness-110 disabled:hover:brightness-100 aria-disabled:hover:brightness-100",
     primary: "bg-[linear-gradient(in_oklab_180deg,oklab(56.7%_0_0)_0%,oklab(64.2%_0_0)_100%)] text-[#FCFCFC]! shadow-[inset_0_0.5px_1px_#FFFFFF26,inset_0_-1px_1.2px_0.35px_#121212,0_2px_4px_-1px_#0D0D0D80,0_0_0_1px_#333333] hover:brightness-110 disabled:hover:brightness-100 aria-disabled:hover:brightness-100",
     secondary: "bg-table-head text-muted-foreground disabled:hover:brightness-50 aria-disabled:hover:brightness-50 hover:text-foreground",
     ghost: "disabled:text-muted-foreground/50 text-muted-foreground hover:text-foreground",
@@ -159,7 +159,7 @@ props { size = "sm", variant = "default", type = "button", href, target, rel, do
 setup
   const isInteractionDisabled = disabled || pending
   const resolvedLabel = pending && pendingLabel !== undefined ? pendingLabel : label
-  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", {'ps-2 pe-4': label && icon && iconPosition === "left", 'pe-2 ps-4': label && icon && iconPosition === "right", 'px-2.5': label && !icon}, className)
+  const buttonClassName = cn(BUTTON_BASE_CLASS, BUTTON_VARIANT_CLASSES[variant], BUTTON_SIZE_CLASSES[size], pending ? "cursor-wait aria-disabled:cursor-wait" : "cursor-pointer", {'p-3': label && icon && iconPosition === "left", 'pe-2 ps-4': label && icon && iconPosition === "right", 'px-2.5': label && !icon}, className)
   const anchorRel = getSafeAnchorRel(target, rel)
   const handleClick = (event: MouseEvent) => {
     if (isInteractionDisabled) {

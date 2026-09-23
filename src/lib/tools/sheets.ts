@@ -9,6 +9,10 @@ export interface SheetTable {
   truncated: boolean
 }
 
+export interface SheetDocument {
+  sheets: SheetTable[]
+}
+
 /** Upper bound on rendered rows; larger uploads show the head plus a notice. */
 export const MAX_SHEET_ROWS = 5000
 /** Guard against pathological single-row pastes with thousands of columns. */
@@ -141,14 +145,23 @@ function toDisplayCell(value: unknown): string {
   return String(value)
 }
 
-/** First sheet wins; every cell becomes display text. */
-export function parseWorkbook(bytes: ArrayBuffer): { name: string; grid: string[][] } {
+/** Preserve workbook order and empty worksheets; every cell becomes display text. */
+export function parseWorkbookSheets(bytes: ArrayBuffer): Array<{ name: string; grid: string[][] }> {
   const workbook = read(bytes, { type: 'array', dense: true })
-  const sheetName = workbook.SheetNames[0]
-  if (!sheetName) throw new Error('The workbook has no sheets.')
-  const sheet = workbook.Sheets[sheetName]
-  const grid = utils.sheet_to_json<string[]>(sheet, { header: 1, defval: '', raw: false }) as string[][]
-  return { name: sheetName, grid: grid.map((row) => row.map(toDisplayCell)) }
+  if (workbook.SheetNames.length === 0) throw new Error('The workbook has no sheets.')
+  return workbook.SheetNames.map((name) => {
+    const grid = utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1, defval: '', raw: false }) as string[][]
+    return { name, grid: grid.map((row) => row.map(toDisplayCell)) }
+  })
+}
+
+/** Compatibility helper for consumers that only need the first worksheet. */
+export function parseWorkbook(bytes: ArrayBuffer): { name: string; grid: string[][] } {
+  return parseWorkbookSheets(bytes)[0]
+}
+
+export function workbookDocument(bytes: ArrayBuffer): SheetDocument {
+  return { sheets: parseWorkbookSheets(bytes).map(({ name, grid }) => normalizeGrid(name, grid)) }
 }
 
 const SHEETS_ID_PATTERN = /\/spreadsheets\/d\/([A-Za-z0-9-_]+)/
@@ -311,18 +324,76 @@ export function parseTextDocument(text: string, singleColumnHeader: string): She
   return normalizeGrid(singleColumnHeader, grid)
 }
 
-export async function loadSheetFile(file: File): Promise<SheetTable> {
+export async function loadSheetDocument(file: File): Promise<SheetDocument> {
   if (file.size > MAX_SHEET_BYTES) throw new Error(`"${file.name}" is over the 10 MB upload limit.`)
   const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
   const stem = fileStem(file.name)
   if (['xls', 'xlsx', 'xlsm', 'xlsb', 'ods'].includes(ext)) {
-    const { name, grid } = parseWorkbook(await file.arrayBuffer())
-    return normalizeGrid(`${stem} — ${name}`, grid)
+    return workbookDocument(await file.arrayBuffer())
   }
   if (['csv', 'tsv', 'txt', 'list', 'md', 'markdown', 'psv', 'ssv'].includes(ext) || ext === '') {
-    return parseTextDocument(await file.text(), stem)
+    return { sheets: [parseTextDocument(await file.text(), stem)] }
   }
   throw new Error(`".${ext}" files are not supported. Drop a CSV, TSV, Excel, Markdown table, or plain list.`)
+}
+
+export async function loadSheetFile(file: File): Promise<SheetTable> {
+  const document = await loadSheetDocument(file)
+  const first = document.sheets[0]
+  return /\.(xls|xlsx|xlsm|xlsb|ods)$/i.test(file.name)
+    ? { ...first, name: `${fileStem(file.name)} — ${first.name}` }
+    : first
+}
+
+/** Export the entire public workbook, rather than querying only one gid via gviz. */
+export async function loadGoogleSheetDocument(input: string, timeoutMs = 20000): Promise<SheetDocument> {
+  const id = extractSheetsId(input)
+  if (!id) throw new Error('That does not look like a Google Sheets link or ID.')
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx`, {
+      credentials: 'omit',
+      signal: controller.signal,
+    })
+    if (!response.ok) throw new Error('Google refused the workbook export. Enable anyone-with-the-link sharing and allow downloads, or upload an Excel copy.')
+    if (Number(response.headers.get('content-length')) > MAX_SHEET_BYTES) {
+      throw new Error('The workbook is over the 10 MB import limit.')
+    }
+    // Enforce the limit while streaming too: chunked exports may have no length header.
+    const reader = response.body?.getReader()
+    if (!reader) throw new Error('Google returned an empty workbook export.')
+    const chunks: Uint8Array[] = []
+    let size = 0
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.byteLength
+        if (size > MAX_SHEET_BYTES) throw new Error('The workbook is over the 10 MB import limit.')
+        chunks.push(value)
+      }
+    } finally {
+      await reader.cancel()
+    }
+    const bytes = new Uint8Array(size)
+    let offset = 0
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset)
+      offset += chunk.byteLength
+    }
+    // SheetJS also accepts HTML; do not accidentally import a Google sign-in page.
+    if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
+      throw new Error('Google did not return a workbook. Enable anyone-with-the-link sharing and allow downloads, or upload an Excel copy.')
+    }
+    return workbookDocument(bytes.buffer)
+  } catch (failure) {
+    if (controller.signal.aborted) throw new Error('Google did not respond in time. Try importing the sheet again.')
+    if (failure instanceof TypeError) throw new Error('Could not download the Google workbook. Check sharing and download permissions, or upload an Excel copy.')
+    throw failure
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export function sheetTableFromGvizPayload(payload: unknown): SheetTable {

@@ -1,12 +1,13 @@
 import { flexRender } from '@octanejs/tanstack-table'
-import { Icon } from '@/lib/icons'
+import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import type { HyperHeader } from './table-contract'
 
 module
+  type Sorted = 'asc' | 'desc' | false
   interface Props {
     header: HyperHeader
-    sorted: 'asc' | 'desc' | false
+    sorted: Sorted
   }
 
 props { header, sorted }: Props
@@ -16,11 +17,20 @@ setup
     if (!header.column.getCanSort()) return
     header.column.toggleSorting(undefined, false)
   }
-  const sortIconClassName = cn(
-    'absolute right-0 size-5 rotate-0 text-sand transition-all duration-200 dark:opacity-90',
-    sorted === 'asc' && '-rotate-90 text-beach dark:opacity-80',
-    sorted !== 'desc' && sorted !== 'asc' && 'hidden'
-  )
+  const sortIcon: Record<Sorted, { icon: IconName; className: string }> = {
+    asc: {
+      icon: 'sort-ascending',
+      className: 'text-foreground',
+    },
+    desc: {
+      icon: 'sort-descending',
+      className: 'text-foreground',
+    },
+    false: {
+      icon: 'sort-caret',
+      className: 'text-muted-foreground/40',
+    },
+  }
 
 fragment
   if !header.isPlaceholder
@@ -32,8 +42,7 @@ fragment
         ~ aria-label={`Sort by ${header.column.id}${sorted ? `, currently ${sorted === 'asc' ? 'ascending' : 'descending'}` : ''}`}
         ~ )
         span(className='min-w-0 truncate') #{flexRender(header.column.columnDef.header, header.getContext())}
-        span(className={cn('font-sans text-2xs text-muted-foreground/45 line-through decoration-[1.5px] decoration-table-head dark:decoration-sunken translate-x-px', {'decoration-transparent! text-xs! text-muted-foreground! translate-x-0!': sorted })}) #{sorted === 'asc' ? '⯅' : sorted === 'desc' ? '⯆' : '♦'}
-
+        Icon(name={sorted === 'asc' ? 'sort-ascending' : sorted === 'desc' ? 'sort-descending' : 'sort-caret'} className={cn('size-3', sortIcon[sorted].className)})
 
     else
       | #{flexRender(header.column.columnDef.header, header.getContext())}

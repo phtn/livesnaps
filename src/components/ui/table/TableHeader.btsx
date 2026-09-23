@@ -1,4 +1,5 @@
 import type { JSX } from 'octane/jsx-runtime'
+import { cn } from '@/lib/utils';
 
 module
   type NativeTableHeaderProps = JSX.IntrinsicElements['thead']
@@ -9,5 +10,5 @@ module
 
 props { children, className, ...headerProps }: Props
 
-thead({...headerProps} className={className})
+thead({...headerProps} className={cn('capitalize', className)})
   | #{children}

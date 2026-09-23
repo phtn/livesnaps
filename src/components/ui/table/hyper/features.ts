@@ -1,31 +1,27 @@
+import { useCreateAtom } from '@octanejs/tanstack-store'
 import {
-  aggregationFn_mean,
-  aggregationFn_min,
+  CellSelectionState,
   columnFacetingFeature,
   columnFilteringFeature,
-  columnGroupingFeature,
   columnOrderingFeature,
   columnPinningFeature,
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
-  createExpandedRowModel,
   createFacetedRowModel,
   createFacetedUniqueValues,
   createFilteredRowModel,
-  createGroupedRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
+  filterFn_arrHas,
+  filterFn_includesString,
+  filterFn_inDateRange,
+  filterFn_inNumberRange,
   globalFilteringFeature,
-  metaHelper,
-  rowAggregationFeature,
-  rowExpandingFeature,
   rowPaginationFeature,
-  rowPinningFeature,
   rowSelectionFeature,
   rowSortingFeature,
-  sortFn_alphanumeric,
-  sortFn_datetime,
+  sortFn_basic,
   sortFn_text,
   tableFeatures
 } from '@octanejs/tanstack-table'
@@ -51,38 +47,30 @@ const fuzzyFilterFn = (
   return itemRank.passed
 }
 
+export const cellSelectionAtom = useCreateAtom<CellSelectionState>([])
+
 export const features = tableFeatures({
-  rowAggregationFeature,
-  rowSortingFeature,
-  rowPaginationFeature,
-  rowSelectionFeature,
-  rowExpandingFeature,
-  rowPinningFeature,
   columnFilteringFeature,
-  columnFacetingFeature,
-  columnOrderingFeature,
-  columnVisibilityFeature,
-  columnSizingFeature,
-  columnResizingFeature,
-  columnPinningFeature,
-  columnGroupingFeature,
   globalFilteringFeature,
-  columnMeta: metaHelper<MyColumnMeta>(),
-  filteredRowModel: createFilteredRowModel(),
+  columnFacetingFeature,
   facetedRowModel: createFacetedRowModel(),
   facetedUniqueValues: createFacetedUniqueValues(),
-  paginatedRowModel: createPaginatedRowModel(),
-  sortedRowModel: createSortedRowModel(),
-  groupedRowModel: createGroupedRowModel(),
-  expandedRowModel: createExpandedRowModel(),
-  filterFns: { fuzzy: fuzzyFilterFn },
-  sortFns: {
-    alphanumeric: sortFn_alphanumeric,
-    datetime: sortFn_datetime,
-    text: sortFn_text
+  filteredRowModel: createFilteredRowModel(),
+  filterFns: {
+    arrHas: filterFn_arrHas,
+    inDateRange: filterFn_inDateRange,
+    inNumberRange: filterFn_inNumberRange,
+    includesString: filterFn_includesString
   },
-  aggregationFns: {
-    mean: aggregationFn_mean,
-    min: aggregationFn_min
-  }
+  rowSortingFeature,
+  sortedRowModel: createSortedRowModel(),
+  sortFns: { basic: sortFn_basic, text: sortFn_text },
+  rowPaginationFeature,
+  paginatedRowModel: createPaginatedRowModel(),
+  rowSelectionFeature,
+  columnOrderingFeature,
+  columnPinningFeature,
+  columnSizingFeature,
+  columnVisibilityFeature,
+  columnResizingFeature
 })

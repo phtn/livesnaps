@@ -1,10 +1,13 @@
-import { expect, test } from "vitest"
+import { afterEach, expect, test, vi } from "vitest"
 import { utils, write } from "xlsx"
 import {
   extractSheetsGid,
   extractSheetsId,
   gvizToGrid,
   loadSheetFile,
+  loadSheetDocument,
+  loadGoogleSheetDocument,
+  MAX_SHEET_BYTES,
   parseDelimited,
   parseGvizResponseText,
   parseList,
@@ -124,4 +127,63 @@ test("loads files by extension and rejects the rest", async () => {
   expect(csv.columns).toEqual(["a", "b"])
   await expect(loadSheetFile(new File(["x"], "photo.png", { type: "image/png" }))).rejects.toThrow(".png")
   await expect(loadSheetFile(new File(["x"], "big.csv"))).resolves.toBeDefined()
+})
+
+function multiSheetBytes(): ArrayBuffer {
+  const workbook = utils.book_new()
+  utils.book_append_sheet(workbook, utils.aoa_to_sheet([["Name", "Count"], ["Ann", 30]]), "People")
+  utils.book_append_sheet(workbook, utils.aoa_to_sheet([]), "Empty")
+  utils.book_append_sheet(workbook, utils.aoa_to_sheet([["Product", "Price"], ["Tea", 12]]), "Stock & prices")
+  return write(workbook, { type: "array", bookType: "xlsx" }) as ArrayBuffer
+}
+
+afterEach(() => vi.unstubAllGlobals())
+
+test("imports every worksheet in order, including empty sheets and independent columns", async () => {
+  const document = await loadSheetDocument(new File([multiSheetBytes()], "report.xlsx"))
+  expect(document.sheets.map((sheet) => sheet.name)).toEqual(["People", "Empty", "Stock & prices"])
+  expect(document.sheets[0]).toMatchObject({ columns: ["Name", "Count"], rows: [["Ann", "30"]], totalRows: 1 })
+  expect(document.sheets[1]).toMatchObject({ columns: [], rows: [], totalRows: 0 })
+  expect(document.sheets[2]).toMatchObject({ columns: ["Product", "Price"], rows: [["Tea", "12"]], totalRows: 1 })
+})
+
+test("keeps CSV imports as a single worksheet", async () => {
+  const document = await loadSheetDocument(new File(["Name,Count\nAnn,30"], "people.csv"))
+  expect(document.sheets).toHaveLength(1)
+  expect(document.sheets[0].name).toBe("people")
+})
+
+test("downloads the complete Google workbook without narrowing the export to a gid", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(multiSheetBytes()))
+  vi.stubGlobal("fetch", fetchMock)
+  const document = await loadGoogleSheetDocument("https://docs.google.com/spreadsheets/d/test-id/edit#gid=42")
+  expect(fetchMock).toHaveBeenCalledWith(
+    "https://docs.google.com/spreadsheets/d/test-id/export?format=xlsx",
+    expect.objectContaining({ credentials: "omit", signal: expect.any(AbortSignal) }),
+  )
+  expect(document.sheets.map((sheet) => sheet.name)).toEqual(["People", "Empty", "Stock & prices"])
+  expect(document.sheets[2].rows).toEqual([["Tea", "12"]])
+})
+
+test("rejects inaccessible Google exports and HTML sign-in pages", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("Denied", { status: 403 })))
+  await expect(loadGoogleSheetDocument("https://docs.google.com/spreadsheets/d/test-id/edit")).rejects.toThrow("sharing")
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("<html>Sign in</html>")))
+  await expect(loadGoogleSheetDocument("https://docs.google.com/spreadsheets/d/test-id/edit")).rejects.toThrow("did not return a workbook")
+})
+
+test("rejects oversized Google exports with and without a content-length header", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("", {
+    headers: { "content-length": String(MAX_SHEET_BYTES + 1) },
+  })))
+  await expect(loadGoogleSheetDocument("https://docs.google.com/spreadsheets/d/test-id/edit")).rejects.toThrow("10 MB")
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(new Uint8Array(MAX_SHEET_BYTES + 1))))
+  await expect(loadGoogleSheetDocument("https://docs.google.com/spreadsheets/d/test-id/edit")).rejects.toThrow("10 MB")
+})
+
+test("rejects invalid links before requesting Google", async () => {
+  const fetchMock = vi.fn()
+  vi.stubGlobal("fetch", fetchMock)
+  await expect(loadGoogleSheetDocument("not a link")).rejects.toThrow("does not look like")
+  expect(fetchMock).not.toHaveBeenCalled()
 })

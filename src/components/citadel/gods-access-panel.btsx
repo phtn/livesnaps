@@ -170,18 +170,6 @@ InnerContainer
         | Accounts holding the
         code(className='rounded-xs bg-active/5 px-1 mx- text-1 font-mono text-active text-base uppercase') god
         | claim.
-      div(className='relative mt-2')
-        Icon(name='slash' className={cn('absolute right-1 top-[2.5px] text-border/60', {'hidden': query})})
-        Input(
-          ~ id='god-user-search'
-          ~ type='search'
-          ~ value={query}
-          ~ ref={inputRef}
-          ~ placeholder='Search by email, name, or uid'
-          ~ autoComplete='off'
-          ~ className='ps-3 '
-          ~ onInput={(event: Event) => setQuery((event.currentTarget as HTMLInputElement).value)}
-          ~ )
 
       div(className='flex items-center h-8 w-full')
         if (query)

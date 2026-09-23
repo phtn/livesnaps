@@ -12,7 +12,7 @@ import { DragDropProvider,
   ~ type DragEndEvent,
   ~ type DragOverlayProps } from '@octanejs/dnd-kit'
 import { isSortable, useSortable } from '@octanejs/dnd-kit/sortable'
-import { useRender, type TState } from '@octanejs/base-ui/use-render'
+import { useRender } from '@octanejs/base-ui/use-render'
 import type { JSX } from 'octane/jsx-runtime'
 import { createContext,
   ~ createElement,

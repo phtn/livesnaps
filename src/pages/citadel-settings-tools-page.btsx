@@ -1,6 +1,5 @@
 import {InnerContainer} from '@/components/admin'
 import SheetTablePanel from '@/components/citadel/sheet-table-panel.btsx'
 
-InnerContainer
-  section
-    SheetTablePanel
+InnerContainer(className='p-0' tabs)
+  SheetTablePanel

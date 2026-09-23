@@ -1,19 +1,14 @@
 import {
-  aggregationFn_mean,
-  aggregationFn_sum,
   columnFacetingFeature,
   columnFilteringFeature,
-  columnGroupingFeature,
   columnOrderingFeature,
   columnPinningFeature,
   columnResizingFeature,
   columnSizingFeature,
   columnVisibilityFeature,
-  createExpandedRowModel,
   createFacetedRowModel,
   createFacetedUniqueValues,
   createFilteredRowModel,
-  createGroupedRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
   filterFn_arrHas,
@@ -21,8 +16,6 @@ import {
   filterFn_inDateRange,
   filterFn_inNumberRange,
   globalFilteringFeature,
-  rowAggregationFeature,
-  rowExpandingFeature,
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
@@ -55,30 +48,5 @@ export const snapsFeatures = tableFeatures({
   columnPinningFeature,
   columnSizingFeature,
   columnVisibilityFeature,
-  columnResizingFeature
-})
-
-export const analyticsFeatures = tableFeatures({
-  rowAggregationFeature,
-  aggregationFns: { mean: aggregationFn_mean, sum: aggregationFn_sum },
-  columnGroupingFeature,
-  groupedRowModel: createGroupedRowModel(),
-  rowExpandingFeature,
-  expandedRowModel: createExpandedRowModel(),
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { basic: sortFn_basic, text: sortFn_text },
-  rowPaginationFeature,
-  paginatedRowModel: createPaginatedRowModel()
-})
-
-export const streamFeatures = tableFeatures({
-  rowSortingFeature,
-  sortedRowModel: createSortedRowModel(),
-  sortFns: { basic: sortFn_basic, text: sortFn_text },
-  rowPaginationFeature,
-  paginatedRowModel: createPaginatedRowModel(),
-  columnVisibilityFeature,
-  columnSizingFeature,
   columnResizingFeature
 })
