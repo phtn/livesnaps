@@ -1,3 +1,5 @@
+import ts from 'typescript'
+
 export interface TabShell {
   shellFile: string
   parentRoute: string
@@ -104,7 +106,7 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-function panelArrayRange(source: string): { open: number; close: number } {
+function panelArrayRange(source: string): { open: number; close: number; lastToken: number } {
   const marker = 'export const panelRoutes'
   const start = source.indexOf(marker)
   if (start === -1) throw new Error('panelRoutes not found in shell file')
@@ -116,6 +118,7 @@ function panelArrayRange(source: string): { open: number; close: number } {
   if (open === -1) throw new Error('panelRoutes array never opens')
   let depth = 0
   let quote: string | null = null
+  let lastToken = open
   let i = open
   for (; i < source.length; i++) {
     const ch = source[i]
@@ -128,23 +131,31 @@ function panelArrayRange(source: string): { open: number; close: number } {
     else if (ch === '/' && source[i + 1] === '/') {
       const end = source.indexOf('\n', i)
       i = end === -1 ? source.length : end
+      continue
     } else if (ch === '/' && source[i + 1] === '*') {
       const end = source.indexOf('*/', i + 2)
       if (end === -1) throw new Error('panelRoutes array never closes')
       i = end + 1
+      continue
     } else if (ch === '[') depth++
     else if (ch === ']') {
       depth--
       if (depth === 0) break
     }
+    if (!/\s/.test(ch)) lastToken = i
   }
   if (depth !== 0) throw new Error('panelRoutes array never closes')
-  return { open, close: i }
+  return { open, close: i, lastToken }
 }
 
 export function insertPanelRoute(source: string, spec: TabSpec): string {
   if (source.includes(`id: '${spec.id}'`) || source.includes(`id: "${spec.id}"`)) return source
-  const { close: i } = panelArrayRange(source)
+  let { open, close: i, lastToken } = panelArrayRange(source)
+  // Insert the separator before any trailing comments, preserving their text.
+  if (lastToken !== open && source[lastToken] !== ',') {
+    source = `${source.slice(0, lastToken + 1)},${source.slice(lastToken + 1)}`
+    i++
+  }
   // Keep the closing bracket's own indentation: the slice before it ends with
   // that indent, which would otherwise glue onto the new entry and leave `]`
   // at column 0 — where BTSX parses it as an element selector (BEAST1101).
@@ -156,6 +167,33 @@ export function insertPanelRoute(source: string, spec: TabSpec): string {
     return `${source.slice(0, lineStart)}${buildPanelEntry(spec)}\n${source.slice(lineStart)}`
   }
   return `${source.slice(0, i)}${buildPanelEntry(spec)}\n${source.slice(i)}`
+}
+
+export function listPanelRoutes(source: string) {
+  const { open, close } = panelArrayRange(source)
+  // Parse the declaration without executing the shell or its imports.
+  const file = ts.createSourceFile('tabs.ts', `const tabs = ${source.slice(open, close + 1)}`, ts.ScriptTarget.Latest, true)
+  const statement = file.statements[0]
+  if (!statement || !ts.isVariableStatement(statement)) throw new Error('Unable to read panelRoutes')
+  const array = statement.declarationList.declarations[0]?.initializer
+  if (!array || !ts.isArrayLiteralExpression(array)) throw new Error('panelRoutes must be an array literal')
+  return array.elements.map((element) => {
+    if (!ts.isObjectLiteralExpression(element)) throw new Error('Listing requires literal panelRoutes entries')
+    const fields: Record<string, string> = {}
+    for (const property of element.properties) {
+      if (!ts.isPropertyAssignment(property)) throw new Error('Listing requires literal tab properties')
+      const name = property.name
+      if (!ts.isIdentifier(name) && !ts.isStringLiteral(name)) throw new Error('Listing requires literal tab property names')
+      if (!ts.isStringLiteral(property.initializer) && !ts.isNoSubstitutionTemplateLiteral(property.initializer)) {
+        throw new Error(`Listing requires a string literal for tab property '${name.text}'`)
+      }
+      fields[name.text] = property.initializer.text
+    }
+    for (const name of ['id', 'label', 'href']) {
+      if (fields[name] === undefined) throw new Error(`Tab is missing '${name}'`)
+    }
+    return { id: fields.id, label: fields.label, shortLabel: fields.shortLabel ?? fields.label, href: fields.href, icon: fields.icon ?? '' }
+  })
 }
 
 export function removePanelRoute(source: string, id: string): string {

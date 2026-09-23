@@ -10,6 +10,7 @@ module
     { id: 'email', href: '/citadel/settings/email', label: 'Email', shortLabel: 'Email', icon: 'email-setting' },
     { id: 'gods', href: '/citadel/settings/gods', label: 'Gods', shortLabel: 'Gods', icon: 'cloud' },
     { id: 'tools', href: '/citadel/settings/tools', label: 'Tools', shortLabel: 'Tools', icon: 'tools' },
+    { id: 'logs', href: '/citadel/settings/logs', label: 'Logs', shortLabel: 'Logs', icon: 'logs' },
   ]
 
   // Longest href wins, otherwise the `/citadel/settings` index would also claim

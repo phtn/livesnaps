@@ -20,7 +20,7 @@
     "deploy": "PUBLIC_CONVEX_URL=https://dusty-jay-470.convex.cloud wrangler deploy",
     "deploy:dry-run": "PUBLIC_CONVEX_URL=https://dusty-jay-470.convex.cloud wrangler deploy --dry-run",
     "firebase:claims": "bun run scripts/firebase/set-custom-claims.ts",
-    "codegen:tab": "bun run scripts/codegen/add-tab.ts"
+    "tab": "bun run scripts/codegen/tab.ts"
   },
   "dependencies": {
     "@ai-sdk/cohere": "^4.0.45",

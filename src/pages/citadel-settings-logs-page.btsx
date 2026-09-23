@@ -1,0 +1,5 @@
+import {InnerContainer} from '@/components/admin'
+
+InnerContainer
+  section
+    p(className='mt-6 max-w-2xl text-sm leading-6 text-muted-foreground') Logs.

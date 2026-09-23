@@ -4,6 +4,7 @@ import {
   buildPlaceholderPage,
   insertPanelRoute,
   insertRouteConst,
+  listPanelRoutes,
   removeFromAddChildren,
   removePanelRoute,
   removeRouteConst,
@@ -57,4 +58,46 @@ test("placeholder page points at its own file", () => {
   const body = buildPlaceholderPage(spec)
   expect(body).toContain("InnerContainer")
   expect(body).toContain("citadel-settings-tools-page.btsx")
+})
+
+test("lists literal tabs in source order without executing source", () => {
+  const source = `throw new Error('must not execute')
+  export const panelRoutes: readonly PanelRoute[] = [
+    // { id: 'ignored' }
+    { id: 'account', label: "Account's info", href: '/admin-settings', shortLabel: 'Account', icon: 'account' },
+    {
+      id: 'tools', label: 'Tools', href: '/admin-settings/tools'
+    }
+  ]`
+  expect(listPanelRoutes(source)).toEqual([
+    { id: 'account', label: "Account's info", href: '/admin-settings', shortLabel: 'Account', icon: 'account' },
+    { id: 'tools', label: 'Tools', href: '/admin-settings/tools', shortLabel: 'Tools', icon: '' }
+  ])
+  expect(listPanelRoutes('export const panelRoutes = []')).toEqual([])
+})
+
+test("rejects dynamic tabs instead of evaluating them or silently omitting them", () => {
+  expect(() => listPanelRoutes('export const panelRoutes = [getTab()]')).toThrow('literal panelRoutes entries')
+  expect(() => listPanelRoutes("export const panelRoutes = [{ id: 'tools', label: getLabel(), href: '/tools' }]")).toThrow('string literal')
+})
+
+test.each([
+  "{ id: 'account' }",
+  "{ id: 'account' },",
+  "{ id: 'account' } // final entry",
+  "{ id: 'account' } /* trailing comment with ] */",
+  "{ id: 'account' }, // final entry",
+  "",
+  "// no entries yet"
+])("appends valid array syntax after %j", (body) => {
+  const spec = resolveSpec({ shell: "admin-settings", id: "test" })
+  const source = `  export const panelRoutes: readonly PanelRoute[] = [\n    ${body}\n  ]\n`
+  const result = insertPanelRoute(source, spec)
+  const arraySource = result.slice(result.indexOf("= ") + 2)
+  const entries = new Function(`return (${arraySource})`)()
+  expect(entries.map((entry: { id: string }) => entry.id)).toEqual(
+    body.includes("account") ? ["account", "test"] : ["test"]
+  )
+  expect(result).toContain("\n  ]\n")
+  expect(insertPanelRoute(result, spec)).toBe(result)
 })

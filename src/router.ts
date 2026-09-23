@@ -230,6 +230,12 @@ const citadelSettingsToolsRoute = createRoute({
   component: lazyRoute(() => import('./pages/citadel-settings-tools-page.btsx'))
 })
 
+const citadelSettingsLogsRoute = createRoute({
+  getParentRoute: () => citadelSettingsRoute,
+  path: 'logs',
+  component: lazyRoute(() => import('./pages/citadel-settings-logs-page.btsx'))
+})
+
 const routeTree = rootRoute.addChildren([
   homeRoute,
   logoutRoute,
@@ -243,7 +249,7 @@ const routeTree = rootRoute.addChildren([
     citadelIndexRoute,
     citadelVisionRoute,
     citadelAccountsRoute.addChildren([citadelAccountsIndexRoute, citadelAccountDetailRoute]),
-    citadelSettingsRoute.addChildren([citadelSettingsIndexRoute, citadelSettingsEmailRoute, citadelSettingsGodsRoute, citadelSettingsToolsRoute])
+    citadelSettingsRoute.addChildren([citadelSettingsIndexRoute, citadelSettingsEmailRoute, citadelSettingsGodsRoute, citadelSettingsToolsRoute, citadelSettingsLogsRoute])
   ]),
   snapsRoute,
   snapRoute,

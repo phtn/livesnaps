@@ -47,7 +47,6 @@ module
 
   const godAppLinks: AppLink[] = [
     { id: 'citadel', label: 'citadel', icon: 'cloud', path: '/citadel' },
-    { id: 'admin', label: 'admin', icon: 'admin', path: '/admin' },
   ]
 
   function toAppHref(path: string) {
