@@ -1,3 +1,4 @@
+import { handleGodsVisionLogs } from './server/gods-vision-log-routes'
 import { handleVisionTestRequest } from './lib/meta/file-api-route'
 import { handleAccountAdminConfirmation } from './server/account-confirmation-routes'
 import { handleAdminAccount, handleAdminAccountLogo } from './server/admin-account-routes'
@@ -190,6 +191,8 @@ export default {
         resendWebhookSecret: env.RESEND_WEBHOOK_SECRET
       })
     }
+
+    if (pathname === '/api/gods/vision-logs') return handleGodsVisionLogs(request, { convexUrl })
 
     if (pathname === GODS_ACCOUNTS_PATH) {
       return handleGodsAccounts(request, { convexUrl })

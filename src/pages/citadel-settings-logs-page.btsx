@@ -1,5 +1,41 @@
-import {InnerContainer} from '@/components/admin'
+import { InnerContainer } from '@/components/admin'
+import DataTable from '@/components/ui/table/DataTable.btsx'
+import Loading from '@/components/loading.btsx'
+import ErrorPage from '@/components/error.btsx'
+import { EMPTY_VISION_LOGS, visionLogColumns } from '@/components/citadel/vision-log-columns'
+import { useAdminList } from '@/hooks/use-admin-list'
+import type { VisionLogDocument } from '../../convex/vision_logs/d'
+
+setup
+  const { items, error, isLoading, lastUpdatedAt, refresh } = useAdminList<VisionLogDocument>({
+    path: '/api/gods/vision-logs',
+    fallbackErrorMessage: 'Unable to load vision logs.',
+  })
 
 InnerContainer
-  section
-    p(className='mt-6 max-w-2xl text-sm leading-6 text-muted-foreground') Logs.
+  if isLoading && items === undefined
+    Loading
+  elseif error && items === undefined
+    ErrorPage(code={500} title='Unable to load vision logs' message={error} action={refresh} actionLabel='Retry')
+  else
+    fragment
+      div(className='flex flex-wrap items-center justify-between gap-2 py-3 text-xs text-muted-foreground')
+        p Latest 250 logs. Updates every 30 seconds.
+        button(type='button' onClick={refresh} className='rounded border border-border px-3 py-1.5') Refresh
+        if error
+          p(role='alert' className='w-full text-destructive') #{error} Showing the last successful load.
+        elseif lastUpdatedAt
+          p Updated #{new Date(lastUpdatedAt).toLocaleTimeString()}
+      DataTable(
+        ~ title='Vision logs'
+        ~ data={items ?? EMPTY_VISION_LOGS}
+        ~ columns={visionLogColumns}
+        ~ getRowId={(row: VisionLogDocument) => row._id}
+        ~ initialSorting={[{ id: 'createdAt', desc: true }]}
+        ~ initialPageSize={50}
+        ~ pageSizes={[25, 50, 100, 250]}
+        ~ urlKeyPrefix='logs_'
+        ~ viewportClassName='h-[calc(100dvh-320px)] min-h-64 w-full'
+        ~ emptyTitle='No vision logs yet'
+        ~ emptyDescription='Vision logs will appear here when captures are processed.'
+        ~ )
