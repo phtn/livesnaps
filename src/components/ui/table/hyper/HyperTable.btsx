@@ -62,7 +62,7 @@ module
     end: 'shadow-[-4px_0_6px_-4px_hsl(var(--foreground)/0.25)]'
   } as const satisfies Record<DefaultColumnPinningPosition, string>
 
-  const HEAD_CONTENT_CLASS = 'relative flex h-full min-w-0 items-center overflow-hidden px-0 transition-opacity duration-150 ease-out motion-reduce:transition-none'
+  const HEAD_CONTENT_CLASS = 'relative flex h-full min-w-0 items-center overflow-hidden transition-opacity duration-150 ease-out motion-reduce:transition-none'
   const HEAD_CONTENT_CLASSES = {
     visible: cn(HEAD_CONTENT_CLASS, 'opacity-100 delay-75'),
     hidden: cn(HEAD_CONTENT_CLASS, 'opacity-0 delay-0')

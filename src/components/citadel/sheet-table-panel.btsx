@@ -1,4 +1,4 @@
-import { createElement, useMemo, useRef, useState } from 'octane'
+import { createElement, useRef, useState } from 'octane'
 import { sortFn_alphanumeric, type ColumnDef } from '@octanejs/tanstack-table'
 import { parseAsString, useQueryStates } from '@octanejs/nuqs'
 import DataTable from '@/components/ui/table/DataTable.btsx'
@@ -6,11 +6,13 @@ import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import FilterList from '@/components/ui/table/hyper/FilterList.btsx'
 import type { FilterDefinition } from '@/components/ui/table/hyper/filter-list-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
-import type { snapsFeatures } from '@/components/admin/table-config'
+import type { features } from '@/components/admin/table-config'
 import { Button } from '@/components/ui'
 import { Icon, type IconName } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { loadSheetDocument, loadGoogleSheetDocument, type SheetDocument } from '@/lib/tools/sheets'
+import { createHeader } from '../ui/table/hyper/create-header'
+import { getColumnHeaderText } from '@/components/ui/table/hyper/filter-utils'
 
 module
   type SheetRow = string[]
@@ -37,10 +39,10 @@ module
   const inputClass = 'h-10 w-full rounded-sm border border-border/60 bg-background px-3 text-sm'
   const subtleButton = 'inline-flex h-8 shrink-0 items-center rounded-full px-1 md:px-2 font-mono text-2xs uppercase tracking-wider text-muted-foreground transition-colors hover:border-active/40 hover:bg-active/10 hover:text-active disabled:opacity-50'
 
-  const buildColumns = (names: string[]): Array<ColumnDef<typeof snapsFeatures, SheetRow>> =>
+  const buildColumns = (names: string[]): Array<ColumnDef<typeof features, SheetRow>> =>
     names.map((name, index) => ({
       id: `col-${index}`,
-      header: name,
+      header: createHeader(name),
       accessorFn: (row) => row[index] ?? '',
       sortFn: sortFn_alphanumeric,
       filterFn: 'arrHas',
@@ -49,13 +51,13 @@ module
     }))
 
 component SheetFilters
-  props { columns, columnFilters, onReset }: DataTableFilterListProps<SheetRow, typeof snapsFeatures>
+  props { columns, columnFilters, onReset }: DataTableFilterListProps<SheetRow, typeof features>
   setup
-    const filters = useMemo<FilterDefinition[]>(() => columns.map((column) => ({
+    const filters: FilterDefinition[] = columns.map((column) => ({
       id: column.id,
-      label: String(column.columnDef.header ?? column.id),
+      label: getColumnHeaderText(column),
       variant: 'faceted',
-    })), [columns])
+    }))
 
   FilterList(columns={columns} columnFilters={columnFilters} onReset={onReset} filters={filters} description='Filter sheet columns by their values.')
 
@@ -73,13 +75,11 @@ setup
   const dragDepth = useRef(0)
   const fileInput = useRef<HTMLInputElement | null>(null)
 
-  const columns = useMemo(() => buildColumns(sheet?.columns ?? []), [sheet])
-  const data = useMemo(() => sheet?.rows ?? [], [sheet])
+  const columns = buildColumns(sheet?.columns ?? [])
+  const data = sheet?.rows ?? []
   const sheetPresentation = getSheetPresentation(sourceName)
-  const worksheetOptions = useMemo(
-    () => sheetDocument?.sheets.map((tab, index) => ({ value: String(index), label: tab.name })) ?? [],
-    [sheetDocument],
-  )
+  const worksheetOptions = sheetDocument?.sheets.map((tab, index) => ({ value: String(index), label: tab.name })) ?? []
+
   const sheetSummary = sheet ? createElement('p', {
     className: 'm-0 text-xs text-muted-foreground',
   }, `${sheet.columns.length} columns · ${sheet.totalRows} rows${sheet.truncated ? ` · showing first ${sheet.rows.length}` : ''}`) : null
@@ -198,7 +198,7 @@ div(className='space-y-3')
   if loading && !sheet
     p(role='status' className='py-8 text-center text-sm text-muted-foreground') Reading sheet…
   if sheet
-    section(aria-label='Sheet data' className='md:space-y-1 [&_thead_th_button:first-child]:pl-3 [&_thead_th]:capitalize')
+    section(aria-label='Sheet data' className='md:space-y-1')
       div(className='flex items-center justify-between gap-4 sm:gap-6 md:gap-8 h-14 px-2 md:px-0')
         div(className='flex min-w-0 flex-1 basis-full items-center gap-4 sm:gap-6 md:gap-8 md:basis-auto')
           div(className='flex min-w-0 flex-1 items-center gap-2 md:max-w-xs md:flex-initial' title={sourceName})
@@ -207,7 +207,7 @@ div(className='space-y-3')
               Icon(name={sheetPresentation.icon} className='size-4')
           if sheetDocument && sheetDocument.sheets.length > 1
             fragment
-              nav(aria-label='Worksheets' className='hidden min-w-0 flex-1 items-center overflow-x-auto gap-3.5 py-0 md:flex border-b border-b-sidebar-border')
+              nav(aria-label='Worksheets' className='hidden min-w-0 flex-1 items-center overflow-x-auto gap-3 py-0 md:flex border-b border-b-sidebar-border')
                 each tab, index in sheetDocument.sheets key index
                   button(
                     ~ type='button'
@@ -215,7 +215,7 @@ div(className='space-y-3')
                     ~ disabled={loading}
                     ~ onClick={() => void selectSheet(index)}
                     ~ title={tab.name}
-                    ~ className={cn('flex shrink-0 items-center gap-1 px-1 py-2 text-xs transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-active text-muted-foreground hover:rounded-t-md hover:bg-muted hover:text-foreground border-b-2 border-transparent', {'border-active text-foreground': index === activeSheetIndex}  )}
+                    ~ className={cn('flex shrink-0 items-center gap-1 p-2 text-xs transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-active text-muted-foreground hover:rounded-t-md hover:bg-muted hover:text-foreground border-b-2 border-transparent', {'border-active text-foreground': index === activeSheetIndex}  )}
                     ~ )
                     Icon(name='sheet' className='size-3 ml-0')
                     span(className='max-w-48 truncate') #{tab.name}

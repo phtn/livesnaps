@@ -24,7 +24,7 @@ import {
   tableFeatures
 } from '@octanejs/tanstack-table'
 
-export const snapsFeatures = tableFeatures({
+export const features = tableFeatures({
   columnFilteringFeature,
   globalFilteringFeature,
   // Faceting powers the filter list's option counts (`getFacetedUniqueValues`).

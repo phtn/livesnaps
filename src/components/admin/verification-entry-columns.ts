@@ -4,10 +4,11 @@ import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
 import { createElement, useState } from 'octane'
+import { createHeader } from '../ui/table/hyper/create-header'
 import StatusBadge from './badges.btsx'
 import { type VerificationEntryRow, verificationEntryStatus } from './data'
 import { useSnapHandlerContext } from './snap-handler-context'
-import type { snapsFeatures } from './table-config'
+import type { features } from './table-config'
 import VerificationRowActionsCell from './verification-row-actions.btsx'
 
 /**
@@ -43,8 +44,7 @@ export const VERIFICATION_ENTRY_STATUS_FILTERS = Object.keys(
 
 const formatTimestamp = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
 
-const columnHelper = createColumnHelper<typeof snapsFeatures, VerificationEntryRow>()
-const createHeader = (header: string) => () => createElement('div', { className: 'ps-4' }, header)
+const columnHelper = createColumnHelper<typeof features, VerificationEntryRow>()
 
 const VerificationHandlerCell = ({ handler, uploadId }: Pick<VerificationEntryRow, 'handler' | 'uploadId'>) => {
   const context = useSnapHandlerContext()

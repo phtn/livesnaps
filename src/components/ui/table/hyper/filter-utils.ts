@@ -168,5 +168,9 @@ export const getColumnHeaderText = (column: LabelledColumn): string => {
     return header
   }
 
+  if (typeof header === 'function' && 'headerText' in header && typeof header.headerText === 'string') {
+    return header.headerText
+  }
+
   return formatColumnId(column.id)
 }

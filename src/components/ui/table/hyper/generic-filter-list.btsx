@@ -1,0 +1,29 @@
+import FilterList from './FilterList.btsx'
+import type { ColumnFiltersState, Column_ColumnFiltering } from '@octanejs/tanstack-table'
+import type { FilterDefinition } from '@/components/ui/table/hyper/filter-list-config'
+import type { FilterListColumn, LabelledColumn } from './table-contract'
+import { getColumnHeaderText } from './filter-utils'
+
+module
+  interface GenericFilterColumn extends FilterListColumn, Pick<Column_ColumnFiltering<any, any>, 'getCanFilter'> {
+    columnDef: LabelledColumn['columnDef'] & { filterFn?: unknown }
+  }
+
+  interface GenericFilterListProps {
+    columns: GenericFilterColumn[]
+    columnFilters: ColumnFiltersState
+    onReset: () => void
+  }
+
+props { columns, columnFilters, onReset }: GenericFilterListProps
+setup
+  // Match the panel's value shape to the column's configured filter function.
+  const filters = columns.filter((column) => column.getCanFilter()).map<FilterDefinition>((column) => ({
+    id: column.id,
+    label: getColumnHeaderText(column),
+    variant: column.columnDef.filterFn === 'inDateRange'
+      ? 'date-range'
+      : column.columnDef.filterFn === 'inNumberRange' ? 'number-range' : 'faceted',
+  }))
+
+FilterList(columns={columns} columnFilters={columnFilters} onReset={onReset} filters={filters})

@@ -11,14 +11,14 @@ import ColumnView from '@/components/ui/table/hyper/ColumnView.btsx'
 import Search from '@/components/ui/table/hyper/HyperSearch.btsx'
 import { getPinnedColumnLayouts, orderColumnsByPinning } from '@/components/ui/table/hyper/column-pinning'
 import { DEFAULT_SELECT_COLUMN_ID } from '@/components/ui/table/hyper/selection'
-import { snapsFeatures } from '@/components/admin/table-config'
+import { features } from '@/components/admin/table-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import type { OctaneNode } from 'octane'
 import Popper from '@/components/ui/popper.btsx'
 import TableEmptyState from '@/components/ui/table/table-empty-state.btsx'
 import { cn } from '@/lib/utils'
 import { parseAsBoolean, parseAsInteger, parseAsString, parseAsStringLiteral, useQueryStates } from '@octanejs/nuqs'
-import { createColumnFiltersParser, createColumnOrderParser, createColumnVisibilityParser } from '@/components/ui/table/hyper/parsers'
+import { createColumnFiltersParser, createColumnOrderParser, createColumnSizingParser, createColumnVisibilityParser } from '@/components/ui/table/hyper/parsers'
 
 
 module
@@ -28,7 +28,7 @@ module
    * of a particular API, entity, or field name.
    */
   export interface DataTableProps {
-    columns: Array<ColumnDef<typeof snapsFeatures, any>>
+    columns: Array<ColumnDef<typeof features, any>>
     data: ReadonlyArray<RowData>
     /**
      * Optional call to action for the empty panel — typically "create the first
@@ -46,7 +46,7 @@ module
      * receives the leaf columns, the current column-filter state, and a reset
      * callback, so the table stays unaware of any particular entity's filters.
      */
-    filterList?: (props: DataTableFilterListProps<any, typeof snapsFeatures>) => unknown
+    filterList?: (props: DataTableFilterListProps<any, typeof features>) => unknown
     /**
      * The `any` in `filterList` and here is the row type, which this component
      * cannot name: Beast has no syntax for a type parameter on a component
@@ -106,7 +106,7 @@ module
     phase: 'idle',
     total: 0,
   }
-  const QUERY_KEYS = ['q', 'page', 'size', 'sort', 'desc', 'filters', 'visibility', 'order'] as const
+  const QUERY_KEYS = ['q', 'page', 'size', 'sort', 'desc', 'filters', 'visibility', 'order', 'widths'] as const
 
   /**
    * Shared by the table viewport and the empty panel so the section keeps the
@@ -187,6 +187,7 @@ setup
       filters: createColumnFiltersParser(),
       visibility: createColumnVisibilityParser(initialColumnVisibility),
       order: createColumnOrderParser(),
+      widths: createColumnSizingParser(),
     }),
     [sortIds.join(','), defaultPageSize, defaultSort?.id, defaultSort?.desc],
   )
@@ -203,6 +204,7 @@ setup
   const columnFilters = query.filters
   const columnOrder = query.order
   const columnVisibility = query.visibility
+  const columnSizing = query.widths
   const sorting = useMemo<SortingState>(
     () => (query.sort ? [{ id: query.sort, desc: query.desc }] : []),
     [query.sort, query.desc],
@@ -226,13 +228,13 @@ setup
 
   const table = useTable(
     {
-      key: title,
-      features: snapsFeatures,
       data,
       columns,
+      features,
+      key: title,
       globalFilterFn: 'includesString',
       getRowId: getRowId ?? ((row, index) => String(row.id ?? row._id ?? index)),
-      state: { columnFilters, columnOrder, columnPinning, columnVisibility, globalFilter, pagination, sorting },
+      state: { columnFilters, columnOrder, columnPinning, columnSizing, columnVisibility, globalFilter, pagination, sorting },
       onColumnFiltersChange: (updater) => {
         const next = functionalUpdate(updater, columnFilters)
         if (isSameState(next, columnFilters)) return
@@ -252,6 +254,14 @@ setup
         void setQuery({ visibility: next })
       },
       columnResizeMode: 'onChange',
+      onColumnSizingChange: (updater) => {
+        // Read the latest queued widths during a drag; nuqs throttles URL writes
+        // while updating the rendered state immediately.
+        void setQuery((current) => {
+          const next = functionalUpdate(updater, current.widths)
+          return queryParsers.widths.eq(next, current.widths) ? {} : { widths: next }
+        })
+      },
       onGlobalFilterChange: (updater) => {
         const next = String(functionalUpdate(updater, globalFilter) ?? '')
         if (next === globalFilter) return
@@ -298,7 +308,7 @@ setup
       table.state.columnPinning,
       table.state.columnVisibility,
     ),
-    [table, table.state.columnPinning, table.state.columnVisibility],
+    [table, table.state.columnPinning, table.state.columnVisibility, table.state.columnSizing],
   )
   const handleResetFilters = () => {
     void setQuery({ filters: null, page: null })

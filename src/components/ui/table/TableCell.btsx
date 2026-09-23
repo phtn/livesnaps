@@ -1,4 +1,5 @@
 import type { JSX } from 'octane/jsx-runtime'
+import { cn } from '@/lib/utils';
 
 module
   type NativeTableCellProps = JSX.IntrinsicElements['td']
@@ -13,6 +14,6 @@ props { children, className, ...cellProps }: Props
 
 td(
   ~ {...cellProps}
-  ~ className={[baseClassName, className]}
+  ~ className={cn(baseClassName, className)}
   ~ )
   | #{children}

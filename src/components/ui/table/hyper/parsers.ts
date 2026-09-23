@@ -2,6 +2,7 @@ import { parseAsStringEnum } from '@octanejs/nuqs'
 import type {
   ColumnFiltersState,
   ColumnOrderState,
+  ColumnSizingState,
   RowPinningState,
   RowSelectionState,
   SortingState,
@@ -226,6 +227,34 @@ export const createColumnOrderParser = () => ({
   eq: (left: ColumnOrderState, right: ColumnOrderState) =>
     left.length === right.length && left.every((id, index) => id === right[index])
 })
+
+// Column widths format: "encoded-id:width,encoded-id:width" in pixels.
+export const createColumnSizingParser = () => {
+  const serialize = (value: ColumnSizingState): string => Object.entries(value)
+    .filter(([id, width]) => isSafeObjectKey(id) && Number.isFinite(width) && width > 0)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .slice(0, TABLE_QUERY_LIMITS.visibilityEntries)
+    .map(([id, width]) => `${encodeToken(id)}:${width}`)
+    .join(',')
+    .slice(0, TABLE_QUERY_LIMITS.serializedStateCharacters)
+
+  return {
+    parse: (value: string | null): ColumnSizingState => {
+      const sizing: ColumnSizingState = {}
+      for (const entry of trimStateValue(value).split(',').slice(0, TABLE_QUERY_LIMITS.visibilityEntries)) {
+        const separatorIndex = entry.lastIndexOf(':')
+        if (separatorIndex < 0) continue
+        const id = decodeToken(entry.slice(0, separatorIndex))
+        const width = Number(entry.slice(separatorIndex + 1))
+        if (isSafeObjectKey(id) && Number.isFinite(width) && width > 0) sizing[id] = width
+      }
+      return sizing
+    },
+    serialize,
+    defaultValue: {} as ColumnSizingState,
+    eq: (left: ColumnSizingState, right: ColumnSizingState) => serialize(left) === serialize(right)
+  }
+}
 
 // Row selection format: comma-separated, individually encoded stable row IDs.
 export const createRowSelectionParser = () => ({

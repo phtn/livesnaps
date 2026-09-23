@@ -8,10 +8,11 @@ import type { ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
 import { createElement } from 'octane'
+import { createHeader } from '../ui/table/hyper/create-header'
 import StatusBadge from './badges.btsx'
 import { snapIpcMatchStatus, snapSessionStatus, snapVerificationStatus } from './data'
 import SnapHandler from './snap-handler.btsx'
-import type { snapsFeatures } from './table-config'
+import type { features } from './table-config'
 
 /**
  * Shared table definition for the snaps admin table.
@@ -36,7 +37,6 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   make: false,
   model: false
 }
-
 export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
 
 /**
@@ -50,8 +50,7 @@ export const toIpcMatchToken = (value: boolean | null) => (value === null ? 'unk
 
 const formatUpdatedAt = (timestamp: number) => format(new Date(timestamp), 'M/dd/yyyy hh:mm:ss a')
 
-const columnHelper = createColumnHelper<typeof snapsFeatures, SnapRow>()
-const createHeader = (header: string) => () => createElement('div', { className: 'ps-4' }, header)
+const columnHelper = createColumnHelper<typeof features, SnapRow>()
 
 export const snapColumns = columnHelper.columns([
   columnHelper.accessor('plateNumber', {
@@ -63,7 +62,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor('fullName', {
     header: createHeader('Applicant'),
-    size: 276,
+    size: 235,
     minSize: 60,
     sortFn: 'text',
     enableColumnFilter: false,
@@ -78,7 +77,7 @@ export const snapColumns = columnHelper.columns([
   }),
   columnHelper.accessor('locationLabel', {
     header: createHeader('Location'),
-    size: 380,
+    size: 465,
     sortFn: 'text',
     enableColumnFilter: false
   }),
