@@ -9,6 +9,7 @@ import StatusBadge from './badges.btsx'
 import { type VerificationEntryRow, verificationEntryStatus } from './data'
 import { useSnapHandlerContext } from './snap-handler-context'
 import type { features } from './table-config'
+import VerificationResultsCell from './verification-results-cell.btsx'
 import VerificationRowActionsCell from './verification-row-actions.btsx'
 
 /**
@@ -146,6 +147,17 @@ export const verificationEntryColumns = columnHelper.columns([
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
     cell: (info) => createElement(StatusBadge, { presentation: verificationEntryStatus[info.getValue()] })
+  }),
+  columnHelper.accessor((row) => row.verifiedPhotos?.length ?? 0, {
+    id: 'verificationResults',
+    header: createHeader('Verification results'),
+    size: 180,
+    sortFn: 'basic',
+    enableColumnFilter: false,
+    enableGlobalFilter: false,
+    // `flexRender` invokes a `cell` as a component, so this returns a node
+    // descriptor rather than markup — this module is plain TypeScript.
+    cell: (info) => createElement(VerificationResultsCell, { entry: info.row.original })
   }),
   columnHelper.accessor('emailToAddress', {
     header: createHeader('Recipient'),

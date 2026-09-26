@@ -1,0 +1,70 @@
+import { createContext, use, useState } from 'octane'
+import { Icon } from '@/lib/icons'
+import { downloadPhotoFilesArchive } from '@/lib/snaps/photo-download'
+import { onPromise } from '@/lib/toast'
+import { cn } from '@/lib/utils'
+import { verifiedPhotoFileName, verifiedPhotoUrl } from '@/lib/verifications/photo-review'
+import type { VerificationEntryRow } from './data'
+
+module
+  export type OpenVerificationResults = (entry: VerificationEntryRow) => void
+
+  /**
+   * Provided by the page that owns the stamped-photo viewer. The cell is the
+   * default export because `verification-entry-columns.ts` is plain TypeScript
+   * and can only reach a `.btsx` file's default export.
+   */
+  export const VerificationResultsContext = createContext<OpenVerificationResults | null>(null)
+
+  // Mirrors `ui/table/row-actions.btsx`, so this column reads like the snaps Photos column.
+  const GHOST_BUTTON_CLASS =
+    'inline-flex cursor-pointer items-center justify-center rounded-md outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
+
+  const plural = (count: number, word: string) => (count === 1 ? word : `${word}s`)
+
+props { entry }: { entry: VerificationEntryRow }
+setup
+  const openResults = use(VerificationResultsContext)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const photos = entry.verifiedPhotos ?? []
+  const photoCount = photos.length
+  const photoWord = plural(photoCount, 'photo')
+
+  const download = async (event: MouseEvent) => {
+    event.stopPropagation()
+    if (photoCount === 0 || isDownloading) return
+
+    setIsDownloading(true)
+    try {
+      const files = photos.map((photo) => ({ name: verifiedPhotoFileName(photo), url: verifiedPhotoUrl(entry._id, photo.photoKey) }))
+      await onPromise(downloadPhotoFilesArchive(files, `verification-results-${entry.plateNumber || entry.uploadId}`), {
+        loading: `Stamping ${photoCount} ${photoWord}…`,
+        success: `Downloaded ${photoCount} stamped ${photoWord}.`,
+        error: (error) => (error instanceof Error ? error.message : 'Unable to download verification results.')
+      }).catch(() => undefined)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
+div(className='flex items-center gap-4 opacity-80')
+  button(
+    ~ type='button'
+    ~ disabled={photoCount === 0 || !openResults}
+    ~ aria-label={`View ${photoCount} stamped verified ${photoWord}`}
+    ~ title={photoCount === 0 ? 'No verified photos yet' : 'View stamped verified photos'}
+    ~ onClick={(event: MouseEvent) => { event.stopPropagation(); openResults?.(entry) }}
+    ~ className={cn(GHOST_BUTTON_CLASS, 'h-8 gap-1 px-2 hover:text-blue-600 dark:hover:text-blue-400')}
+    ~ )
+    span(className='font-sans text-base font-medium') #{photoCount}
+    Icon(name='images' className='size-4')
+
+  button(
+    ~ type='button'
+    ~ disabled={photoCount === 0 || isDownloading}
+    ~ aria-label={`Download ${photoCount} stamped verified ${photoWord}`}
+    ~ title={photoCount === 0 ? 'No verified photos yet' : 'Download stamped photos as ZIP'}
+    ~ onClick={download}
+    ~ className={cn(GHOST_BUTTON_CLASS, 'size-8 hover:text-blue-600 dark:hover:text-blue-400', { 'opacity-0!': photoCount === 0 })}
+    ~ )
+    Icon(name={isDownloading ? 'spinner-ring' : 'download-line'} className='size-4')

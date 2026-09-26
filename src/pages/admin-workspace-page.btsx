@@ -1,5 +1,5 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
-import { createElement, useCallback, useLinkedState, useState } from 'octane'
+import { createElement, useCallback, useLinkedState, useMemo, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { useSessionEmail } from '@/hooks/use-session-email'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
@@ -20,6 +20,9 @@ import Container from "../components/admin/container.btsx";
 import Loading from "../components/loading.btsx";
 import { onError } from '@/lib/toast'
 import VerificationPhotoViewer from '@/components/admin/verification-photo-viewer.btsx'
+import { VerificationResultsContext } from '@/components/admin/verification-results-cell.btsx'
+import PhotoViewer from '@/components/photo-viewer.btsx'
+import { verifiedPhotoFileName, verifiedPhotoUrl } from '@/lib/verifications/photo-review'
 
 props {}: {}
 setup
@@ -66,6 +69,25 @@ setup
     refreshSnaps()
   }, [refresh, refreshSnaps])
 
+  // Looked up from the live rows, so a poll that drops or re-verifies the entry updates the viewer.
+  const [resultsEntryId, setResultsEntryId] = useLinkedState(account?.id, () => null as string | null)
+  const resultsEntry = rows.find((entry) => entry._id === resultsEntryId)
+  const resultPhotos = resultsEntry?.verifiedPhotos ?? []
+  const resultsKey = resultPhotos.map((photo) => photo.photoKey).join('|')
+  const resultViewerPhotos = useMemo(() => resultsEntry ? resultPhotos.map((photo) => ({
+    alt: `${photo.label} stamped verification photo`,
+    description: 'Verified · stamped with capture time and location',
+    downloadName: verifiedPhotoFileName(photo),
+    id: photo.photoKey,
+    label: photo.label,
+    src: verifiedPhotoUrl(resultsEntry._id, photo.photoKey),
+    unoptimized: true
+  })) : [], [resultsEntry?._id, resultsKey])
+  const openResults = useCallback((entry: VerificationEntryRow) => setResultsEntryId(entry._id), [])
+  const closeResults = useCallback((open: boolean) => {
+    if (!open) setResultsEntryId(null)
+  }, [])
+
   const [verifyEntry, setVerifyEntry] = useLinkedState(account?.id, () => null as VerificationEntryRow | null)
 
   // Sits in the table's toolbar row beside the filter control rather than in
@@ -84,33 +106,41 @@ Container(className='md:py-0')
     ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
   else
     SnapHandlerProvider(refresh={handleWritten})
-      VerificationRowActionsProvider(onOpenEditDialog={openEditSnap} onOpenSendDialog={setSendEntry} onStartVerification={setVerifyEntry})
-        DataTable(
-          ~ title='Verification Entries'
-          ~ data={rows}
-          ~ columns={verificationEntryColumns}
-          ~ filterList={VerificationEntryFilterList}
-          ~ getRowId={(row) => row._id}
-          ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
-          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-          ~ initialPageSize={50}
-          ~ pageSizes={PAGE_SIZES}
-          ~ emptyTitle='No verification entries'
-          ~ emptyDescription='Entries appear here once a verification email is sent.'
-          ~ toolbarActions={createEntryButton}
-          ~ )
-          fragment
-            div(className='flex items-center gap-2 text-xs text-muted-foreground')
-              if error
-                span(className='text-destructive') #{error} — showing the last successful load.
-              else
-                div(className='flex items-center gap-1')
-                  span(className='font-mono') #{freshnessLabel}
-              button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border transition-colors duration-200 ease-out' onClick={refresh})
-                Icon(name='refresh' size={14} className='-rotate-6 group-active:-rotate-90 transition-transform duration-200 ease-out')
-              if hasMore
-                button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
+      VerificationResultsContext.Provider(value={openResults})
+        VerificationRowActionsProvider(onOpenEditDialog={openEditSnap} onOpenSendDialog={setSendEntry} onStartVerification={setVerifyEntry})
+          DataTable(
+            ~ title='Verification Entries'
+            ~ data={rows}
+            ~ columns={verificationEntryColumns}
+            ~ filterList={VerificationEntryFilterList}
+            ~ getRowId={(row) => row._id}
+            ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+            ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+            ~ initialPageSize={50}
+            ~ pageSizes={PAGE_SIZES}
+            ~ emptyTitle='No verification entries'
+            ~ emptyDescription='Entries appear here once a verification email is sent.'
+            ~ toolbarActions={createEntryButton}
+            ~ )
+            fragment
+              div(className='flex items-center gap-2 text-xs text-muted-foreground')
+                if error
+                  span(className='text-destructive') #{error} — showing the last successful load.
+                else
+                  div(className='flex items-center gap-1')
+                    span(className='font-mono') #{freshnessLabel}
+                button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border transition-colors duration-200 ease-out' onClick={refresh})
+                  Icon(name='refresh' size={14} className='-rotate-6 group-active:-rotate-90 transition-transform duration-200 ease-out')
+                if hasMore
+                  button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
 
+  if resultsEntry && resultViewerPhotos.length > 0
+    PhotoViewer(
+      ~ open={true}
+      ~ photos={resultViewerPhotos}
+      ~ title={`${resultsEntry.plateNumber || resultsEntry.uploadId} · Verification results`}
+      ~ onOpenChange={closeResults}
+      ~ )
   SendVerificationEntryDialog(
     ~ entry={sendEntry}
     ~ open={sendEntry !== null}

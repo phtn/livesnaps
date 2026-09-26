@@ -1,7 +1,7 @@
 import { DEFAULT_VERIFICATION_ATTACHMENTS } from '@/lib/verifications/entries'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
-import { type AdminConvexEnvironment, AdminRequestError, withAdminConvex, withAdminConvexWrite } from './admin-convex'
+import { type AdminConvexEnvironment, AdminRequestError, getAdminConvexClient, withAdminConvex, withAdminConvexWrite } from './admin-convex'
 import { requestedAccountId } from './workspace-routes'
 import type { PhotoReviewDecision } from '@/lib/verifications/photo-review'
 import { SNAP_SLOTS } from '@/lib/r2/snap-images'
@@ -9,6 +9,40 @@ import { SNAP_SLOTS } from '@/lib/r2/snap-images'
 export type AdminVerificationRouteEnvironment = AdminConvexEnvironment
 
 const VERIFICATION_ENTRY_LIST_LIMIT = 250
+
+/**
+ * Streams one stamped verification result as a real image, so it works as an
+ * `<img src>` and in the ZIP download. Stamps are rendered on demand from R2;
+ * the browser keeps its copy briefly because the stamp only changes with the capture.
+ */
+export async function handleAdminVerifiedPhoto(request: Request, environment: AdminVerificationRouteEnvironment = {}) {
+  const fail = (error: string, status: number) => Response.json({ error }, { status, headers: { 'cache-control': 'no-store' } })
+  if (request.method !== 'GET') return fail('Method not allowed.', 405)
+  const params = new URL(request.url).searchParams
+  const id = params.get('id')
+  const photoKey = params.get('key')
+  if (!id || !photoKey) return fail('A verification entry and photo are required.', 400)
+  try {
+    const client = await getAdminConvexClient(request, environment)
+    if (!client) return fail('An active Account session is required.', 401)
+    const photo = await client.action(api.verificationEntries.stampedPhotos.renderVerifiedPhoto, {
+      id: id as Id<'verificationEntries'>, photoKey
+    })
+    const bytes = Uint8Array.from(atob(photo.content), char => char.charCodeAt(0))
+    return new Response(bytes, {
+      headers: {
+        'content-type': photo.contentType,
+        'content-length': String(bytes.byteLength),
+        'content-disposition': `inline; filename="${photo.filename}"`,
+        'cache-control': 'private, max-age=300'
+      }
+    })
+  } catch (error) {
+    if (error instanceof Error && /Unauthorized|Unauthenticated/i.test(error.message)) return fail('An active Account session is required.', 403)
+    if (error instanceof Error && /not a current verification result/.test(error.message)) return fail('This photo is not a current verification result.', 404)
+    return fail('Unable to render the stamped photo.', 500)
+  }
+}
 
 export function handleAdminPhotoReview(request: Request, environment: AdminVerificationRouteEnvironment = {}) {
   if (request.method === 'GET') {

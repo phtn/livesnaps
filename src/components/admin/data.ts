@@ -1,6 +1,7 @@
 import type { IconName } from '@/lib/icons'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { VERIFICATION_ENTRY_STATUS_VALUES } from '@/lib/verifications/entries'
+import type { VerifiedPhotoResult } from '@/lib/verifications/photo-review'
 import type { UserIdentity } from '../../../convex/users/v'
 import type { VerificationEntry } from '../../../convex/verificationEntries/d'
 
@@ -55,7 +56,12 @@ export type SnapRow = Pick<
 export type UserRow = UserIdentity & { _id: string }
 
 /** A `verificationEntries` document. */
-export type VerificationEntryRow = VerificationEntry & { _id: string; handler?: SnapRow['handler'] }
+export type VerificationEntryRow = VerificationEntry & {
+  _id: string
+  handler?: SnapRow['handler']
+  /** Photos verified against the current capture, projected by `listAllForAdmin`. */
+  verifiedPhotos?: VerifiedPhotoResult[]
+}
 
 export type SnapSessionStatus = SnapRow['status']
 export type SnapVerificationStatus = NonNullable<SnapRow['verification_status']>

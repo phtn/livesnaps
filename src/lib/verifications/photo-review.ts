@@ -21,3 +21,32 @@ export const photoReviewSnapshot = (photos: readonly SnapPhoto[]) => JSON.string
 
 export const canReviewPhotos = (status: string) =>
   status === 'draft' || status === 'active' || status === 'failed' || status === 'verified'
+
+export interface VerifiedPhotoResult {
+  photoKey: string
+  slot: number
+  label: string
+}
+
+/** Verified decisions only count while they still describe the capture's current photos. */
+export const verifiedPhotoResults = (
+  photoReview: { snapshot: string; decisions: readonly PhotoReviewDecision[] } | undefined,
+  photos: readonly SnapPhoto[]
+): VerifiedPhotoResult[] => {
+  if (!photoReview || photoReview.snapshot !== photoReviewSnapshot(photos)) return []
+  const verified = new Set(photoReview.decisions.filter(item => item.status === 'verified').map(item => item.photoKey))
+  return photos
+    .filter(photo => verified.has(photo.r2_key))
+    .sort((a, b) => a.slot - b.slot)
+    .map(photo => ({ photoKey: photo.r2_key, slot: photo.slot, label: photo.label }))
+}
+
+const VERIFIED_PHOTO_PATH = '/api/admin/verification-entries/verified-photo'
+
+export const verifiedPhotoUrl = (entryId: string, photoKey: string) =>
+  `${VERIFIED_PHOTO_PATH}?id=${encodeURIComponent(entryId)}&key=${encodeURIComponent(photoKey)}`
+
+const fileSegment = (value: string) => value.trim().replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '')
+
+export const verifiedPhotoFileName = (photo: VerifiedPhotoResult) =>
+  `${String(photo.slot).padStart(2, '0')}-${fileSegment(photo.label) || `slot-${photo.slot}`}-stamped.jpg`

@@ -62,20 +62,42 @@ export const createSnapPhotoArchive = async (
   return await createZip(Object.fromEntries(files))
 }
 
-export const downloadSnapPhotoArchive = async (
-  photos: readonly AdminSnapPhoto[],
-  uploadId: string,
-  signal?: AbortSignal
-): Promise<void> => {
-  const archive = await createSnapPhotoArchive(photos, fetch, signal)
+const saveArchive = (archive: Uint8Array<ArrayBuffer>, fileName: string) => {
   const url = URL.createObjectURL(new Blob([archive], { type: 'application/zip' }))
   const link = document.createElement('a')
 
   link.href = url
-  link.download = getSnapPhotoArchiveName(uploadId)
+  link.download = fileName
   link.rel = 'noopener'
   document.body.append(link)
   link.click()
   link.remove()
   window.setTimeout(() => URL.revokeObjectURL(url), 0)
+}
+
+export const downloadSnapPhotoArchive = async (
+  photos: readonly AdminSnapPhoto[],
+  uploadId: string,
+  signal?: AbortSignal
+): Promise<void> => {
+  saveArchive(await createSnapPhotoArchive(photos, fetch, signal), getSnapPhotoArchiveName(uploadId))
+}
+
+/** Zips already-named files fetched from same-origin routes, e.g. stamped verification results. */
+export const downloadPhotoFilesArchive = async (
+  files: readonly { name: string; url: string }[],
+  archiveName: string,
+  signal?: AbortSignal
+): Promise<void> => {
+  if (files.length === 0) throw new Error('There are no photos to download.')
+
+  const entries = await Promise.all(
+    files.map(async (file) => {
+      const response = await fetch(file.url, { credentials: 'same-origin', signal })
+      if (!response.ok) throw new Error(`Unable to download ${file.name}.`)
+      return [file.name, new Uint8Array(await response.arrayBuffer())] as const
+    })
+  )
+
+  saveArchive(await createZip(Object.fromEntries(entries)), `${safeFileSegment(archiveName, 'download')}.zip`)
 }

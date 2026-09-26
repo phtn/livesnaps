@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { convexTest } from 'convex-test'
 import { expect, test } from 'vitest'
-import { api } from '../_generated/api'
+import { api, internal } from '../_generated/api'
 import schema from '../schema'
 import { buildSnapObjectKey, SNAP_SLOTS } from '../../src/lib/r2/snap-images'
 import { photoReviewSnapshot } from '../../src/lib/verifications/photo-review'
@@ -122,4 +122,24 @@ test('empty captures cannot be marked Verified and sent/cancelled entries cannot
     await ctx.db.patch(snapId, { metadata: { ...snap.metadata, photos: [] } })
   })
   await expect(member.mutation(api.verificationEntries.m.savePhotoReview, { ...input, snapshot: '[]', decisions: [] })).rejects.toThrow('valid set of photos')
+})
+
+test('verification results list only currently verified photos, and viewers may read them', async () => {
+  const { t, member, input, entryId, photos, snapId } = await fixture()
+  const decisions = [{ photoKey: photos[2].r2_key, status: 'verified' as const }, { photoKey: photos[0].r2_key, status: 'verified' as const }, { photoKey: photos[1].r2_key, status: 'skipped' as const }]
+  await member.mutation(api.verificationEntries.m.savePhotoReview, { ...input, decisions })
+  const [row] = await member.query(api.verificationEntries.q.listAllForAdmin, {})
+  expect(row.verifiedPhotos.map(photo => photo.slot)).toEqual([photos[0].slot, photos[2].slot])
+
+  const viewer = t.withIdentity({ subject: 'viewer', tokenIdentifier: 'issuer|viewer' })
+  expect(await viewer.query(internal.verificationEntries.q.getVerifiedPhotoInternal, { id: entryId, photoKey: photos[0].r2_key })).not.toBeNull()
+  expect(await viewer.query(internal.verificationEntries.q.getVerifiedPhotoInternal, { id: entryId, photoKey: photos[1].r2_key })).toBeNull()
+
+  // A changed capture invalidates earlier decisions rather than stamping unreviewed evidence.
+  await t.run(async ctx => {
+    const snap = (await ctx.db.get(snapId))!
+    await ctx.db.patch(snapId, { metadata: { ...snap.metadata, photos: snap.metadata.photos.map(photo => ({ ...photo, size: photo.size + 1 })) } })
+  })
+  expect((await member.query(api.verificationEntries.q.listAllForAdmin, {}))[0].verifiedPhotos).toEqual([])
+  expect(await viewer.query(internal.verificationEntries.q.getVerifiedPhotoInternal, { id: entryId, photoKey: photos[0].r2_key })).toBeNull()
 })

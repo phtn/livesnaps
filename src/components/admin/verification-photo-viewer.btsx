@@ -8,7 +8,7 @@ import { useBackDismiss } from '@/hooks/use-back-dismiss'
 import VerificationPhotoStep from './verification-photo-step.btsx'
 
 module
-  const buttonClass = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-4 text-sm font-medium hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:pointer-events-none disabled:opacity-40'
+  const buttonClass = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-4 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:pointer-events-none disabled:opacity-40'
   const popupClass = 'fixed inset-0 z-50 flex h-dvh w-screen flex-col overflow-hidden bg-zinc-950 text-white outline-none'
 
 component VerificationSession
@@ -65,12 +65,12 @@ component VerificationSession
     }
     // Refresh/closing the browser should not silently throw away this session.
     useEffect(() => {
-      const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+      const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue; }
       window.addEventListener('beforeunload', beforeUnload)
       return () => window.removeEventListener('beforeunload', beforeUnload)
     }, [])
 
-  Dialog.Root(open={true} onOpenChange={(open) => { if (!open) requestExit() }})
+  Dialog.Root(open={true} onOpenChange={(open: boolean) => { if (!open) requestExit() }})
     Dialog.Portal
       Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/80')
       Dialog.Popup(className={popupClass})
@@ -113,7 +113,7 @@ component VerificationSession
           div(className='flex min-h-0 flex-1 flex-col' inert={saving})
             each photo in activePhoto ? [activePhoto] : [] key photo.r2_key
               VerificationPhotoStep(photo={photo} decision={decision} index={index} count={photos.length} sessionAddress={data.snap.location_session?.address.full_address} onVerify={() => decide('verified')} onSkip={skip} onNext={next} onPrevious={() => setIndex(Math.max(0, index - 1))})
-        Dialog.Root(open={exitOpen} onOpenChange={(open) => { if (!getSaving()) setExitOpen(open) }})
+        Dialog.Root(open={exitOpen} onOpenChange={(open: boolean) => { if (!getSaving()) setExitOpen(open) }})
           Dialog.Portal
             Dialog.Backdrop(className='fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm')
             Dialog.Popup(className='fixed left-1/2 top-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-zinc-900 p-6 text-white shadow-2xl outline-none')
@@ -142,7 +142,7 @@ setup
 if data
   VerificationSession(data={data} onClose={onClose} onSaved={onSaved})
 else
-  Dialog.Root(open={true} onOpenChange={(open) => { if (!open) onClose() }})
+  Dialog.Root(open={true} onOpenChange={(open: boolean) => { if (!open) onClose() }})
     Dialog.Portal
       Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/80')
       Dialog.Popup(className={`${popupClass} items-center justify-center gap-4 p-8`})
