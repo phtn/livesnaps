@@ -2,10 +2,16 @@ import { accountEndpoint } from '@/hooks/use-workspace'
 import { ACCOUNT_MEMBER_ROLE_VALUES, type AccountMemberRole, type AccountMemberStatus } from '@/lib/accounts/members'
 // Type-only import: the Convex and Firebase Admin modules behind this response
 // never reach the client bundle.
-import type { AdminAccountMemberListResponse, AdminRegisteredUserSearchResponse } from '@/server/admin-member-routes'
+import type { AdminAccountMemberDetailResponse, AdminAccountMemberListResponse, AdminRegisteredUserSearchResponse } from '@/server/admin-member-routes'
 
 export type MemberWorkspace = AdminAccountMemberListResponse
 export type MemberRow = AdminAccountMemberListResponse['members'][number]
+export type MemberDetail = AdminAccountMemberDetailResponse
+
+export type MemberChange =
+  | { action: 'role'; value: AccountMemberRole }
+  | { action: 'status'; value: 'active' | 'suspended' }
+  | { action: 'title'; value: string | null }
 
 export interface InviteMemberInput {
   email: string
@@ -16,6 +22,7 @@ export interface InviteMemberInput {
 
 const ACCOUNT_MEMBERS_ENDPOINT = '/api/admin/account-members'
 const REGISTERED_USERS_ENDPOINT = '/api/admin/users'
+const ACCOUNT_MEMBER_ENDPOINT = '/api/admin/account-member'
 
 async function readError(response: Response, fallback: string) {
   try {
@@ -64,6 +71,29 @@ export function inviteAccountMember(input: InviteMemberInput, accountId = '') {
     'Could not invite this member.'
   )
 }
+
+export function fetchAccountMember(memberId: string, signal?: AbortSignal, accountId = '') {
+  return requestJson<MemberDetail>(
+    accountEndpoint(`${ACCOUNT_MEMBER_ENDPOINT}?memberId=${encodeURIComponent(memberId)}`, accountId),
+    { signal },
+    'Could not load this member.'
+  )
+}
+
+/** Resolves with the member's refreshed details. */
+export function updateAccountMember(memberId: string, change: MemberChange, accountId = '') {
+  return requestJson<MemberDetail>(
+    accountEndpoint(ACCOUNT_MEMBER_ENDPOINT, accountId),
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ memberId, ...change })
+    },
+    'Could not update this member.'
+  )
+}
+
+export const memberDetailHref = (memberId: string) => `/admin-settings/members/${encodeURIComponent(memberId)}`
 
 export const ACCOUNT_MEMBER_ROLE_LABEL: Record<AccountMemberRole, string> = {
   viewer: 'Viewer',

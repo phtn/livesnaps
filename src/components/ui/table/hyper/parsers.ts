@@ -121,7 +121,9 @@ export const createSortingParser = () => ({
 
 // Column filters format:
 // "encoded-id:encoded-value,encoded-value|encoded-id:".
-export const createColumnFiltersParser = () => ({
+// A missing key means `defaultColumnFilters`; clearing every filter serializes
+// to an empty value, which parses back to no filters rather than the default.
+export const createColumnFiltersParser = (defaultColumnFilters: ColumnFiltersState = []) => ({
   parse: (value: string | null): ColumnFiltersState => {
     const filters: ColumnFiltersState = []
     const seenColumnIds = new Set<string>()
@@ -162,7 +164,7 @@ export const createColumnFiltersParser = () => ({
       .join('|')
       .slice(0, TABLE_QUERY_LIMITS.serializedStateCharacters)
   },
-  defaultValue: [] as ColumnFiltersState,
+  defaultValue: defaultColumnFilters,
   eq: (left: ColumnFiltersState, right: ColumnFiltersState) => JSON.stringify(left) === JSON.stringify(right)
 })
 

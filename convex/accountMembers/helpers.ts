@@ -1,6 +1,7 @@
 import { ConvexError } from 'convex/values'
 import {
   ACCOUNT_MEMBER_NAME_MAX_LENGTH,
+  ACCOUNT_MEMBER_ROLE_VALUES,
   ACCOUNT_MEMBER_TITLE_MAX_LENGTH,
   type AccountMemberRole,
   hasAccountMemberRole
@@ -66,6 +67,42 @@ export const requireAccountAccess = async (
   }
 
   return { tokenIdentifier: identity.tokenIdentifier, isPlatformAdmin: false, membership }
+}
+
+/**
+ * What `actor` may change on `member`. Owners (and gods) manage everyone; an
+ * admin manages members, viewers, and themselves, never another admin or an
+ * owner. Only an owner can hand out the owner role. The role, status, and title
+ * mutations enforce this, and the detail query reports it so the page offers
+ * only what will succeed.
+ */
+export const getMemberManagement = (
+  actor: Awaited<ReturnType<typeof requireAccountAccess>>,
+  member: Doc<'accountMembers'>
+) => {
+  const actorRole = actor.membership?.role
+  const isSelf = actor.membership?._id === member._id
+  const isOwnerActor = actor.isPlatformAdmin || actorRole === 'owner'
+  const canManage =
+    isOwnerActor || (actorRole === 'admin' && (isSelf || member.role === 'member' || member.role === 'viewer'))
+  const assignableRoles: AccountMemberRole[] = canManage
+    ? ACCOUNT_MEMBER_ROLE_VALUES.filter((role) => role !== 'owner' || isOwnerActor)
+    : []
+
+  return { canManage, isSelf, assignableRoles }
+}
+
+export const requireMemberManagement = (
+  actor: Awaited<ReturnType<typeof requireAccountAccess>>,
+  member: Doc<'accountMembers'>
+) => {
+  const management = getMemberManagement(actor, member)
+
+  if (!management.canManage) {
+    throw new ConvexError('Only an account owner can change an admin or another owner.')
+  }
+
+  return management
 }
 
 export const normalizeMemberName = (name: string | null | undefined) => {

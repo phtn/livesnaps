@@ -21,11 +21,22 @@ module
   const ineligibleReason = (snap: SnapRow) =>
     snap.status !== 'completed' ? 'Snap is not completed' : snap.handler ? 'Handler already assigned' : null
 
+  // The `active` session colours, applied while the trigger is hovered or its
+  // menu is open, so a startable badge reads as a live control. Variants rather
+  // than replacements: `cn` is plain clsx and would not drop the base colours.
+  // The text also needs `dark:` forms to outrank the badge's `dark:text-*`.
+  const STARTABLE_CLASS_NAME =
+    'transition-colors group-hover/verify:border-active/25 group-hover/verify:bg-active/8 group-hover/verify:text-active group-data-popup-open/verify:border-active/25 group-data-popup-open/verify:bg-active/8 group-data-popup-open/verify:text-active dark:group-hover/verify:text-active dark:group-data-popup-open/verify:text-active'
+
 props { snap, status }: { snap: SnapRow; status: keyof typeof snapVerificationStatus }
 setup
   const startVerification = use(StartVerificationContext)
-  const presentation = snapVerificationStatus[status]
   const reason = ineligibleReason(snap)
+  const basePresentation = snapVerificationStatus[status]
+  const presentation =
+    status === 'unsubmitted' && reason === null
+      ? { ...basePresentation, className: cn(basePresentation.className, STARTABLE_CLASS_NAME) }
+      : basePresentation
   const snapLabel = snap.plateNumber || snap.uploadId
 
 fragment
@@ -34,7 +45,7 @@ fragment
       DropdownMenuTrigger(
         ~ onClick={(event: MouseEvent) => event.stopPropagation()}
         ~ aria-label={`Verification options for ${snapLabel}`}
-        ~ className='cursor-pointer rounded-md outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring'
+        ~ className='group/verify cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring'
         ~ )
         StatusBadge(presentation={presentation})
 

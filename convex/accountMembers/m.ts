@@ -16,7 +16,8 @@ import {
   getMembershipByTokenIdentifier,
   normalizeMemberName,
   normalizeMemberTitle,
-  requireAccountAccess
+  requireAccountAccess,
+  requireMemberManagement
 } from './helpers'
 
 const requireAccount = async (ctx: MutationCtx, accountId: Id<'accounts'>) => {
@@ -264,15 +265,13 @@ export const setRole = mutation({
     }
 
     const actor = await requireAccountAccess(ctx, member.accountId, 'admin')
+    // An admin may manage members, viewers, and themselves, but not their peers
+    // or an owner — including demoting an owner, which this used to allow.
+    requireMemberManagement(actor, member)
     requireOwnerForOwnerChange(role, actor)
 
     if (member.role === 'owner' && role !== 'owner' && (await countOwners(ctx, member.accountId)) < 2) {
       throw new ConvexError('An account must keep at least one owner.')
-    }
-
-    // An admin may manage members and viewers, but not their peers.
-    if (member.role === 'admin' && actor.membership?.role === 'admin') {
-      throw new ConvexError('Only an account owner can change another admin’s role.')
     }
 
     await ctx.db.patch(memberId, {
@@ -302,9 +301,14 @@ export const setStatus = mutation({
     }
 
     const actor = await requireAccountAccess(ctx, member.accountId, 'admin')
+    const { isSelf } = requireMemberManagement(actor, member)
 
     if (member.status === 'invited') {
       throw new ConvexError('An invitation must be accepted before it can be suspended or reactivated.')
+    }
+
+    if (isSelf && status === 'suspended') {
+      throw new ConvexError('You cannot suspend your own membership.')
     }
 
     if (status === 'suspended' && member.role === 'owner' && (await countOwners(ctx, member.accountId)) < 2) {
@@ -313,6 +317,35 @@ export const setStatus = mutation({
 
     await ctx.db.patch(memberId, {
       status,
+      updatedAt: Date.now(),
+      updatedBy: actor.tokenIdentifier
+    })
+
+    const updated = await ctx.db.get(memberId)
+
+    if (!updated) {
+      throw new ConvexError('Membership not found.')
+    }
+
+    return updated
+  }
+})
+
+export const setTitle = mutation({
+  args: { memberId: v.id('accountMembers'), title: v.union(v.string(), v.null()) },
+  returns: accountMemberDocumentSchema,
+  handler: async (ctx, { memberId, title }) => {
+    const member = await ctx.db.get(memberId)
+
+    if (!member) {
+      throw new ConvexError('Membership not found.')
+    }
+
+    const actor = await requireAccountAccess(ctx, member.accountId, 'admin')
+    requireMemberManagement(actor, member)
+
+    await ctx.db.patch(memberId, {
+      title: normalizeMemberTitle(title),
       updatedAt: Date.now(),
       updatedBy: actor.tokenIdentifier
     })

@@ -1,0 +1,8 @@
+import { useParams } from '@octanejs/tanstack-router'
+import MemberDetailPanel from '@/components/admin/member-detail-panel.btsx'
+
+setup
+  const params = useParams({ strict: false })
+  const memberId = String(params.memberId)
+
+MemberDetailPanel(memberId={memberId})

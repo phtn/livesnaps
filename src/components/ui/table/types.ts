@@ -74,6 +74,8 @@ export interface DataTableFilterListProps<T extends RowData, TFeatures extends T
   columns: Column<TFeatures, T, unknown>[]
   columnFilters: ColumnFiltersState
   onReset: () => void
+  /** Whether the filters differ from the table's defaults; falls back to "any filter is active". */
+  canReset?: boolean
 }
 
 export type RowIdAccessor<T extends RowData> = keyof T | ((row: T, index: number) => string | number | null | undefined)

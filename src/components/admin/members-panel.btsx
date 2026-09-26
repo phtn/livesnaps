@@ -1,3 +1,4 @@
+import { Link } from '@octanejs/tanstack-router'
 import { useWorkspace } from '@/hooks/use-workspace'
 import { useEffect, useState } from 'octane'
 import { Avatar, Badge } from '@/components/ui'
@@ -5,7 +6,7 @@ import { Icon } from '@/lib/icons'
 import { cn } from '@/lib/utils'
 import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
 import { hasAccountMemberRole } from '@/lib/accounts/members'
-import { ACCOUNT_MEMBER_ROLE_LABEL, ACCOUNT_MEMBER_STATUS_LABEL, ACCOUNT_MEMBER_STATUS_TONE, fetchAccountMembers, formatMemberDate, getMemberInitials, matchesMemberQuery, type MemberRow, type MemberWorkspace } from '@/lib/admin/account-members'
+import { ACCOUNT_MEMBER_ROLE_LABEL, ACCOUNT_MEMBER_STATUS_LABEL, ACCOUNT_MEMBER_STATUS_TONE, fetchAccountMembers, formatMemberDate, getMemberInitials, matchesMemberQuery, memberDetailHref, type MemberRow, type MemberWorkspace } from '@/lib/admin/account-members'
 import InviteMemberPanel from '@/components/admin/invite-member-panel.btsx'
 import MembersSkeleton from '@/components/admin/members-skeleton.btsx'
 import HyperSearch from '@/components/ui/table/hyper/HyperSearch.btsx'
@@ -140,13 +141,19 @@ InnerContainer
         else
           ul(className='divide-y divide-sidebar-border overflow-hidden rounded-lg border border-sidebar-border')
             each member in visibleMembers key member._id
-              li(className='flex flex-wrap items-center justify-between gap-3 bg-table-head/50 px-3 py-4 transition-colors hover:bg-accent')
-                MemberIdentity(member={member})
-                div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
-                  span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline capitalize') #{member.title ?? ''}
-                  span(className='shrink-0 font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
-                  span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatMemberDate(member.joinedAt ?? member.invitedAt)}
-                  Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}
+              li
+                Link(
+                  ~ to={memberDetailHref(member._id)}
+                  ~ aria-label={`View ${member.name ?? member.email}`}
+                  ~ className='flex flex-wrap items-center justify-between gap-3 bg-table-head/50 px-3 py-4 outline-none transition-colors hover:bg-accent focus-visible:bg-accent'
+                  ~ )
+                  MemberIdentity(member={member})
+                  div(className='flex min-w-0 flex-1 items-center justify-end gap-4')
+                    span(className='hidden min-w-0 truncate text-sm text-foreground/80 md:inline capitalize') #{member.title ?? ''}
+                    span(className='shrink-0 font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
+                    span(className='hidden shrink-0 font-mono text-xs text-muted-foreground lg:inline') #{formatMemberDate(member.joinedAt ?? member.invitedAt)}
+                    Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}
+                    Icon(name='chevron-right' className='size-3.5 shrink-0 text-muted-foreground')
 
 
   div(className='h-36 w-full')

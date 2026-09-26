@@ -8,5 +8,5 @@ module
   }
 props {children, className}: Props
 main(className='bg-sunken dark:transparent md:py-4 md:pe-4')
-  div(className={cn('md:p-4 md:h-[calc(100vh-32px)] overflow-hidden bg-surface rounded-lg shadow-[0_2px_4px_rgba(27,27,28,0.1)]', className)})
+  div(className={cn('md:p-4 md:h-[calc(100vh-32px)] overflow-hidden border border-control-line bg-surface rounded-lg shadow-[0_0.75px_1.25px_rgba(27,27,28,0.1)]', className)})
     fragment #{children}

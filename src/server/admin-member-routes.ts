@@ -7,6 +7,7 @@ import {
 } from '@/lib/firebase-admin/god-directory'
 import { getVerifiedWorkspaceSession } from '@/lib/firebase-admin/server-auth'
 import { api } from '../../convex/_generated/api'
+import type { Id } from '../../convex/_generated/dataModel'
 import {
   type AdminConvexClient,
   type AdminConvexEnvironment,
@@ -161,5 +162,71 @@ export function handleAdminAccountMemberInvite(request: Request, environment: Ad
       return await readWorkspace(client, request)
     },
     'Unable to invite this member.'
+  )
+}
+
+const readMemberId = (value: unknown) => readString(value) as Id<'accountMembers'> | undefined
+
+async function readMemberDetail(client: AdminConvexClient, request: Request, memberId: Id<'accountMembers'>) {
+  const account = await resolveWorkspaceAccount(client, request)
+  return await client.query(api.accountMembers.q.getDetail, { accountId: account.id, memberId })
+}
+
+export type AdminAccountMemberDetailResponse = Awaited<ReturnType<typeof readMemberDetail>>
+
+/**
+ * `/api/admin/account-member` — one member's details page.
+ *
+ * GET `?memberId=` reads it. POST `{ memberId, action, value }` changes the
+ * role, status, or title and answers with the refreshed details. What a caller
+ * sees and may change is decided by `accountMembers.q.getDetail` and the
+ * mutations; this only checks the shape and that the member is in the
+ * workspace the request names.
+ */
+export function handleAdminAccountMember(request: Request, environment: AdminMemberRouteEnvironment = {}) {
+  if (request.method === 'GET') {
+    return withAdminConvex(
+      request,
+      environment,
+      async (client) => {
+        const memberId = readMemberId(new URL(request.url).searchParams.get('memberId'))
+        if (!memberId) throw new AdminRequestError('A member is required.')
+        return await readMemberDetail(client, request, memberId)
+      },
+      'Unable to load this member.'
+    )
+  }
+
+  return withAdminConvexWrite(
+    request,
+    environment,
+    async (client) => {
+      const body: unknown = await request.json().catch(() => null)
+      if (typeof body !== 'object' || body === null) throw new AdminRequestError('A valid JSON request body is required.')
+
+      const payload = body as Record<string, unknown>
+      const memberId = readMemberId(payload.memberId)
+      if (!memberId) throw new AdminRequestError('A member is required.')
+
+      // Confirms the member belongs to the requested workspace before writing.
+      await readMemberDetail(client, request, memberId)
+
+      if (payload.action === 'role') {
+        const role = readRole(payload.value)
+        if (!role) throw new AdminRequestError('Choose a valid role.')
+        await client.mutation(api.accountMembers.m.setRole, { memberId, role })
+      } else if (payload.action === 'status') {
+        if (payload.value !== 'active' && payload.value !== 'suspended') throw new AdminRequestError('Choose a valid status.')
+        await client.mutation(api.accountMembers.m.setStatus, { memberId, status: payload.value })
+      } else if (payload.action === 'title') {
+        if (payload.value !== null && typeof payload.value !== 'string') throw new AdminRequestError('Enter a valid title.')
+        await client.mutation(api.accountMembers.m.setTitle, { memberId, title: payload.value })
+      } else {
+        throw new AdminRequestError('Unknown member change.')
+      }
+
+      return await readMemberDetail(client, request, memberId)
+    },
+    'Unable to update this member.'
   )
 }

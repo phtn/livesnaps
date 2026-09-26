@@ -5,8 +5,9 @@ import type { Doc } from '../_generated/dataModel'
 import { internalQuery, type QueryCtx, query } from '../_generated/server'
 import { requireGodIdentity } from '../accounts/helpers'
 import { getUserByTokenIdentifier } from '../lib/auth'
-import { accountMemberDocumentSchema, accountMemberStatusSchema } from './d'
-import { requireAccountAccess } from './helpers'
+import { hasAccountMemberRole } from '../../src/lib/accounts/members'
+import { accountMemberDocumentSchema, accountMemberRoleSchema, accountMemberStatusSchema } from './d'
+import { countOwners, getMemberManagement, requireAccountAccess } from './helpers'
 
 const DEFAULT_LIST_LIMIT = 100
 const MAX_LIST_LIMIT = 250
@@ -58,6 +59,81 @@ export const listForAccount = query({
           .take(take)
 
     return await withMemberAvatars(ctx, members)
+  }
+})
+
+const memberSummarySchema = v.object({
+  _id: v.id('accountMembers'),
+  name: v.union(v.string(), v.null()),
+  email: v.string(),
+  title: v.union(v.string(), v.null()),
+  role: accountMemberRoleSchema,
+  status: accountMemberStatusSchema,
+  joinedAt: v.union(v.number(), v.null()),
+  avatar: memberAvatarSchema
+})
+
+/**
+ * One member's details page. Viewers and members get the summary the roster
+ * already shows; admins and owners also get the membership history and what
+ * they are allowed to change, computed by the same rule the mutations enforce.
+ */
+export const getDetail = query({
+  args: { accountId: v.id('accounts'), memberId: v.id('accountMembers') },
+  returns: v.union(
+    v.object({ access: v.literal('limited'), member: memberSummarySchema }),
+    v.object({
+      access: v.literal('manage'),
+      member: memberSummarySchema.extend({
+        invitedAt: v.number(),
+        updatedAt: v.number()
+      }),
+      permissions: v.object({
+        isSelf: v.boolean(),
+        canEditTitle: v.boolean(),
+        canChangeStatus: v.boolean(),
+        assignableRoles: v.array(accountMemberRoleSchema),
+        isLastOwner: v.boolean()
+      })
+    })
+  ),
+  handler: async (ctx, { accountId, memberId }) => {
+    const actor = await requireAccountAccess(ctx, accountId, 'viewer')
+    const member = await ctx.db.get(memberId)
+
+    if (!member || member.accountId !== accountId) {
+      throw new ConvexError('Member not found.')
+    }
+
+    const [{ avatar }] = await withMemberAvatars(ctx, [member])
+    const summary = {
+      _id: member._id,
+      name: member.name,
+      email: member.email,
+      title: member.title,
+      role: member.role,
+      status: member.status,
+      joinedAt: member.joinedAt,
+      avatar
+    }
+
+    if (!actor.isPlatformAdmin && !(actor.membership && hasAccountMemberRole(actor.membership.role, 'admin'))) {
+      return { access: 'limited' as const, member: summary }
+    }
+
+    const { canManage, isSelf, assignableRoles } = getMemberManagement(actor, member)
+
+    return {
+      access: 'manage' as const,
+      member: { ...summary, invitedAt: member.invitedAt, updatedAt: member.updatedAt },
+      permissions: {
+        isSelf,
+        canEditTitle: canManage,
+        canChangeStatus: canManage && !isSelf && member.status !== 'invited',
+        assignableRoles,
+        isLastOwner: member.role === 'owner' && (await countOwners(ctx, accountId)) < 2
+      }
+    }
   }
 })
 

@@ -76,6 +76,8 @@
   --color-tier-2: var(--tier-2);
   --color-tier-3: var(--tier-3);
   --color-tier-4: var(--tier-4);
+  --color-control-line: var(--control-line);
+  --color-lines: var(--lines);
   --color-input: var(--input);
   --color-destructive: oklch(0.7039 0.1883 30.36);
   --color-accent-foreground: var(--accent-foreground);
@@ -151,6 +153,8 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --control-line: oklch(0.9147 0.0055 297.72);
+  --lines: oklch(0.85 0.004 286.32);
   --radius: 0.625rem;
   --sidebar: oklch(0.9581 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -213,6 +217,8 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --control-line: oklch(0.24 0 0);
+  --lines: oklch(0.32 0.004 286.32);
   --sidebar: oklch(0.1822 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);

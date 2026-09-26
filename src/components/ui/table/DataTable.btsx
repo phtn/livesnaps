@@ -1,6 +1,6 @@
 import { functionalUpdate, useTable } from '@octanejs/tanstack-table'
-import type { ColumnDef, ColumnPinningState, ColumnVisibilityState, PaginationState, RowData, SortingState } from '@octanejs/tanstack-table'
-import { useMemo, useState } from 'octane'
+import type { ColumnDef, ColumnFiltersState, ColumnPinningState, ColumnVisibilityState, PaginationState, RowData, SortingState } from '@octanejs/tanstack-table'
+import { useMemo, useState, type ClassValue } from 'octane'
 import { Button } from '@/components/ui/'
 import SelectOctane from '@/components/ui/SelectOctane.btsx'
 import { TableBody } from '@/components/ui/table'
@@ -55,6 +55,8 @@ module
      * callback typed to its own row — `RowData` would reject `(row) => row._id`.
      */
     getRowId?: (row: any, index: number) => string
+    /** Applied when the URL carries no `filters`; resetting the filters returns here. */
+    initialColumnFilters?: ColumnFiltersState
     initialColumnPinning?: ColumnPinningState
     initialColumnVisibility?: ColumnVisibilityState
     initialPageSize?: number
@@ -98,6 +100,7 @@ module
 
   const DEFAULT_PAGE_SIZES = [50, 100, 250, 500]
   const DEFAULT_PINNING: ColumnPinningState = { start: [], end: [] }
+  const NO_COLUMN_FILTERS: ColumnFiltersState = []
   const IDLE_QUERY_STATE: DataTableQueryProgress = {
     completed: 0,
     elapsedMs: 0,
@@ -115,7 +118,7 @@ module
    */
   const VIEWPORT_CLASS_NAME = 'h-[calc(100dvh-157px)] md:h-[calc(100dvh-184px)] w-full'
   const SCROLLBAR_CLASS_NAME =
-    'overflow-auto scrollbar-track-background ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar hover:scrollbar-thumb-sidebar-border scrollbar-thumb-table-head scrollbar-thin scroll-smooth transision-colors duration-300 ease-out'
+    'overflow-auto scrollbar-track-background scrollbar-track:rounded-full ::-webkit-scrollbar:horizontal:h-0.5 scrollbar-track-horizontal:w-1 dark:scrollbar-track-sidebar hover:scrollbar-thumb-sidebar-border scrollbar-thumb-table-head scrollbar-thin scroll-smooth transision-colors duration-300 ease-out'
 
   // Copy for a table emptied by the reader's own query. The `empty*` props stay
   // reserved for the other case — a table with no records at all — because the
@@ -133,6 +136,7 @@ props {
   ~ eyebrow,
   ~ filterList,
   ~ getRowId,
+  ~ initialColumnFilters = NO_COLUMN_FILTERS,
   ~ initialColumnPinning = DEFAULT_PINNING,
   ~ initialColumnVisibility = {},
   ~ initialPageSize,
@@ -184,12 +188,12 @@ setup
       size: parseAsInteger.withDefault(defaultPageSize),
       sort: parseAsStringLiteral(sortIds).withDefault(defaultSort?.id ?? ''),
       desc: parseAsBoolean.withDefault(defaultSort?.desc ?? true),
-      filters: createColumnFiltersParser(),
+      filters: createColumnFiltersParser(initialColumnFilters),
       visibility: createColumnVisibilityParser(initialColumnVisibility),
       order: createColumnOrderParser(),
       widths: createColumnSizingParser(),
     }),
-    [sortIds.join(','), defaultPageSize, defaultSort?.id, defaultSort?.desc],
+    [sortIds.join(','), defaultPageSize, defaultSort?.id, defaultSort?.desc, JSON.stringify(initialColumnFilters)],
   )
   const queryOptions = useMemo(
     () =>
@@ -315,8 +319,10 @@ setup
   }
   // Clears everything the reader can narrow by, not just the column filters,
   // since the empty panel offers one button for the whole dead end.
+  // With default filters, dropping the key would restore them, so an explicit
+  // empty list is written instead.
   const handleClearQuery = () => {
-    void setQuery({ q: null, filters: null, page: null })
+    void setQuery({ q: null, filters: initialColumnFilters.length > 0 ? [] : null, page: null })
   }
   // Only a table that *has* records can be filtered down to none. With no
   // records at all, clearing a stale `?q=` would not reveal anything, so that
@@ -358,6 +364,7 @@ section(className='relative overflow-hidden rounded-xs md:bg-surface')
           ~ columns={leafColumns}
           ~ columnFilters={columnFilters}
           ~ onReset={handleResetFilters}
+          ~ canReset={!isSameState(columnFilters, initialColumnFilters)}
           ~ )
       if titleActions && !isSearchExpanded
         div(className='min-w-0')

@@ -4,7 +4,7 @@ import RowActions from '@/components/ui/table/row-actions.btsx'
 import { getSnapImageUrl, isSnapObjectKey } from '@/lib/r2/snap-images'
 import type { AdminSnapListItem, AdminSnapPhoto } from '@/lib/snaps/admin-photo-types'
 import { getSnapPhotoFileName } from '@/lib/snaps/photo-download'
-import type { ColumnPinningState } from '@octanejs/tanstack-table'
+import type { ColumnFiltersState, ColumnPinningState } from '@octanejs/tanstack-table'
 import { createColumnHelper } from '@octanejs/tanstack-table'
 import { format } from 'date-fns'
 import { createElement } from 'octane'
@@ -39,6 +39,9 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   model: false
 }
 export const DEFAULT_COLUMN_PINNING: ColumnPinningState = { end: ['actions'], start: [] }
+// Hides the terminal outcomes (abandoned, cancelled, invalidated) until the
+// reader asks for them; resetting the filters comes back here.
+export const DEFAULT_COLUMN_FILTERS: ColumnFiltersState = [{ id: 'status', value: ['pending', 'active', 'completed'] }]
 
 /**
  * Tokens the `countryCodeMatchesIpinfo` accessor emits. The filter list faces

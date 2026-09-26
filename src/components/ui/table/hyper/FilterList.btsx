@@ -22,6 +22,8 @@ module
     columns: FilterListColumn[]
     columnFilters: ColumnFiltersState
     onReset: () => void
+    /** Whether the filters differ from the table's defaults; falls back to "any filter is active". */
+    canReset?: boolean
     /** Which columns this list can filter, in the order they are listed. */
     filters: readonly FilterDefinition[]
     /** Screen-reader summary of what this particular table filters by. */
@@ -206,7 +208,7 @@ component CustomDatePanel
     Suspense(fallback={CalendarFallback})
       LazyCalendar(selectedRange={selectedRange} handleSelect={handleSelect} numberOfMonths={1} className='w-full bg-transparent p-1')
 
-props { columns, columnFilters, onReset, filters, description }: FilterListProps
+props { columns, columnFilters, onReset, canReset, filters, description }: FilterListProps
 setup
   const [open, setOpen] = useState(false)
   const [activeFilterId, setActiveFilterId] = useState<string | null>(null)
@@ -251,7 +253,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
     ~ aria-labelledby={labelId}
     ~ align='start'
     ~ sideOffset={7}
-    ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/80  bg-zinc-200/20 dark:bg-zinc-900/50 p-0! backdrop-blur-3xl'
+    ~ className='w-76 gap-0 overflow-hidden rounded-sm border border-border/80 bg-zinc-200 dark:bg-zinc-900/50 p-0! backdrop-blur-3xl'
     ~ )
     h4(id={labelId} className='sr-only') Add Filter
     p(id={descriptionId} className='sr-only') #{description ?? 'Narrow this table down to the rows you want.'}
@@ -294,7 +296,7 @@ Popover(open={open} onOpenChange={handleOpenChange})
         NumberRangePanel(column={activeColumn} definition={activeDefinition} rawFilterValue={activeFilterValue})
       else
         DatePanel(column={activeColumn} definition={activeDefinition} rawFilterValue={activeFilterValue} onCustomRange={() => setIsCustomDateRange(true)})
-      if activeFilterCount > 0
+      if canReset ?? activeFilterCount > 0
         div(className='flex justify-end border-t border-dashed border-border/60 py-1 px-3')
           Button(type='button' variant='ghost' size='sm' onClick={onReset} className='h-7 rounded-[5px]')
             Icon(name='no-filter' className='size-3.5')

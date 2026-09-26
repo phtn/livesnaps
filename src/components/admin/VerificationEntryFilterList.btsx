@@ -2,12 +2,12 @@ import FilterList from '@/components/ui/table/hyper/FilterList.btsx'
 import { titleCase } from '@/components/ui/table/hyper/filter-list-config'
 import type { FilterDefinition } from '@/components/ui/table/hyper/filter-list-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
-import type { snapsFeatures } from './table-config'
+import type { features } from './table-config'
 import { verificationEntryStatus, type VerificationEntryRow } from './data'
 import { VERIFICATION_ENTRY_STATUS_FILTERS } from './verification-entry-columns'
 
 module
-  type EntryFilterProps = DataTableFilterListProps<VerificationEntryRow, typeof snapsFeatures>
+  type EntryFilterProps = DataTableFilterListProps<VerificationEntryRow, typeof features>
 
   const getStatusLabel = (value: unknown) =>
     verificationEntryStatus[value as VerificationEntryRow['status']]?.label ?? titleCase(value)

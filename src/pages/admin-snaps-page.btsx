@@ -5,7 +5,7 @@ import { useSessionEmail } from '@/hooks/use-session-email'
 import { useAdminPages } from '@/hooks/use-admin-pages'
 import { workspaceJson } from '@/lib/accounts/link-client'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
-import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import { buildSnapGallery, DEFAULT_COLUMN_FILTERS, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
 import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
 import CreateVerificationEntryDialog from '@/components/admin/new-verification-entry.btsx'
 import { StartVerificationContext } from '@/components/admin/verification-status-cell.btsx'
@@ -119,6 +119,7 @@ Container(className='md:py-0')
             ~ columns={snapColumns}
             ~ filterList={SnapFilterList}
             ~ getRowId={(row) => row._id}
+            ~ initialColumnFilters={DEFAULT_COLUMN_FILTERS}
             ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
             ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
             ~ initialPageSize={50}

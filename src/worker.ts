@@ -4,6 +4,7 @@ import { handleAccountAdminConfirmation } from './server/account-confirmation-ro
 import { handleAdminAccount, handleAdminAccountLogo } from './server/admin-account-routes'
 import { handleAdminSession, handleAdminSessionToken } from './server/admin-auth-routes'
 import {
+  handleAdminAccountMember,
   handleAdminAccountMemberInvite,
   handleAdminAccountMemberList,
   handleAdminRegisteredUserSearch
@@ -82,6 +83,7 @@ const ADMIN_SNAPS_PATH = '/api/admin/snaps'
 const ADMIN_SNAP_DETAIL_PATH = /^\/api\/admin\/snaps\/([^/]+)$/
 const ADMIN_ACCOUNT_MEMBERS_PATH = '/api/admin/account-members'
 const ADMIN_USERS_PATH = '/api/admin/users'
+const ADMIN_ACCOUNT_MEMBER_PATH = '/api/admin/account-member'
 const ADMIN_ACCOUNT_PATH = '/api/admin/account'
 const ADMIN_ACCOUNT_LOGO_PATH = '/api/admin/account/logo'
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
@@ -225,6 +227,10 @@ export default {
       return request.method === 'POST'
         ? handleAdminAccountMemberInvite(request, { convexUrl })
         : handleAdminAccountMemberList(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_ACCOUNT_MEMBER_PATH) {
+      return handleAdminAccountMember(request, { convexUrl })
     }
 
     if (pathname === ADMIN_USERS_PATH) {

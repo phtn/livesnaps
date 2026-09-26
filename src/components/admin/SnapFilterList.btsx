@@ -3,12 +3,12 @@ import { titleCase } from '@/components/ui/table/hyper/filter-list-config'
 import type { FilterDefinition } from '@/components/ui/table/hyper/filter-list-config'
 import type { DataTableFilterListProps } from '@/components/ui/table/types'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
-import type { snapsFeatures } from './table-config'
+import type { features } from './table-config'
 import { IPC_MATCH_TOKENS } from './snap-columns'
 
 module
   type SnapRow = AdminSnapListItem
-  type SnapFilterProps = DataTableFilterListProps<SnapRow, typeof snapsFeatures>
+  type SnapFilterProps = DataTableFilterListProps<SnapRow, typeof features>
 
   // Matches the `status` union in `snapListItemSchema`; `pending` is the
   // fallback `listForAdmin` applies when a snap has no location session.
@@ -47,12 +47,13 @@ module
   const SNAP_FILTER_DESCRIPTION =
     'Filter the snaps table by status, vehicle, location match, accuracy, or creation date.'
 
-props { columns, columnFilters, onReset }: SnapFilterProps
+props { columns, columnFilters, onReset, canReset }: SnapFilterProps
 
 FilterList(
   ~ columns={columns}
   ~ columnFilters={columnFilters}
   ~ onReset={onReset}
+  ~ canReset={canReset}
   ~ filters={SNAP_FILTERS}
   ~ description={SNAP_FILTER_DESCRIPTION}
   ~ )

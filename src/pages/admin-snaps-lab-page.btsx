@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'octane'
 import { createSnapFixtures } from '@/components/admin/snap-fixtures'
-import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, PAGE_SIZES, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
+import { buildSnapGallery, DEFAULT_COLUMN_FILTERS, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, PAGE_SIZES, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
 import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
 import DataTable from '@/components/ui/table/DataTable.btsx'
 import { SnapRowActions } from '@/components/ui/table/row-actions.btsx'
@@ -67,6 +67,7 @@ main(className='md:p-7 bg-sunken')
         ~ columns={snapColumns}
         ~ filterList={SnapFilterList}
         ~ getRowId={(row) => row._id}
+        ~ initialColumnFilters={DEFAULT_COLUMN_FILTERS}
         ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
         ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
         ~ initialPageSize={50}

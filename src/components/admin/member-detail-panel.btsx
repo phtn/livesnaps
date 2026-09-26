@@ -1,0 +1,209 @@
+import { Link } from '@octanejs/tanstack-router'
+import { useEffect, useState } from 'octane'
+import { useWorkspace } from '@/hooks/use-workspace'
+import { Avatar, Badge, Button, Input } from '@/components/ui'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import { onError, onSuccess } from '@/lib/toast'
+import { isAbortError, readErrorMessage } from '@/lib/citadel/errors'
+import { ACCOUNT_MEMBER_TITLE_MAX_LENGTH, type AccountMemberRole } from '@/lib/accounts/members'
+import { ACCOUNT_MEMBER_ROLE_HINT, ACCOUNT_MEMBER_ROLE_LABEL, ACCOUNT_MEMBER_STATUS_LABEL, ACCOUNT_MEMBER_STATUS_TONE, fetchAccountMember, formatMemberDate, MEMBER_ROLES, updateAccountMember, type MemberChange, type MemberDetail } from '@/lib/admin/account-members'
+import InnerContainer from './inner-container.btsx'
+
+module
+  type DetailStatus = 'loading' | 'ready' | 'error'
+
+  const chipClassName =
+    'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border px-2.5 font-mono font-medium text-2xs uppercase tracking-wider transition-colors disabled:pointer-events-none disabled:opacity-40'
+  const sectionLabelClassName = 'font-mono text-2xs uppercase tracking-[0.18em] text-muted-foreground'
+
+  const initialsOf = (member: MemberDetail['member']) =>
+    (member.name ?? member.email)
+      .split(/[\s@._-]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('')
+
+component Fact
+  props { label, value }: { label: string; value: string }
+  div(className='flex flex-col gap-1')
+    dt(className={sectionLabelClassName}) #{label}
+    dd(className='text-sm text-foreground') #{value}
+
+props { memberId }: { memberId: string }
+setup
+  const account = useWorkspace()
+  const [detail, setDetail] = useState<MemberDetail | null>(null)
+  const [status, setStatus] = useState<DetailStatus>('loading')
+  const [error, setError] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
+  const [pendingAction, setPendingAction] = useState<MemberChange['action'] | null>(null)
+  const [titleDraft, setTitleDraft] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    setStatus('loading')
+    fetchAccountMember(memberId, controller.signal, account?.id)
+      .then((response) => {
+        setDetail(response)
+        setTitleDraft(response.member.title ?? '')
+        setError(null)
+        setStatus('ready')
+      })
+      .catch((failure: unknown) => {
+        if (isAbortError(failure)) return
+        setError(readErrorMessage(failure, 'Could not load this member.'))
+        setStatus('error')
+      })
+
+    return () => controller.abort()
+  }, [account?.id, memberId, reloadToken])
+
+  const member = detail?.member
+  const manage = detail?.access === 'manage' ? detail : null
+  const permissions = manage?.permissions
+  const displayName = member ? member.name ?? member.email.split('@').shift() ?? member.email : ''
+  const trimmedTitle = titleDraft.trim()
+  const isTitleDirty = member !== undefined && trimmedTitle !== (member.title ?? '')
+
+  const apply = async (change: MemberChange, successMessage: string) => {
+    if (pendingAction) return
+    setPendingAction(change.action)
+    try {
+      const updated = await updateAccountMember(memberId, change, account?.id)
+      setDetail(updated)
+      setTitleDraft(updated.member.title ?? '')
+      onSuccess(successMessage)
+    } catch (failure) {
+      onError(readErrorMessage(failure, 'Could not update this member.'))
+    } finally {
+      setPendingAction(null)
+    }
+  }
+
+  // An owner who is the last one cannot step down; the server refuses it too.
+  const isRoleLocked = (role: AccountMemberRole) =>
+    !permissions?.assignableRoles.includes(role) || (permissions.isLastOwner && role !== 'owner')
+
+  const changeRole = (role: AccountMemberRole) => {
+    if (!member || role === member.role || isRoleLocked(role)) return
+    void apply({ action: 'role', value: role }, `${displayName} is now ${ACCOUNT_MEMBER_ROLE_LABEL[role].toLowerCase()}.`)
+  }
+
+  const toggleStatus = () => {
+    if (!member) return
+    const next = member.status === 'suspended' ? 'active' : 'suspended'
+    void apply({ action: 'status', value: next }, next === 'active' ? `${displayName} was reactivated.` : `${displayName} was suspended.`)
+  }
+
+  const saveTitle = (event: SubmitEvent) => {
+    event.preventDefault()
+    if (!isTitleDirty) return
+    void apply({ action: 'title', value: trimmedTitle || null }, 'Title updated.')
+  }
+
+InnerContainer
+  Link(to='/admin-settings' className='inline-flex h-12 items-center gap-1.5 font-mono text-xs uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground')
+    Icon(name='arrow-left' className='size-3.5')
+    span Staff
+
+  if status === 'loading' && !member
+    div(className='grid place-items-center py-16 text-muted-foreground')
+      Icon(name='spinner-ring' className='size-5')
+  elseif status === 'error' && !member
+    div(className='rounded-sm border border-destructive/40 bg-destructive/10 px-3 py-3 text-sm text-destructive')
+      p #{error}
+      button(type='button' onClick={() => setReloadToken((token) => token + 1)} className='mt-2 font-mono text-xs uppercase underline') Try again
+  elseif member
+    div(className='flex flex-col gap-6')
+      header(className='flex flex-wrap items-center justify-between gap-4 rounded-lg border border-sidebar-border bg-table-head/50 px-4 py-5')
+        div(className='flex min-w-0 items-center gap-4')
+          Avatar(
+            ~ imageUrl={member.avatar.src}
+            ~ fallbackImageUrl={member.avatar.fallbackSrc}
+            ~ alt={displayName}
+            ~ fallback={initialsOf(member)}
+            ~ className='size-12 border-0 bg-foreground/10 font-mono text-xs'
+            ~ )
+          div(className='min-w-0')
+            h2(className='truncate font-poly text-lg font-medium tracking-tight') #{displayName}
+            p(className='truncate font-mono text-xs text-muted-foreground') #{member.email}
+            if member.title
+              p(className='mt-1 truncate text-sm text-foreground/80 capitalize') #{member.title}
+        div(className='flex items-center gap-2')
+          span(className='font-mono text-xs text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_LABEL[member.role]}
+          Badge(variant='plain' className={cn('rounded-xs border font-mono text-2xs uppercase tracking-wider', ACCOUNT_MEMBER_STATUS_TONE[member.status])}) #{ACCOUNT_MEMBER_STATUS_LABEL[member.status]}
+
+      if manage
+        fragment
+          dl(className='grid grid-cols-2 gap-4 px-1 md:grid-cols-4')
+            Fact(label='Invited' value={formatMemberDate(manage.member.invitedAt)})
+            Fact(label='Joined' value={formatMemberDate(member.joinedAt)})
+            Fact(label='Last change' value={formatMemberDate(manage.member.updatedAt)})
+            Fact(label='Role' value={ACCOUNT_MEMBER_ROLE_LABEL[member.role]})
+
+          section(className='flex flex-col gap-3 rounded-lg border border-sidebar-border px-4 py-4')
+            div
+              p(className={sectionLabelClassName}) Title
+              p(className='mt-1 text-sm text-muted-foreground') Shown next to their name on the staff list.
+            form(className='flex flex-wrap items-center gap-2' onSubmit={saveTitle})
+              Input(
+                ~ id='member-title'
+                ~ className='min-w-0 flex-1 rounded-xs'
+                ~ maxLength={ACCOUNT_MEMBER_TITLE_MAX_LENGTH}
+                ~ placeholder='e.g. Field coordinator'
+                ~ value={titleDraft}
+                ~ disabled={!permissions?.canEditTitle || pendingAction !== null}
+                ~ aria-label='Member title'
+                ~ onInput={(event: Event) => setTitleDraft((event.currentTarget as HTMLInputElement).value)}
+                ~ )
+              Button(
+                ~ type='submit'
+                ~ variant='dark'
+                ~ label='Save'
+                ~ pending={pendingAction === 'title'}
+                ~ pendingLabel='Saving…'
+                ~ disabled={!permissions?.canEditTitle || !isTitleDirty || pendingAction !== null}
+                ~ )
+
+          section(className='flex flex-col gap-3 rounded-lg border border-sidebar-border px-4 py-4')
+            div
+              p(className={sectionLabelClassName}) Access role
+              p(className='mt-1 text-sm text-muted-foreground') #{ACCOUNT_MEMBER_ROLE_HINT[member.role]}
+            div(className='flex flex-wrap gap-1.5')
+              each role in MEMBER_ROLES key role
+                button(
+                  ~ type='button'
+                  ~ onClick={() => changeRole(role)}
+                  ~ aria-pressed={member.role === role}
+                  ~ disabled={pendingAction !== null || (member.role !== role && isRoleLocked(role))}
+                  ~ className={cn(chipClassName, member.role === role ? 'border-mist-500 bg-mist-500 text-white' : 'border-border/60 text-muted-foreground hover:bg-accent')}
+                  ~ )
+                  if pendingAction === 'role' && member.role !== role
+                    Icon(name='spinner-ring' className='size-3')
+                  | #{ACCOUNT_MEMBER_ROLE_LABEL[role]}
+            if permissions?.isLastOwner
+              p(className='font-mono text-xs text-muted-foreground') The last owner cannot change role. Make someone else an owner first.
+            elseif permissions && permissions.assignableRoles.length === 0
+              p(className='font-mono text-xs text-muted-foreground') Only an account owner can change an admin or another owner.
+
+          section(className='flex flex-wrap items-center justify-between gap-3 rounded-lg border border-sidebar-border px-4 py-4')
+            div(className='min-w-0')
+              p(className={sectionLabelClassName}) Access
+              p(className='mt-1 text-sm text-muted-foreground') #{member.status === 'invited' ? 'The invitation has not been accepted yet.' : member.status === 'suspended' ? 'Suspended members cannot open this workspace.' : 'Active members can open this workspace.'}
+            Button(
+              ~ variant={member.status === 'suspended' ? 'dark' : 'ghost'}
+              ~ label={member.status === 'suspended' ? 'Reactivate' : 'Suspend'}
+              ~ pending={pendingAction === 'status'}
+              ~ pendingLabel='Saving…'
+              ~ disabled={!permissions?.canChangeStatus || pendingAction !== null}
+              ~ onClick={toggleStatus}
+              ~ )
+      else
+        dl(className='grid grid-cols-2 gap-4 px-1')
+          Fact(label='Role' value={ACCOUNT_MEMBER_ROLE_LABEL[member.role]})
+          Fact(label='Joined' value={formatMemberDate(member.joinedAt)})
+
+  div(className='h-36 w-full')
