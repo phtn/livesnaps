@@ -1,11 +1,14 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
 import { createElement, useCallback, useEffect, useMemo, useState } from 'octane'
 import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
+import { useSessionEmail } from '@/hooks/use-session-email'
 import { useAdminPages } from '@/hooks/use-admin-pages'
 import { workspaceJson } from '@/lib/accounts/link-client'
 import type { AdminSnapListItem } from '@/lib/snaps/admin-photo-types'
 import { buildSnapGallery, DEFAULT_COLUMN_PINNING, DEFAULT_COLUMN_VISIBILITY, EMPTY_SNAPS, PAGE_SIZES, SNAP_LIST_LIMIT, snapColumns, toViewerPhotos, type SnapRow } from '@/components/admin/snap-columns'
 import { exportSnapReportById } from '@/components/admin/downloadSnapReport'
+import CreateVerificationEntryDialog from '@/components/admin/new-verification-entry.btsx'
+import { StartVerificationContext } from '@/components/admin/verification-status-cell.btsx'
 import DataTable from '@/components/ui/table/DataTable.btsx'
 import { SnapRowActions } from '@/components/ui/table/row-actions.btsx'
 import SnapFilterList from '@/components/admin/SnapFilterList.btsx'
@@ -88,6 +91,15 @@ setup
     if (!open) setReportViewerSnapId(null)
   }, [])
 
+  // Members and above can start a verification from a "Not Started" badge,
+  // which opens the create drawer with that snap already picked.
+  const canWrite = account?.role !== 'viewer'
+  const sessionEmail = useSessionEmail()
+  const [verifySnapId, setVerifySnapId] = useState<SnapRow['_id'] | null>(null)
+  const closeVerifyDrawer = useCallback((open: boolean) => {
+    if (!open) setVerifySnapId(null)
+  }, [])
+
 Container(className='md:py-0')
   if isLoading && !hasRows
     Loading
@@ -95,36 +107,37 @@ Container(className='md:py-0')
     ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
   else
     SnapHandlerProvider(refresh={refresh})
-      SnapRowActions.Provider(
-        ~ onExportReport={exportSnapReportById}
-        ~ onOpenPhotoViewer={setActivePhotoSnapId}
-        ~ onOpenReportViewer={setReportViewerSnapId}
-        ~ )
-        DataTable(
-          ~ title='Snaps'
-          ~ data={rows}
-          ~ columns={snapColumns}
-          ~ filterList={SnapFilterList}
-          ~ getRowId={(row) => row._id}
-          ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
-          ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
-          ~ initialPageSize={50}
-          ~ pageSizes={PAGE_SIZES}
-          ~ titleActions={sourceLinkSelect}
-          ~ emptyTitle='No snaps'
-          ~ emptyDescription='Snaps will appear here as they are captured.'
+      StartVerificationContext.Provider(value={canWrite ? setVerifySnapId : null})
+        SnapRowActions.Provider(
+          ~ onExportReport={exportSnapReportById}
+          ~ onOpenPhotoViewer={setActivePhotoSnapId}
+          ~ onOpenReportViewer={setReportViewerSnapId}
           ~ )
-          fragment
-            div(className='flex items-center gap-2 text-xs text-muted-foreground')
-              if error
-                span(className='text-destructive') #{error} — showing the last successful load.
-              else
-                div(className='flex items-center gap-1')
-                  span(className='font-mono') #{freshnessLabel}
-              button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
-                Icon(name='refresh' size={14} className='-rotate-6 group-active:-rotate-90 transition-transform duration-200 ease-out')
-              if hasMore
-                button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
+          DataTable(
+            ~ title='Snaps'
+            ~ data={rows}
+            ~ columns={snapColumns}
+            ~ filterList={SnapFilterList}
+            ~ getRowId={(row) => row._id}
+            ~ initialColumnPinning={DEFAULT_COLUMN_PINNING}
+            ~ initialColumnVisibility={DEFAULT_COLUMN_VISIBILITY}
+            ~ initialPageSize={50}
+            ~ pageSizes={PAGE_SIZES}
+            ~ titleActions={sourceLinkSelect}
+            ~ emptyTitle='No snaps'
+            ~ emptyDescription='Snaps will appear here as they are captured.'
+            ~ )
+            fragment
+              div(className='flex items-center gap-2 text-xs text-muted-foreground')
+                if error
+                  span(className='text-destructive') #{error} — showing the last successful load.
+                else
+                  div(className='flex items-center gap-1')
+                    span(className='font-mono') #{freshnessLabel}
+                button(type='button' className='group hover:bg-sidebar rounded-sm active:bg-sidebar-border active:scale-97 transition-all duration-200 ease-out' onClick={refresh})
+                  Icon(name='refresh' size={14} className='-rotate-6 group-active:-rotate-90 transition-transform duration-200 ease-out')
+                if hasMore
+                  button(type='button' onClick={loadMore} disabled={isLoading} className='rounded border border-border px-3 py-1.5 text-xs disabled:opacity-50') #{isLoading ? 'Loading…' : 'Load more'}
   if gallery
     PhotoViewer(
       ~ open={true}
@@ -137,3 +150,12 @@ Container(className='md:py-0')
     ~ open={reportViewerSnapId !== null}
     ~ onOpenChange={closeReportViewer}
     ~ )
+  if canWrite
+    CreateVerificationEntryDialog(
+      ~ emailFromAddress={sessionEmail}
+      ~ snaps={rows}
+      ~ open={verifySnapId !== null}
+      ~ onOpenChange={closeVerifyDrawer}
+      ~ initialSnapId={verifySnapId ?? undefined}
+      ~ onCreated={refresh}
+      ~ )

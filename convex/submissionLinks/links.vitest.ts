@@ -433,6 +433,30 @@ describe('Account submission links and immutable ownership', () => {
     ).toBe(0)
   })
 
+  test('cleanup deletes abandoned snaps but keeps handled ones, active ones, and the analytics', async () => {
+    for (const id of [1, 2, 3]) await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(id))
+    vi.setSystemTime(new Date('2026-09-09T01:00:00.000Z'))
+    await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(4))
+    expect(await t.mutation(internal.snaps.m.abandonExpiredSessions, {})).toMatchObject({ abandoned: 3 })
+    const snapFor = (id: number) =>
+      t.run((ctx) =>
+        ctx.db
+          .query('snaps')
+          .withIndex('by_metadata_upload_id', (q) => q.eq('metadata.upload_id', uid(id)))
+          .unique()
+      )
+    const handled = await snapFor(2)
+    await t.run((ctx) => ctx.db.patch('snaps', handled!._id, { handler: { email: 'h@example.com', name: 'Handler' } }))
+
+    expect(await t.mutation(internal.snaps.cleanup.deleteAbandonedSnaps, {})).toEqual({ deleted: 2, hasMore: false })
+    expect(await snapFor(1)).toBeNull()
+    expect(await snapFor(2)).not.toBeNull()
+    expect(await snapFor(3)).toBeNull()
+    expect(await snapFor(4)).toMatchObject({ location_session: { status: 'active' } })
+    expect(await t.mutation(internal.snaps.cleanup.deleteAbandonedSnaps, {})).toEqual({ deleted: 0, hasMore: false })
+    expect((await analytics()).totals).toMatchObject({ started: 3, abandoned: 3 })
+  })
+
   test('all active members can read link analytics; other Accounts and gods without membership cannot', async () => {
     await t.withIdentity(applicant).mutation(api.snaps.m.startSession, args(1))
     for (const identity of [owner, viewer]) {

@@ -31,6 +31,14 @@ module
     /** Called after a successful create so the table can pick the row up early. */
     onCreated?: () => void
     snaps: readonly AdminSnapListItem[]
+    /**
+     * Pass to control the drawer from outside (e.g. a table cell's menu). The
+     * built-in "New" trigger is then not rendered.
+     */
+    open?: boolean
+    onOpenChange?: (open: boolean) => void
+    /** Preselected when the drawer opens, skipping the snap picker. */
+    initialSnapId?: string
   }
 
   // Long lists make the picker useless rather than more useful — the search box
@@ -95,10 +103,16 @@ component EmailField
     if message
       p(id={errorId} className={errorTextClassName}) #{message}
 
-props { emailFromAddress, isLoadingSnaps = false, onCreated, snaps }: CreateVerificationEntryDialogProps
+props { emailFromAddress, isLoadingSnaps = false, onCreated, snaps, open, onOpenChange, initialSnapId }: CreateVerificationEntryDialogProps
 
 setup
-  const [isOpen, setIsOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? open : uncontrolledOpen
+  const setIsOpen = (next: boolean) => {
+    if (!isControlled) setUncontrolledOpen(next)
+    onOpenChange?.(next)
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const account = useWorkspace()
   const { settings: recipientDefaults, error: recipientDefaultsError } = useRecipientDefaults(account?.id, isOpen)
@@ -135,6 +149,10 @@ setup
     setIsOpen(false)
     entryForm.reset(verificationEntryFormDefaults())
   }, [account?.id])
+
+  useEffect(() => {
+    if (isOpen && initialSnapId) entryForm.setFieldValue('snapId', initialSnapId)
+  }, [isOpen, initialSnapId])
 
   const selectedSnapId = useSelector(entryForm.store, (state) => state.values.snapId)
   const emailToAddress = useSelector(entryForm.store, (state) => state.values.emailToAddress)
@@ -261,15 +279,16 @@ setup
   }
 
 fragment
-  IconButton(
-    ~ id='create-new-entry'
-    ~ size='sm'
-    ~ variant='dark'
-    ~ icon='plus'
-    ~ label={isMobile ? undefined : 'New'}
-    // ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
-    ~ onClick={() => setIsOpen(true)}
-    ~ )
+  if !isControlled
+    IconButton(
+      ~ id='create-new-entry'
+      ~ size='sm'
+      ~ variant='dark'
+      ~ icon='plus'
+      ~ label={isMobile ? undefined : 'New'}
+      // ~ className='rounded-xs portrait:gap-0! flex portrait:justify-center portrait:size-6 portrait:aspect-square md:gap-2 portrait:px-0'
+      ~ onClick={() => setIsOpen(true)}
+      ~ )
 
   Drawer.Root(open={isOpen} onOpenChange={handleOpenChange} direction={direction})
     Drawer.Portal

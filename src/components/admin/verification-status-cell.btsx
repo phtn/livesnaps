@@ -1,0 +1,60 @@
+import { createContext, use } from 'octane'
+import DropdownMenu, { DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu.btsx'
+import { Icon } from '@/lib/icons'
+import { cn } from '@/lib/utils'
+import type { SnapRow } from './snap-columns'
+import StatusBadge from './badges.btsx'
+import { snapVerificationStatus } from './data'
+
+module
+  export type StartSnapVerification = (snapId: SnapRow['_id']) => void
+
+  /**
+   * Provided only where the viewer can write (member and above). Without it the
+   * cell renders the plain badge, so the fixture lab and read-only viewers get
+   * no menu.
+   */
+  export const StartVerificationContext = createContext<StartSnapVerification | null>(null)
+
+  // Mirrors `verificationEntries.m.create`: it refuses a snap that already has a
+  // handler, and the create drawer only offers completed snaps.
+  const ineligibleReason = (snap: SnapRow) =>
+    snap.status !== 'completed' ? 'Snap is not completed' : snap.handler ? 'Handler already assigned' : null
+
+props { snap, status }: { snap: SnapRow; status: keyof typeof snapVerificationStatus }
+setup
+  const startVerification = use(StartVerificationContext)
+  const presentation = snapVerificationStatus[status]
+  const reason = ineligibleReason(snap)
+  const snapLabel = snap.plateNumber || snap.uploadId
+
+fragment
+  if startVerification && status === 'unsubmitted'
+    DropdownMenu
+      DropdownMenuTrigger(
+        ~ onClick={(event: MouseEvent) => event.stopPropagation()}
+        ~ aria-label={`Verification options for ${snapLabel}`}
+        ~ className='cursor-pointer rounded-md outline-none transition-opacity hover:opacity-80 focus-visible:ring-2 focus-visible:ring-ring'
+        ~ )
+        StatusBadge(presentation={presentation})
+
+      DropdownMenuContent(
+        ~ align='start'
+        ~ sideOffset={4}
+        ~ className='w-56 ring-0 rounded-md dark:bg-zinc-900/50 bg-zinc-200/20 border border-border shadow-sm backdrop-blur-3xl'
+        ~ onClick={(event: MouseEvent) => event.stopPropagation()}
+        ~ )
+        DropdownMenuGroup
+          DropdownMenuLabel(className='border-b border-dashed border-border/50') #{snapLabel}
+          DropdownMenuItem(
+            ~ disabled={reason !== null}
+            ~ onClick={() => startVerification(snap._id)}
+            ~ className='h-12 rounded-xs'
+            ~ )
+            Icon(name='safe-shield' className={cn('size-4 opacity-80')})
+            span(className='flex min-w-0 flex-col')
+              span Start verification
+              if reason
+                span(className='text-2xs text-muted-foreground') #{reason}
+  else
+    StatusBadge(presentation={presentation})

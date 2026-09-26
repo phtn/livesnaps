@@ -1,6 +1,7 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
-import { createElement, useCallback, useEffect, useState } from 'octane'
+import { createElement, useCallback, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
+import { useSessionEmail } from '@/hooks/use-session-email'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
 import { accountEndpoint, useWorkspace } from '@/hooks/use-workspace'
 import { useAdminPages } from '@/hooks/use-admin-pages'
@@ -37,35 +38,7 @@ setup
   // Its own poll shares the same Worker route the snaps table uses.
   const { isLoading: isLoadingSnaps, refresh: refreshSnaps, snaps } = useAdminSnaps(SNAP_LIST_LIMIT)
 
-  // The signed-in administrator's address. `create` derives the real sender
-  // from the Convex identity; this is shown so the operator can see which
-  // account the entry will be attributed to before committing.
-  const [sessionEmail, setSessionEmail] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      try {
-        const response = await fetch('/api/admin/session', { credentials: 'same-origin' })
-        if (!response.ok) return
-
-        const payload: unknown = await response.json()
-        const email =
-          typeof payload === 'object' && payload !== null && typeof (payload as { email?: unknown }).email === 'string'
-            ? (payload as { email: string }).email
-            : ''
-
-        if (!cancelled) setSessionEmail(email)
-      } catch {
-        // The dialog degrades to a disabled submit rather than a broken page.
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const sessionEmail = useSessionEmail()
 
   const [sendEntry, setSendEntry] = useState<VerificationEntryRow | null>(null)
   const closeSendDialog = useCallback((open: boolean) => {

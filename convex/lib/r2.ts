@@ -1,5 +1,5 @@
 /**
- * Reads snap photos and writes user avatars straight to R2 from inside a Convex action.
+ * Reads and deletes snap photos and writes user avatars straight to R2 from inside a Convex action.
  *
  * The Worker has its own copy of this signing in `src/lib/r2/server.ts`, but
  * that one is built on `node:crypto` and this file has to run in the Convex
@@ -72,7 +72,7 @@ export const isR2Configured = (): boolean =>
   )
 
 async function requestR2(
-  method: 'GET' | 'PUT',
+  method: 'GET' | 'PUT' | 'DELETE',
   objectKey: string,
   body?: { bytes: Uint8Array; contentType: string }
 ): Promise<Response> {
@@ -127,6 +127,15 @@ export async function putR2Object(objectKey: string, bytes: Uint8Array, contentT
 
   if (!response.ok) {
     throw new Error(`R2 write failed for ${objectKey} (${response.status}).`)
+  }
+}
+
+/** Deletes one object. An already-missing object counts as deleted. */
+export async function deleteR2Object(objectKey: string): Promise<void> {
+  const response = await requestR2('DELETE', objectKey)
+
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`R2 delete failed for ${objectKey} (${response.status}).`)
   }
 }
 

@@ -10,9 +10,10 @@ import { format } from 'date-fns'
 import { createElement } from 'octane'
 import { createHeader } from '../ui/table/hyper/create-header'
 import StatusBadge from './badges.btsx'
-import { snapIpcMatchStatus, snapSessionStatus, snapVerificationStatus } from './data'
+import { snapIpcMatchStatus, snapSessionStatus } from './data'
 import SnapHandler from './snap-handler.btsx'
 import type { features } from './table-config'
+import VerificationStatusCell from './verification-status-cell.btsx'
 
 /**
  * Shared table definition for the snaps admin table.
@@ -160,7 +161,7 @@ export const snapColumns = columnHelper.columns([
     enableColumnFilter: true,
     // `flexRender` invokes a `cell` as a component, so this returns a node
     // descriptor rather than markup — this module is plain TypeScript.
-    cell: (info) => createElement(StatusBadge, { presentation: snapVerificationStatus[info.getValue()] })
+    cell: (info) => createElement(VerificationStatusCell, { snap: info.row.original, status: info.getValue() })
   }),
   columnHelper.accessor('updatedAt', {
     header: createHeader('Updated'),

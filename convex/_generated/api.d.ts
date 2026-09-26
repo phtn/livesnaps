@@ -35,6 +35,7 @@ import type * as sheets from "../sheets.js";
 import type * as snapSettings_d from "../snapSettings/d.js";
 import type * as snapSettings_m from "../snapSettings/m.js";
 import type * as snapSettings_q from "../snapSettings/q.js";
+import type * as snaps_cleanup from "../snaps/cleanup.js";
 import type * as snaps_d from "../snaps/d.js";
 import type * as snaps_handlers from "../snaps/handlers.js";
 import type * as snaps_m from "../snaps/m.js";
@@ -93,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "snapSettings/d": typeof snapSettings_d;
   "snapSettings/m": typeof snapSettings_m;
   "snapSettings/q": typeof snapSettings_q;
+  "snaps/cleanup": typeof snaps_cleanup;
   "snaps/d": typeof snaps_d;
   "snaps/handlers": typeof snaps_handlers;
   "snaps/m": typeof snaps_m;

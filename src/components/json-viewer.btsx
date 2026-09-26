@@ -1,196 +1,355 @@
-import { useMemo, useState } from "octane";
+module "use client";
+import { createContext, use, useEffect, useMemo, useRef, useState } from "octane";
 import type { OctaneNode } from "octane";
+import { Icon } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 module
-  type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
-  type JsonObject = {
-    ~ [key: string]: JsonValue;
-    ~ };
+  type JsonPrimitive = string | number | boolean | null;
+  type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+  type JsonObject = { [key: string]: JsonValue };
   type JsonArray = JsonValue[];
-  export interface JsonViewerProps {
-    ~ data: unknown;
-    ~ maxHeight?: string;
-    ~ withToolbar?: boolean;
-    ~ children?: OctaneNode;
-    ~ }
-  interface RenderValueProps {
-    ~ value: JsonValue;
-    ~ path?: string;
-    ~ depth?: number;
-    ~ isChild?: boolean;
-    ~ isExpanded: (path: string) => boolean;
-    ~ togglePath: (path: string) => void;
-    ~ isExpandable: (value: JsonValue) => boolean;
-    ~ }
-  interface ObjectEntryProps {
-    ~ parentPath: string;
-    ~ entryKey: string;
-    ~ entryValue: JsonValue;
-    ~ depth?: number;
-    ~ isExpanded: (path: string) => boolean;
-    ~ togglePath: (path: string) => void;
-    ~ isExpandable: (value: JsonValue) => boolean;
-    ~ }
   type ViewMode = "tree" | "raw";
-component RenderValue
-  props { value, path = "", depth = 0, isChild = false, isExpanded, togglePath, isExpandable }: RenderValueProps
+
+  interface JsonViewerProps {
+    data: unknown;
+    maxHeight?: string;
+    withToolbar?: boolean;
+    // levels open on first render; the toolbar's 1 / 2 / 3 / all buttons change it
+    defaultExpandDepth?: number;
+    // when set, pinned paths are remembered in localStorage under this key
+    persistKey?: string;
+    children?: OctaneNode;
+  }
+
+  interface Entry { label: string; value: JsonValue; path: string }
+  interface PathIndex {
+    values: Map<string, JsonValue>;
+    labels: Map<string, string>;
+    parents: Map<string, string>;
+  }
+  interface Token { text: string; className: string }
+
+  interface ViewerContextValue {
+    isExpanded: (path: string, depth: number) => boolean;
+    toggle: (path: string, depth: number) => void;
+    matches: Set<string>;
+    changed: Set<string>;
+    changedAncestors: Set<string>;
+    pinned: string[];
+    togglePin: (path: string) => void;
+    copy: (text: string, id: string) => void;
+    copiedId: string | null;
+    fullStrings: Set<string>;
+    toggleFullString: (path: string) => void;
+    now: number;
+  }
+
+  const INLINE_MAX = 60;
+  const STRING_MAX = 100;
+  const FLASH_MS = 1500;
+  const RAW_HIGHLIGHT_MAX = 200_000;
+  const ALL_LEVELS = Number.POSITIVE_INFINITY;
+
+  const KEY_CLASS = "text-zinc-700 dark:text-zinc-300";
+  const STRING_CLASS = "text-orange-500 dark:text-orange-300";
+  const NUMBER_CLASS = "text-sky-600 dark:text-sky-300";
+  const BOOLEAN_CLASS = "text-indigo-600 dark:text-indigo-400";
+  const NULL_CLASS = "text-zinc-500 dark:text-rose-300 italic";
+  const PUNCT_CLASS = "text-zinc-400 dark:text-zinc-500";
+  const ACTION_CLASS = "rounded px-1 text-[10px] leading-4 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200";
+  const SEGMENT_CLASS = "flex items-center gap-0.5 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-900";
+  const segmentButtonClass = (active: boolean) => cn(
+    "rounded px-2 py-0.5 font-mono text-xs transition-all",
+    active
+      ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
+      : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100",
+  );
+
+  const ISO_DATE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$/;
+  const URL_PATTERN = /^https?:\/\/\S+$/;
+  const TOKEN_PATTERN = /("(?:\\.|[^"\\])*")(\s*:)?|\btrue\b|\bfalse\b|\bnull\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g;
+
+  const isContainer = (value: JsonValue): value is JsonObject | JsonArray => value !== null && typeof value === "object";
+
+  const childPath = (path: string, key: string | number, inArray: boolean) =>
+    inArray ? `${path}[${key}]` : path ? `${path}.${key}` : String(key);
+
+  const entriesOf = (value: JsonValue, path: string): Entry[] => {
+    if (Array.isArray(value)) {
+      return value.map((item, index) => ({ label: String(index), value: item, path: childPath(path, index, true) }));
+    }
+    if (isContainer(value)) {
+      return Object.keys(value).map((key) => ({ label: key, value: value[key], path: childPath(path, key, false) }));
+    }
+    return [];
+  };
+
+  // Primitives, empty containers, number arrays and short flat containers print on one row.
+  const isInline = (value: JsonValue): boolean => {
+    if (!isContainer(value)) return true;
+    const items = Array.isArray(value) ? value : Object.values(value);
+    if (items.length === 0) return true;
+    if (!items.every((item) => !isContainer(item))) return false;
+    if (Array.isArray(value) && value.every((item) => typeof item === "number")) return true;
+    return JSON.stringify(value).length <= INLINE_MAX;
+  };
+
+  const isExpandable = (value: JsonValue) => isContainer(value) && !isInline(value);
+
+  const typeName = (value: JsonValue) => (value === null ? "null" : Array.isArray(value) ? "array" : typeof value);
+
+  const summarize = (value: JsonObject | JsonArray) => {
+    if (Array.isArray(value)) {
+      const types = new Set(value.map(typeName));
+      const body = types.size === 1 ? `${value.length} × ${[...types][0]}` : `${value.length} items`;
+      return `[ ${body} ]`;
+    }
+    const count = Object.keys(value).length;
+    return `{ ${count} key${count !== 1 ? "s" : ""} }`;
+  };
+
+  const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["year", 31_536_000], ["month", 2_592_000], ["day", 86_400], ["hour", 3_600], ["minute", 60], ["second", 1],
+  ];
+  const relativeFormat = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+  const relativeTime = (iso: string, now: number) => {
+    const seconds = (Date.parse(iso) - now) / 1000;
+    const [unit, size] = RELATIVE_UNITS.find(([, unitSize]) => Math.abs(seconds) >= unitSize) ?? ["second", 1];
+    return relativeFormat.format(Math.round(seconds / size), unit);
+  };
+
+  const indexPaths = (root: JsonValue): PathIndex => {
+    const index: PathIndex = { values: new Map(), labels: new Map(), parents: new Map() };
+    const visit = (value: JsonValue, path: string) => {
+      index.values.set(path, value);
+      for (const entry of entriesOf(value, path)) {
+        index.labels.set(entry.path, entry.label);
+        index.parents.set(entry.path, path);
+        visit(entry.value, entry.path);
+      }
+    };
+    visit(root, "");
+    return index;
+  };
+
+  const diffIndex = (prev: PathIndex, next: PathIndex) => {
+    const changed = new Set<string>();
+    for (const [path, value] of next.values) {
+      if (path === "" || !isInline(value)) continue;
+      if (!prev.values.has(path) || JSON.stringify(prev.values.get(path)) !== JSON.stringify(value)) changed.add(path);
+    }
+    return changed;
+  };
+
+  const ancestorsOf = (paths: Set<string>, index: PathIndex) => {
+    const ancestors = new Set<string>();
+    for (const path of paths) {
+      let parent = index.parents.get(path);
+      while (parent !== undefined && !ancestors.has(parent)) {
+        ancestors.add(parent);
+        parent = index.parents.get(parent);
+      }
+    }
+    return ancestors;
+  };
+
+  const tokenize = (text: string): Token[] => {
+    const tokens: Token[] = [];
+    let last = 0;
+    for (const match of text.matchAll(TOKEN_PATTERN)) {
+      const start = match.index ?? 0;
+      if (start > last) tokens.push({ text: text.slice(last, start), className: PUNCT_CLASS });
+      if (match[1] && match[2]) {
+        tokens.push({ text: match[1], className: KEY_CLASS });
+        tokens.push({ text: match[2], className: PUNCT_CLASS });
+      }
+      else {
+        const word = match[0];
+        const className = match[1] ? STRING_CLASS : word === "null" ? NULL_CLASS : word === "true" || word === "false" ? BOOLEAN_CLASS : NUMBER_CLASS;
+        tokens.push({ text: word, className });
+      }
+      last = start + match[0].length;
+    }
+    if (last < text.length) tokens.push({ text: text.slice(last), className: PUNCT_CLASS });
+    return tokens;
+  };
+
+  const pinStorageKey = (key: string) => `json-viewer:pins:${key}`;
+  const readPins = (key?: string): string[] => {
+    if (!key) return [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(pinStorageKey(key)) ?? "[]");
+      return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
+    }
+    catch {
+      return [];
+    }
+  };
+  const writePins = (key: string | undefined, pins: string[]) => {
+    if (!key) return;
+    try {
+      localStorage.setItem(pinStorageKey(key), JSON.stringify(pins));
+    }
+    catch {
+      // storage unavailable (private mode, blocked site data) — pins stay in memory
+    }
+  };
+
+  const copyText = (value: JsonValue) => (typeof value === "string" ? value : JSON.stringify(value, null, 2));
+
+  const ViewerContext = createContext<ViewerContextValue | null>(null);
+  function useViewer(): ViewerContextValue {
+    const context = use(ViewerContext);
+    if (context === null) throw new Error("useViewer must be used within JsonViewer.");
+    return context;
+  }
+// NOTE: a `scope` placed directly under an if/elseif branch, or a branch holding only `| text`, compiles to
+// nothing — values live in component setup and branch text is always wrapped in an element.
+component PrimitiveValue
+  props { value, path }: { value: JsonPrimitive; path: string }
   setup
-    const stringValue = typeof value === "string" ? value : "";
-    const displayValue = stringValue.length > 100 ? `${stringValue.substring(0, 100)}...` : stringValue;
-    const recordValue = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonObject) : null;
-    const keys = recordValue ? Object.keys(recordValue) : [];
-    const expanded = isExpanded(path);
+    const { fullStrings, toggleFullString, now } = useViewer();
+    const text = typeof value === "string" ? value : "";
+    const isLong = text.length > STRING_MAX;
+    const showFull = fullStrings.has(path);
+    const shown = isLong && !showFull ? `${text.slice(0, STRING_MAX)}…` : text;
+    const isDate = ISO_DATE.test(text) && !Number.isNaN(Date.parse(text));
+    const isUrl = URL_PATTERN.test(text);
   if value === null
-    span(className="font-mono text-zinc-500 dark:text-rose-300 italic") null
+    span(className={NULL_CLASS}) null
   elseif typeof value === "number"
-    span(className="font-mono text-sky-600 dark:text-sky-300") #{String(value)}
+    span(className={NUMBER_CLASS}) #{String(value)}
   elseif typeof value === "boolean"
-    span(className="font-mono text-indigo-600 dark:text-indigo-400") #{String(value)}
-  elseif typeof value === "string"
-    span(className="text-orange-500 dark:text-orange-300")
-      | &quot;
-      span.wrap-break-words #{displayValue}
-      | &quot;
-  elseif Array.isArray(value)
-    if value.length === 0
-      span(className="text-zinc-500 dark:text-zinc-400") []
-    else
-      if isChild
-        if !expanded
-          span(className="text-zinc-400 dark:text-zinc-500")
-            | [
-            span(className="text-zinc-600 dark:text-zinc-400") #{value.length} item#{value.length !== 1 ? "s" : ""}
-            | ]
-        else
-          div(className="mt-0.5")
-            div(className="space-y-1.5")
-              each item, index in value key index
-                div(className="flex items-start justify-start gap-2")
-                  span(className="text-zinc-500 dark:text-zinc-500 text-xs shrink-0 mt-0.5") #{index}
-                  div(className="flex-1 min-w-0")
-                    RenderValue(
-                      ~ value={item}
-                      ~ path={`${path}[${index}]`}
-                      ~ depth={depth + 1}
-                      ~ isExpanded={isExpanded}
-                      ~ togglePath={togglePath}
-                      ~ isExpandable={isExpandable}
-                      ~ )
-      else
-        div
-          button(
-            ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
-            ~ onClick={() => togglePath(path)}
-            ~ )
-            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-              if expanded
-                | #{"▼"}
-              else
-                | #{"▶"}
-            span(className="text-zinc-400 dark:text-zinc-500") [
-            span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{value.length} item#{value.length !== 1 ? "s" : ""}
-            span(className="text-zinc-400 dark:text-zinc-500") ]
-          if expanded
-            div(className="mt-1.5 space-y-1.5")
-              each item, index in value key index
-                div(className="flex items-center gap-1")
-                  span(className="text-zinc-500 dark:text-zinc-500 text-[8px] shrink-0 mt-0.5") #{index}
-                  div(className="flex-1 min-w-0")
-                    RenderValue(
-                      ~ value={item}
-                      ~ path={`${path}[${index}]`}
-                      ~ depth={depth + 1}
-                      ~ isExpanded={isExpanded}
-                      ~ togglePath={togglePath}
-                      ~ isExpandable={isExpandable}
-                      ~ )
-  elseif typeof value === "object"
-    if keys.length === 0
-      span(className="text-zinc-500 dark:text-zinc-400") #{"()"}
-    else
-      if isChild
-        if !expanded
-          span(className="text-zinc-400 dark:text-zinc-500")
-            | #{"("}
-            span(className="text-zinc-600 dark:text-zinc-400") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
-            | #{")"}
-        else
-          div(className="mt-0.5")
-            div(className="space-y-1.5")
-              each key in keys key key
-                ObjectEntry(
-                  ~ parentPath={path}
-                  ~ entryKey={key}
-                  ~ entryValue={(value as JsonObject)[key]}
-                  ~ depth={depth}
-                  ~ isExpanded={isExpanded}
-                  ~ togglePath={togglePath}
-                  ~ isExpandable={isExpandable}
-                  ~ )
-      else
-        div
-          button(
-            ~ className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group"
-            ~ onClick={() => togglePath(path)}
-            ~ )
-            span(className="text-zinc-400 dark:text-zinc-600 select-none text-[10px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-              if expanded
-                | #{"▼"}
-              else
-                | #{"▶"}
-            span(className="text-zinc-400 dark:text-zinc-500") #{"{"}
-            span(className="text-zinc-600 dark:text-zinc-400 font-medium") #{keys.length} key#{keys.length !== 1 ? "s" : ""}
-            span(className="text-zinc-400 dark:text-zinc-500") #{"}"}
-          if expanded
-            div(className="mt-1.5 space-y-1.5")
-              each key in keys key key
-                ObjectEntry(
-                  ~ parentPath={path}
-                  ~ entryKey={key}
-                  ~ entryValue={(value as JsonObject)[key]}
-                  ~ depth={depth}
-                  ~ isExpanded={isExpanded}
-                  ~ togglePath={togglePath}
-                  ~ isExpandable={isExpandable}
-                  ~ )
+    span(className={BOOLEAN_CLASS}) #{String(value)}
+  elseif isUrl
+    a(
+      ~ href={text}
+      ~ target="_blank"
+      ~ rel="noreferrer"
+      ~ className={`${STRING_CLASS} underline decoration-dotted underline-offset-2 hover:decoration-solid`}
+      ~ onClick={(event: MouseEvent) => event.stopPropagation()}
+      ~ ) #{`"${shown}"`}
   else
-    span(className="text-zinc-600 dark:text-zinc-400") #{String(value)}
-component ObjectEntry
-  props { parentPath, entryKey, entryValue, depth = 0, isExpanded, togglePath, isExpandable }: ObjectEntryProps
+    span(className={`${STRING_CLASS} wrap-break-word`})
+      span #{`"${shown}"`}
+      if isDate
+        span(className="ml-2 text-zinc-400 dark:text-zinc-500" title={new Date(text).toLocaleString()}) #{relativeTime(text, now)}
+      if isLong
+        button(
+          ~ type="button"
+          ~ className="ml-2 text-zinc-400 underline decoration-dotted hover:text-zinc-700 dark:hover:text-zinc-200"
+          ~ onClick={(event: MouseEvent) => { event.stopPropagation(); toggleFullString(path); }}
+          ~ ) #{showFull ? "less" : `+${text.length - STRING_MAX} chars`}
+component InlineValue
+  props { value, path }: { value: JsonValue; path: string }
   setup
-    const keyPath = parentPath ? `${parentPath}.${entryKey}` : entryKey;
-    const expandable = isExpandable(entryValue);
-    const childExpanded = isExpanded(keyPath);
-  div(className="flex items-start gap-2")
-    if expandable
-      button(
-        ~ className="flex items-center gap-1.5 text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors group shrink-0"
-        ~ onClick={() => togglePath(keyPath)}
-        ~ )
-        span(className="text-zinc-400 dark:text-zinc-600 select-none text-[8px] w-3 flex items-center justify-center group-hover:text-zinc-600 dark:group-hover:text-zinc-400")
-          if childExpanded
-            | #{"▼"}
-          else
-            | #{"▶"}
-        span.font-medium #{entryKey}:
-    else
-      span(className="text-zinc-700 dark:text-zinc-300 font-medium shrink-0") #{entryKey}:
-    div(className="flex-1 min-w-0")
-      RenderValue(
-        ~ value={entryValue}
-        ~ path={keyPath}
-        ~ depth={depth + 1}
-        ~ isChild={true}
-        ~ isExpanded={isExpanded}
-        ~ togglePath={togglePath}
-        ~ isExpandable={isExpandable}
-        ~ )
+    const keys = value !== null && typeof value === "object" && !Array.isArray(value) ? Object.keys(value) : [];
+  if !isContainer(value)
+    PrimitiveValue(value={value} path={path})
+  elseif Array.isArray(value)
+    span
+      span(className={PUNCT_CLASS}) [
+      each item, index in value key index
+        span
+          if index > 0
+            span(className={PUNCT_CLASS}) #{", "}
+          PrimitiveValue(value={item as JsonPrimitive} path={childPath(path, index, true)})
+      span(className={PUNCT_CLASS}) ]
+  elseif keys.length === 0
+    span(className={PUNCT_CLASS}) #{"{}"}
+  else
+    span
+      span(className={PUNCT_CLASS}) #{"{ "}
+      each key, index in keys key key
+        span
+          if index > 0
+            span(className={PUNCT_CLASS}) #{", "}
+          span(className={KEY_CLASS}) #{key}
+          span(className={PUNCT_CLASS}) #{": "}
+          PrimitiveValue(value={(value as JsonObject)[key] as JsonPrimitive} path={childPath(path, key, false)})
+      span(className={PUNCT_CLASS}) #{" }"}
+component JsonNode
+  props { label, value, path, depth, parent = "" }: { label?: string; value: JsonValue; path: string; depth: number; parent?: string }
+  setup
+    const viewer = useViewer();
+    const expandable = isExpandable(value);
+    const expanded = expandable && viewer.isExpanded(path, depth);
+    const entries = expanded ? entriesOf(value, path) : [];
+    const isMatch = viewer.matches.has(path);
+    const isChanged = viewer.changed.has(path) || (!expanded && viewer.changedAncestors.has(path));
+    const isPinned = viewer.pinned.includes(path);
+    const shownPath = path || "$";
+    const stop = (action: () => void) => (event: MouseEvent) => {
+      event.stopPropagation();
+      action();
+    };
+  div(role="treeitem" aria-expanded={expandable ? expanded : undefined})
+    div(
+      ~ data-row
+      ~ data-path={path}
+      ~ data-depth={depth}
+      ~ data-parent={parent}
+      ~ data-expandable={expandable ? "true" : "false"}
+      ~ tabIndex={-1}
+      ~ className={cn(
+      ~   "group/row -mx-1 flex items-start gap-1.5 rounded px-1 py-px outline-none transition-colors duration-700",
+      ~   "hover:bg-zinc-200/50 focus-visible:bg-zinc-200/80 dark:hover:bg-zinc-800/40 dark:focus-visible:bg-zinc-800/80",
+      ~   expandable && "cursor-pointer",
+      ~   isMatch && "bg-amber-300/30 dark:bg-amber-400/15",
+      ~   isChanged && "bg-emerald-400/30 duration-0 dark:bg-emerald-400/20",
+      ~ )}
+      ~ onClick={expandable ? () => viewer.toggle(path, depth) : undefined}
+      ~ )
+      if expandable
+        span(className={cn("flex h-5 w-3 shrink-0 items-center justify-center text-zinc-400 transition-transform duration-150 dark:text-zinc-500", !expanded && "-rotate-90")})
+          Icon(name="chevron-down" size={12} className="m-0")
+      else
+        span(className="w-3 shrink-0")
+      if label !== undefined
+        span(className={`shrink-0 font-medium ${KEY_CLASS}`}) #{label}:
+      span(className="min-w-0 flex-1")
+        if expandable
+          span(className={PUNCT_CLASS}) #{summarize(value as JsonObject | JsonArray)}
+        else
+          InlineValue(value={value} path={path})
+      span(className={cn("flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-visible/row:opacity-100", isPinned && "opacity-100")})
+        button(type="button" className={ACTION_CLASS} title={`Copy path ${shownPath}`} onClick={stop(() => viewer.copy(shownPath, `path:${path}`))}) #{viewer.copiedId === `path:${path}` ? "copied" : "path"}
+        button(type="button" className={ACTION_CLASS} title="Copy value" onClick={stop(() => viewer.copy(copyText(value), `value:${path}`))}) #{viewer.copiedId === `value:${path}` ? "copied" : "copy"}
+        button(type="button" className={cn(ACTION_CLASS, isPinned && "text-amber-600 dark:text-amber-400")} title={isPinned ? "Unpin" : "Pin to top"} onClick={stop(() => viewer.togglePin(path))}) #{isPinned ? "unpin" : "pin"}
+    if expanded
+      div(role="group" className="ml-1.5 border-l border-zinc-200 pl-3 dark:border-zinc-800")
+        each entry in entries key entry.path
+          JsonNode(label={entry.label} value={entry.value} path={entry.path} depth={depth + 1} parent={path})
+component PinnedBar
+  props { pins, index }: { pins: string[]; index: PathIndex }
+  setup
+    const viewer = useViewer();
+  div(className="flex flex-wrap gap-1.5")
+    each path in pins key path
+      div(className={cn("flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 font-mono text-xs transition-colors duration-700 dark:bg-zinc-900", viewer.changed.has(path) && "bg-emerald-400/30 duration-0 dark:bg-emerald-400/20")})
+        span(className={`font-medium ${KEY_CLASS}`}) #{path || "$"}:
+        if !index.values.has(path)
+          span(className="italic text-zinc-400") missing
+        elseif isExpandable(index.values.get(path) as JsonValue)
+          span(className={PUNCT_CLASS}) #{summarize(index.values.get(path) as JsonObject | JsonArray)}
+        else
+          InlineValue(value={index.values.get(path) as JsonValue} path={path})
+        button(type="button" className={ACTION_CLASS} title="Unpin" onClick={() => viewer.togglePin(path)}) ×
 component JsonViewerRoot
-  props { data, maxHeight = "max-h-96", withToolbar = false, children }: JsonViewerProps
+  props { data, maxHeight = "", withToolbar = false, defaultExpandDepth = 1, persistKey, children }: JsonViewerProps
   setup
     const [viewMode, setViewMode] = useState<ViewMode>("tree");
-
-    // Expand root level by default
-    const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set([""]));
+    const [expandDepth, setExpandDepth] = useState(defaultExpandDepth);
+    // explicit toggles win over expandDepth and search reveal; cleared when either changes
+    const [overrides, setOverrides] = useState<Map<string, boolean>>(() => new Map());
+    const [query, setQuery] = useState("");
+    const [pinned, setPinned] = useState<string[]>(() => readPins(persistKey));
+    const [changed, setChanged] = useState<Set<string>>(() => new Set());
+    const [fullStrings, setFullStrings] = useState<Set<string>>(() => new Set());
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [now, setNow] = useState(() => Date.now());
+    const searchRef = useRef<HTMLInputElement | null>(null);
+    const prevIndexRef = useRef<PathIndex | null>(null);
 
     const jsonData = useMemo(() => {
       if (data === null || data === undefined) {
@@ -198,8 +357,7 @@ component JsonViewerRoot
       }
       if (typeof data === "string") {
         try {
-          const parsed = JSON.parse(data);
-          return parsed;
+          return JSON.parse(data);
         }
         catch {
           // If it's not valid JSON, return as string
@@ -209,35 +367,9 @@ component JsonViewerRoot
       return data;
     }, [data]);
 
-    const isValidJson = useMemo(() => {
-      if (jsonData === null || jsonData === undefined) {
-        return false;
-      }
-      if (typeof jsonData === "string") {
-        return false;
-      }
-      return typeof jsonData === "object" || Array.isArray(jsonData);
-    }, [jsonData]);
+    const isValidJson = jsonData !== null && jsonData !== undefined && typeof jsonData === "object";
 
-    const togglePath = (path: string) => {
-      setExpandedPaths((prev) => {
-        const next = new Set(prev);
-        if (next.has(path)) {
-          next.delete(path);
-        }
-        else {
-          next.add(path);
-        }
-        return next;
-      });
-    };
-
-    const isExpanded = (path: string) => expandedPaths.has(path);
-
-    const isExpandable = (value: JsonValue): boolean => {
-      return ((Array.isArray(value) && value.length > 0) ||
-        (typeof value === "object" && value !== null && Object.keys(value).length > 0));
-    };
+    const index = useMemo(() => indexPaths((jsonData ?? null) as JsonValue), [jsonData]);
 
     const formattedJson = useMemo(() => {
       if (jsonData === null || jsonData === undefined) {
@@ -254,58 +386,203 @@ component JsonViewerRoot
       }
     }, [jsonData]);
 
-    const handleCopy = () => {
-      navigator.clipboard.writeText(formattedJson);
-      // You could add a toast notification here
+    const rawTokens = useMemo(
+      () => (viewMode === "raw" && formattedJson.length <= RAW_HIGHLIGHT_MAX ? tokenize(formattedJson) : []),
+      [viewMode, formattedJson],
+    );
+
+    const normalizedQuery = query.trim().toLowerCase();
+    const search = useMemo(() => {
+      const matches = new Set<string>();
+      if (!normalizedQuery) return { matches, revealed: new Set<string>() };
+      for (const [path, value] of index.values) {
+        if (path === "") continue;
+        const label = (index.labels.get(path) ?? "").toLowerCase();
+        if (!label.includes(normalizedQuery) && (isContainer(value) || !String(value).toLowerCase().includes(normalizedQuery))) continue;
+        // a hit inside a one-row container highlights that container's row
+        const parent = index.parents.get(path) ?? "";
+        matches.add(parent !== "" && isInline(index.values.get(parent) as JsonValue) ? parent : path);
+      }
+      return { matches, revealed: ancestorsOf(matches, index) };
+    }, [index, normalizedQuery]);
+
+    const changedAncestors = useMemo(() => ancestorsOf(changed, index), [changed, index]);
+
+    useEffect(() => {
+      const prev = prevIndexRef.current;
+      prevIndexRef.current = index;
+      if (prev === null) return;
+      const next = diffIndex(prev, index);
+      if (next.size === 0) return;
+      setChanged(next);
+      const timer = setTimeout(() => setChanged(new Set()), FLASH_MS);
+      return () => clearTimeout(timer);
+    }, [index]);
+
+    useEffect(() => writePins(persistKey, pinned), [persistKey, pinned]);
+
+    useEffect(() => {
+      const timer = setInterval(() => setNow(Date.now()), 30_000);
+      return () => clearInterval(timer);
+    }, []);
+
+    const isExpanded = (path: string, depth: number) =>
+      overrides.get(path) ?? (search.revealed.has(path) || depth < expandDepth);
+
+    const toggle = (path: string, depth: number) => {
+      const next = !isExpanded(path, depth);
+      setOverrides((prev) => new Map(prev).set(path, next));
+    };
+
+    const expandTo = (depth: number) => {
+      setExpandDepth(depth);
+      setOverrides(new Map());
+    };
+
+    const updateQuery = (value: string) => {
+      setQuery(value);
+      setOverrides(new Map());
+    };
+
+    const togglePin = (path: string) =>
+      setPinned((prev) => (prev.includes(path) ? prev.filter((item) => item !== path) : [...prev, path]));
+
+    const toggleFullString = (path: string) =>
+      setFullStrings((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+
+    const copy = (text: string, id: string) => {
+      navigator.clipboard?.writeText(text).then(() => {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1200);
+      }).catch(() => {});
+    };
+
+    const viewer: ViewerContextValue = {
+      isExpanded, toggle, matches: search.matches, changed, changedAncestors,
+      pinned, togglePin, copy, copiedId, fullStrings, toggleFullString, now,
+    };
+
+    const onTreeKeyDown = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement) return;
+      if (event.key === "/") {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      const container = event.currentTarget as HTMLElement;
+      const rows = [...container.querySelectorAll<HTMLElement>("[data-row]")];
+      if (rows.length === 0) return;
+      const current = rows.indexOf(document.activeElement as HTMLElement);
+      const row = current >= 0 ? rows[current] : null;
+      const path = row?.dataset.path ?? "";
+      const depth = Number(row?.dataset.depth ?? 0);
+      const expandable = row?.dataset.expandable === "true";
+      const expanded = expandable && isExpanded(path, depth);
+      const focusRow = (target: HTMLElement | undefined) => {
+        target?.focus();
+        target?.scrollIntoView({ block: "nearest" });
+      };
+      switch (event.key) {
+        case "ArrowDown":
+          focusRow(rows[Math.min(current + 1, rows.length - 1)]);
+          break;
+        case "ArrowUp":
+          focusRow(rows[Math.max(current - 1, 0)]);
+          break;
+        case "Home":
+          focusRow(rows[0]);
+          break;
+        case "End":
+          focusRow(rows[rows.length - 1]);
+          break;
+        case "ArrowRight":
+          if (row === null) focusRow(rows[0]);
+          else if (expandable && !expanded) toggle(path, depth);
+          else focusRow(rows[current + 1]);
+          break;
+        case "ArrowLeft":
+          if (row === null) break;
+          if (expanded) toggle(path, depth);
+          else if (depth > 0) focusRow(rows.find((candidate) => candidate.dataset.path === row.dataset.parent));
+          break;
+        case "Enter":
+        case " ":
+          if (expandable) toggle(path, depth);
+          break;
+        case "c":
+          if (row !== null) copy(copyText(index.values.get(path) as JsonValue), `value:${path}`);
+          break;
+        case "p":
+          if (row !== null) togglePin(path);
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
     };
   if jsonData === null || jsonData === undefined
-    div(data-slot='json-viewer' className="p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded")
+    div(className="p-3 bg-zinc-50 dark:bg-zinc-950")
       span(className="text-xs text-zinc-500 dark:text-zinc-400 italic") No data
   elseif typeof jsonData === "string"
     .space-y-2
       div(className="flex items-center justify-end")
         button(
           ~ className="font-mono text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-          ~ onClick={handleCopy}
-          ~ )
-          | copy
-      div(className={`p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded overflow-auto ${maxHeight}`})
+          ~ onClick={() => copy(jsonData, "all")}
+          ~ ) #{copiedId === "all" ? "copied" : "copy"}
+      div(className={`p-3 bg-zinc-50 dark:bg-zinc-950 overflow-auto ${maxHeight}`})
         pre(className="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap wrap-break-word") #{jsonData}
   else
-    .space-y-2
-      div(className="flex items-center space-x-2 h-10 px-1")
-        | #{children}
-        if withToolbar
-          div(className="flex items-center justify-between")
-            div(className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-900 rounded-lg p-1")
+    ViewerContext(value={viewer})
+      .space-y-2
+        div(className="flex min-h-10 flex-wrap items-center gap-2 px-1")
+          | #{children}
+          if withToolbar
+            fragment
+              div(className={SEGMENT_CLASS})
+                button(type="button" className={segmentButtonClass(viewMode === "tree")} onClick={() => setViewMode("tree")}) tree
+                button(type="button" className={segmentButtonClass(viewMode === "raw")} onClick={() => setViewMode("raw")}) raw
+              if viewMode === "tree" && isValidJson
+                fragment
+                  div(className={SEGMENT_CLASS} title="Expand to level")
+                    each level in [1, 2, 3] key level
+                      button(type="button" className={segmentButtonClass(overrides.size === 0 && expandDepth === level)} onClick={() => expandTo(level)}) #{level}
+                    button(type="button" className={segmentButtonClass(overrides.size === 0 && expandDepth === ALL_LEVELS)} onClick={() => expandTo(ALL_LEVELS)}) all
+                    button(type="button" className={segmentButtonClass(overrides.size === 0 && expandDepth === 0)} onClick={() => expandTo(0)}) none
+                  div(className="relative flex min-w-40 flex-1 items-center")
+                    input(
+                      ~ ref={searchRef}
+                      ~ type="search"
+                      ~ value={query}
+                      ~ placeholder="Search keys and values"
+                      ~ aria-label="Search keys and values"
+                      ~ className="h-8 w-full rounded-lg bg-zinc-100 px-2.5 pr-20 font-mono text-xs text-zinc-800 outline-none placeholder:text-zinc-400 focus:ring-1 focus:ring-zinc-300 dark:bg-zinc-900 dark:text-zinc-200 dark:focus:ring-zinc-700"
+                      ~ onInput={(event: Event) => updateQuery((event.currentTarget as HTMLInputElement).value)}
+                      ~ onKeyDown={(event: KeyboardEvent) => { if (event.key === "Escape") { updateQuery(""); (event.currentTarget as HTMLInputElement).blur(); } }}
+                      ~ )
+                    span(className="pointer-events-none absolute right-2.5 font-mono text-[10px] text-zinc-400 dark:text-zinc-500") #{normalizedQuery ? `${search.matches.size} match${search.matches.size !== 1 ? "es" : ""}` : "/"}
               button(
-                ~ onClick={() => setViewMode("tree")}
-                ~ className={`px-3 py-1 text-xs font-mono rounded transition-all ${viewMode === "tree"
-                ~ ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
-                ~ )
-                | tree
-              button(
-                ~ onClick={() => setViewMode("raw")}
-                ~ className={`px-3 py-1 text-xs font-mono rounded transition-all ${viewMode === "raw"
-                ~ ? "bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 shadow-sm" : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"}`}
-                ~ )
-                | raw
-            button(
-              ~ className="font-mono text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
-              ~ onClick={handleCopy}
-              ~ )
-              | copy
-      div(className={`p-3 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded overflow-auto ${maxHeight}`})
-        if viewMode === "tree" && isValidJson
-          div(className="font-mono text-xs leading-relaxed")
-            RenderValue(
-              ~ value={jsonData as JsonValue}
-              ~ isExpanded={isExpanded}
-              ~ togglePath={togglePath}
-              ~ isExpandable={isExpandable}
-              ~ )
-        else
-          pre(className="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap wrap-break-word") #{formattedJson}
+                ~ type="button"
+                ~ className="ml-auto font-mono text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
+                ~ onClick={() => copy(formattedJson, "all")}
+                ~ ) #{copiedId === "all" ? "copied" : "copy"}
+        if viewMode === "tree" && isValidJson && pinned.length > 0
+          PinnedBar(pins={pinned} index={index})
+        div(className={`p-3 bg-zinc-50 dark:bg-zinc-950 overflow-auto ${maxHeight}`})
+          if viewMode === "tree" && isValidJson
+            div(role="tree" tabIndex={0} className="font-mono text-xs leading-relaxed outline-none" onKeyDown={onTreeKeyDown})
+              JsonNode(value={jsonData as JsonValue} path="" depth={0})
+          elseif rawTokens.length > 0
+            pre(className="text-xs font-mono whitespace-pre-wrap wrap-break-word")
+              each token, tokenIndex in rawTokens key tokenIndex
+                span(className={token.className}) #{token.text}
+          else
+            pre(className="text-xs font-mono text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap wrap-break-word") #{formattedJson}
 
 props {...props}: JsonViewerProps
 JsonViewerRoot({...props})
