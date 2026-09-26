@@ -25,49 +25,44 @@ const snap: Pick<Doc<'snaps'>, 'location_session' | 'location'> = {
 }
 
 describe('photo stamp evidence', () => {
-  test('includes UTC capture time, full address and every photo telemetry value', () => {
-    const text = photoStampLines(snap, photo).join('\n')
-    for (const value of ['2026-09-26 06:30:15.000 UTC', snap.location_session!.address.full_address, '14.554729, 121.024445', '4.2 m', '22 m', '3.1 m', '90°', '0 m/s', '2026-09-26 06:30:14.000 UTC', 'PHL']) expect(text).toContain(value)
-    expect(text).toContain('SESSION ADDRESS:')
-    expect(text).toContain('GPS / IP COUNTRY MATCH: Yes')
+  test('shows only timestamp, session address and photo GPS', () => {
+    expect(photoStampLines(snap, photo)).toEqual([
+      'Timestamp: 2026-09-26 06:30:15 UTC',
+      `Address: ${snap.location_session!.address.full_address}`,
+      'Photo GPS: 14.554729, 121.024445  ±4.2 m'
+    ])
   })
 
   test('never substitutes the session GPS when a photo has none', () => {
-    const text = photoStampLines(snap, { ...photo, location: undefined }).join('\n')
-    expect(text).toContain('PHOTO GPS: Not recorded for this photo')
-    expect(text).not.toContain('PHOTO GPS: 14.')
-    expect(photoStampLines({}, { ...photo, location: undefined }).join('\n')).toContain('SESSION ADDRESS: Not recorded')
+    expect(photoStampLines(snap, { ...photo, location: undefined })[2]).toBe('Photo GPS: Not recorded')
+    expect(photoStampLines({}, { ...photo, location: undefined })[1]).toBe('Address: Not recorded')
   })
 
-  test('renders a readable footer below the uncropped original without mutating its bytes', async () => {
+  test('overlays a bordered panel on the bottom without resizing or touching the top of the photo', async () => {
     const source = await sharp({ create: { width: 1200, height: 800, channels: 3, background: '#305070' } }).webp({ lossless: true }).toBuffer()
     const copy = Buffer.from(source)
     const stamped = await stampPhotoBytes(source, snap, photo)
     const metadata = await sharp(stamped).metadata()
     expect(metadata.format).toBe('jpeg')
-    expect(metadata.width).toBe(1200)
-    expect(metadata.height).toBeGreaterThan(1000)
+    expect([metadata.width, metadata.height]).toEqual([1200, 800])
     expect(source.equals(copy)).toBe(true)
     const { data } = await sharp(stamped).extract({ left: 100, top: 100, width: 1, height: 1 }).raw().toBuffer({ resolveWithObject: true })
     expect([...data].every((value, index) => Math.abs(value - [48, 80, 112][index]) <= 3)).toBe(true)
-    const stats = await sharp(stamped).extract({ left: 30, top: 830, width: 1100, height: 100 }).stats()
+    const stats = await sharp(stamped).extract({ left: 40, top: 690, width: 1100, height: 80 }).stats()
     expect(stats.channels[0].stdev).toBeGreaterThan(20)
   })
 
-  test('wraps long and escaped location text without dropping the final location fields', async () => {
-    const source = await sharp({ create: { width: 320, height: 480, channels: 3, background: '#305070' } }).png().toBuffer()
-    const long = { ...snap, location_session: { ...snap.location_session!, address: { ...snap.location_session!.address, full_address: 'Unit <12> & Building "A" — '.repeat(20), country: 'España', components: { floor: '7 & 8' } } } }
+  test('wraps a long, markup-like address on a narrow photo', async () => {
+    const source = await sharp({ create: { width: 480, height: 640, channels: 3, background: '#305070' } }).png().toBuffer()
+    const long = { ...snap, location_session: { ...snap.location_session!, address: { ...snap.location_session!.address, full_address: 'Unit <12> & Building "A" — '.repeat(4) } } }
     const result = await stampPhotoBytes(source, long, photo)
-    expect((await sharp(result).metadata()).width).toBe(960)
-    expect(photoStampLines(long, photo).join('\n')).toContain('Country: España')
+    expect(await sharp(result).metadata()).toMatchObject({ width: 480, height: 640 })
   })
 
-  test('handles EXIF orientation before appending the footer', async () => {
+  test('handles EXIF orientation before stamping', async () => {
     const source = await sharp({ create: { width: 1000, height: 600, channels: 3, background: '#305070' } }).jpeg().withMetadata({ orientation: 6 }).toBuffer()
-    const result = await stampPhotoBytes(source, {}, photo)
-    const metadata = await sharp(result).metadata()
-    expect(metadata.width).toBe(960)
-    expect(metadata.height).toBeGreaterThan(1000)
+    const metadata = await sharp(await stampPhotoBytes(source, {}, photo)).metadata()
+    expect([metadata.width, metadata.height]).toEqual([600, 1000])
     expect(metadata.orientation).toBeUndefined()
   })
 

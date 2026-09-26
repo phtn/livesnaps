@@ -46,7 +46,7 @@ fragment
             if validKey
               button(type='button' className={buttonClass} onClick={() => { setLoadState('loading'); setRetry(value => value + 1) }}) Retry photo
         if decision === 'verified'
-          div(className='verification-stamp pointer-events-none absolute right-6 top-20 z-10 rounded-lg border-4 border-emerald-300 bg-emerald-950/75 px-5 py-2 text-xl font-black uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-sm' role='status')
+          div(className='verification-stamp pointer-events-none absolute right-6 top-20 z-10 rounded-lg border-4 border-indigo-300 bg-indigo-950/75 px-5 py-2 text-xl font-black uppercase tracking-[0.18em] text-indigo-200 shadow-lg backdrop-blur-sm' role='status')
             span Verified
       div(className='flex shrink-0 items-center justify-center gap-2 p-3')
         button(type='button' className={buttonClass} disabled={loadState !== 'ready'} aria-label='Rotate photo left' onClick={() => setRotation(value => value - 90)})
@@ -103,7 +103,7 @@ fragment
     button(type='button' className={buttonClass} disabled={index === 0} onClick={onPrevious}) Previous
     div(className='flex flex-wrap items-center gap-2')
       button(type='button' className={buttonClass} onClick={onSkip}) Skip
-      button(type='button' className={`${buttonClass} border-emerald-300/40 bg-emerald-300/10 text-emerald-200`} disabled={loadState !== 'ready' || decision === 'verified'} onClick={onVerify})
+      button(type='button' className={`${buttonClass} border-indigo-300/40 bg-indigo-300/10 text-indigo-200`} disabled={loadState !== 'ready' || decision === 'verified'} onClick={onVerify})
         Icon(name='safe-shield' className='size-4')
         span #{decision === 'verified' ? 'Verified' : 'Mark as verified'}
       button(type='button' className={`${buttonClass} bg-white text-zinc-950 hover:bg-white/90`} disabled={decision !== 'verified'} onClick={onNext}) #{index === count - 1 ? 'Review summary' : 'Next photo'}

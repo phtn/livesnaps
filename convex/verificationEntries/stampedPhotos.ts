@@ -12,7 +12,7 @@ import { action, internalAction } from '../_generated/server'
 import { getR2ObjectBytes } from '../lib/r2'
 import { liberationSansGzip } from '../lib/fonts/liberationSans'
 import type { SnapPhoto } from '../snaps/d'
-import { photoStampLines } from '../../src/lib/verifications/photo-stamp'
+import { PHOTO_STAMP_TITLE, photoStampLines } from '../../src/lib/verifications/photo-stamp'
 
 let fontPath: Promise<string> | undefined
 const loadFont = () => fontPath ??= (async () => {
@@ -24,34 +24,49 @@ const loadFont = () => fontPath ??= (async () => {
 
 const escapeMarkup = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!)
 
-/** A separate footer keeps every pixel of capture evidence visible, including the odometer. */
+/**
+ * Draws a bordered, translucent panel over the bottom of the photo. The photo
+ * keeps its own dimensions; the panel's height follows the wrapped address.
+ */
 export async function stampPhotoBytes(bytes: Uint8Array, snap: Pick<Doc<'snaps'>, 'location_session' | 'location'>, photo: SnapPhoto): Promise<Buffer> {
   const original = await sharp(bytes, { limitInputPixels: 40_000_000, failOn: 'error' })
     .autoOrient()
     .resize({ width: 2048, height: 2048, fit: 'inside', withoutEnlargement: true })
     .flatten({ background: '#101820' })
     .raw().toBuffer({ resolveWithObject: true })
-  const width = Math.max(original.info.width, 960)
-  const padding = Math.round(width * 0.025)
-  const fontSize = Math.max(18, Math.round(width * 0.016))
-  const lines = photoStampLines(snap, photo)
+  const { width, height } = original.info
+  const base = Math.min(width, height * 1.5)
+  const margin = Math.max(8, Math.round(base * 0.02))
+  const padding = Math.max(8, Math.round(base * 0.02))
+  const border = Math.max(2, Math.round(base * 0.003))
+  const fontSize = Math.max(12, Math.round(base * 0.022))
+  const panelWidth = width - margin * 2
+  const body = photoStampLines(snap, photo).map(line => {
+    const split = line.indexOf(': ')
+    return `<span foreground="#a5b4fc">${escapeMarkup(line.slice(0, split + 1))}</span> ${escapeMarkup(line.slice(split + 2))}`
+  })
   const text = await sharp({ text: {
-    text: `<span foreground="#f0f5fa">${lines.map(escapeMarkup).join('\n')}</span>`,
+    text: `<span foreground="#f8fafc"><span size="small" foreground="#c7d2fe" letter_spacing="1024">${escapeMarkup(PHOTO_STAMP_TITLE.toUpperCase())}</span>\n${body.join('\n')}</span>`,
     font: `Liberation Sans ${fontSize}`,
     fontfile: await loadFont(),
-    width: width - padding * 2,
-    spacing: Math.round(fontSize * 0.35),
+    width: panelWidth - padding * 2,
+    spacing: Math.round(fontSize * 0.3),
     wrap: 'word-char',
     rgba: true
   } }).png().toBuffer({ resolveWithObject: true })
-  const footerHeight = text.info.height + padding * 2 + 4
-  // Reject pathological metadata instead of silently clipping the evidence.
-  if (footerHeight > 4096) throw new Error('Capture location details are too large for a photo stamp.')
-  return sharp({ create: { width, height: original.info.height + footerHeight, channels: 3, background: '#101820' } })
+  const panelHeight = text.info.height + padding * 2
+  // Reject a stamp that would cover the photo instead of silently clipping evidence.
+  if (panelHeight > height * 0.6) throw new Error('Capture details are too large to stamp on this photo.')
+  const top = height - margin - panelHeight
+  const radius = Math.round(padding * 0.6)
+  const panel = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${panelWidth}" height="${panelHeight}">
+    <rect x="${border / 2}" y="${border / 2}" width="${panelWidth - border}" height="${panelHeight - border}" rx="${radius}" ry="${radius}"
+      fill="#0b1020" fill-opacity="0.72" stroke="#a5b4fc" stroke-opacity="0.85" stroke-width="${border}"/>
+  </svg>`)
+  return sharp(original.data, { raw: original.info })
     .composite([
-      { input: original.data, raw: original.info, top: 0, left: Math.floor((width - original.info.width) / 2) },
-      { input: { create: { width, height: 4, channels: 3, background: '#6ee7b7' } }, top: original.info.height, left: 0 },
-      { input: text.data, top: original.info.height + padding + 4, left: padding }
+      { input: panel, top, left: margin },
+      { input: text.data, top: top + padding, left: margin + padding }
     ])
     .jpeg({ quality: 90, chromaSubsampling: '4:4:4' }).toBuffer()
 }

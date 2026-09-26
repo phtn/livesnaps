@@ -125,7 +125,7 @@ export const snapVerificationStatus: Record<
   { className: string; icon: IconName; label: string }
 > = {
   verified: {
-    className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    className: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
     icon: 'safe-shield',
     label: 'Verified'
   },
@@ -162,7 +162,7 @@ export const verificationEntryStatus: Record<
   { className: string; icon: IconName; label: string }
 > = {
   verified: {
-    className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    className: 'border-indigo-500/30 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300',
     icon: 'safe-shield',
     label: 'Verified'
   },
