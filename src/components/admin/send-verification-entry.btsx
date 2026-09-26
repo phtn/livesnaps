@@ -464,6 +464,8 @@ if entry
                 ~ meta={attachmentTotal ? `${selectedAttachments.length + uploads.length} selected · ${attachmentTotal}` : `${selectedAttachments.length + uploads.length} selected`}
                 ~ )
                 div(className='grid')
+                  if selectedAttachments.includes('photos')
+                    p(className='mb-3 text-xs text-muted-foreground') Email photos include a capture timestamp and location stamp below each image.
                   each option, index in DEFAULT_VERIFICATION_ATTACHMENTS key option
                     AttachmentRow(
                       ~ index={index}

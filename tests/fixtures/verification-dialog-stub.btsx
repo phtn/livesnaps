@@ -1,0 +1,28 @@
+import type { OctaneNode } from 'octane'
+
+module
+  export const TestDialog = { Root: TestRoot, Portal: TestPortal, Popup: TestPopup, Backdrop: TestBackdrop, Title: TestTitle, Description: TestDescription }
+
+component TestRoot
+  props { open, children }: { open: boolean; children?: OctaneNode }
+  if open
+    fragment #{children}
+
+component TestPortal
+  props { children }: { children?: OctaneNode }
+  fragment #{children}
+
+component TestPopup
+  props { children, className }: { children?: OctaneNode; className?: string }
+  div(role='dialog' className={className}) #{children}
+
+component TestBackdrop
+  span(aria-hidden={true})
+
+component TestTitle
+  props { children }: { children?: OctaneNode }
+  h1 #{children}
+
+component TestDescription
+  props { children }: { children?: OctaneNode }
+  p #{children}

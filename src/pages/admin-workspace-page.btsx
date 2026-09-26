@@ -1,5 +1,5 @@
 import { SnapHandlerProvider } from '@/components/admin/snap-handler.btsx'
-import { createElement, useCallback, useState } from 'octane'
+import { createElement, useCallback, useLinkedState, useState } from 'octane'
 import { useAdminSnaps } from '@/hooks/use-admin-snaps'
 import { useSessionEmail } from '@/hooks/use-session-email'
 import { useAdminVerificationEntries } from '@/hooks/use-admin-verification-entries'
@@ -19,6 +19,7 @@ import {cn} from '@/lib/utils'
 import Container from "../components/admin/container.btsx";
 import Loading from "../components/loading.btsx";
 import { onError } from '@/lib/toast'
+import VerificationPhotoViewer from '@/components/admin/verification-photo-viewer.btsx'
 
 props {}: {}
 setup
@@ -65,6 +66,8 @@ setup
     refreshSnaps()
   }, [refresh, refreshSnaps])
 
+  const [verifyEntry, setVerifyEntry] = useLinkedState(account?.id, () => null as VerificationEntryRow | null)
+
   // Sits in the table's toolbar row beside the filter control rather than in
   // the header, so creating an entry reads as one of the table's own controls.
   const createEntryButton = canWrite ? createElement(CreateVerificationEntryDialog, {
@@ -81,7 +84,7 @@ Container(className='md:py-0')
     ErrorPage(code={500} title='Error' message={error} action={refresh} actionLabel='Retry')
   else
     SnapHandlerProvider(refresh={handleWritten})
-      VerificationRowActionsProvider(onOpenEditDialog={openEditSnap} onOpenSendDialog={setSendEntry})
+      VerificationRowActionsProvider(onOpenEditDialog={openEditSnap} onOpenSendDialog={setSendEntry} onStartVerification={setVerifyEntry})
         DataTable(
           ~ title='Verification Entries'
           ~ data={rows}
@@ -121,3 +124,6 @@ Container(className='md:py-0')
     ~ onOpenChange={closeEditSnap}
     ~ onUpdated={handleWritten}
     ~ )
+
+  if verifyEntry && canWrite
+    VerificationPhotoViewer(key={verifyEntry._id} entryId={verifyEntry._id} onClose={() => setVerifyEntry(null)} onSaved={handleWritten})

@@ -14,6 +14,24 @@ export const verificationUploadSchema = v.object({
   uploadedAt: v.number()
 })
 
+export const photoReviewDecisionSchema = v.object({
+  photoKey: v.string(),
+  status: v.union(v.literal('verified'), v.literal('skipped'))
+})
+
+// A snap has at most five capture slots; savePhotoReview enforces that bound.
+export const photoReviewSchema = v.object({
+  revision: v.number(),
+  snapshot: v.string(),
+  currentPhotoKey: v.optional(v.string()),
+  decisions: v.array(photoReviewDecisionSchema.extend({
+    reviewedAt: v.number(),
+    reviewedBy: v.string()
+  })),
+  savedAt: v.number(),
+  completedAt: v.optional(v.number())
+})
+
 export const verificationEntrySchema = v.object({
   accountId: v.optional(v.id('accounts')),
   applicant: v.string(),
@@ -40,6 +58,7 @@ export const verificationEntrySchema = v.object({
   senderTokenIdentifier: v.string(),
   senderUid: v.string(),
   status: verificationEntryStatusSchema,
+  photoReview: v.optional(photoReviewSchema),
   updatedAt: v.number(),
   uploadId: v.string()
 })

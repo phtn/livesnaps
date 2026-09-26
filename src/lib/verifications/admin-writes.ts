@@ -7,6 +7,22 @@
  * calling `useMutation`/`useAction` from `convex/react`.
  */
 
+import type { Doc } from '../../../convex/_generated/dataModel'
+import type { PhotoReviewDecision } from './photo-review'
+
+export interface PhotoReviewData {
+  entry: Doc<'verificationEntries'>
+  snap: Doc<'snaps'>
+}
+
+export interface SavePhotoReviewInput {
+  id: string
+  expectedRevision: number
+  snapshot: string
+  currentPhotoKey?: string
+  decisions: PhotoReviewDecision[]
+}
+
 export interface CreateVerificationEntryInput {
   applicant: string
   attachments?: string[]
@@ -36,6 +52,7 @@ const VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
 const VERIFICATION_ENTRY_ACTIVE_PATH = '/api/admin/verification-entries/active'
 const VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entries/attachments'
 const VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification-entries/attachments/remove'
+const PHOTO_REVIEW_PATH = '/api/admin/verification-entries/photo-review'
 
 const send = async <T>(path: string, init: RequestInit, fallbackErrorMessage: string): Promise<T> => {
   const response = await fetch(path, { credentials: 'same-origin', method: 'POST', ...init })
@@ -69,6 +86,12 @@ export const sendVerificationEmail = <T>(input: SendVerificationEmailInput): Pro
 
 export const activateVerificationEntry = <T>(id: string): Promise<T> =>
   post<T>(VERIFICATION_ENTRY_ACTIVE_PATH, { id }, 'Unable to activate the verification entry.')
+
+export const fetchPhotoReview = (id: string, signal?: AbortSignal) =>
+  send<PhotoReviewData>(`${PHOTO_REVIEW_PATH}?id=${encodeURIComponent(id)}`, { method: 'GET', signal }, 'Unable to load verification photos.')
+
+export const savePhotoReview = (input: SavePhotoReviewInput) =>
+  post<Doc<'verificationEntries'>>(PHOTO_REVIEW_PATH, input, 'Unable to save verification progress.')
 
 /**
  * Posts one browsed file. `content-type` is left unset on purpose: the browser

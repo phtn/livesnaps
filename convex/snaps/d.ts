@@ -193,7 +193,7 @@ export const snapHandlerSchema = v.object({
   name: v.string()
 })
 
-export const snapVerificationStatusSchema = v.union(v.literal('draft'), v.literal('submitted'))
+export const snapVerificationStatusSchema = v.union(v.literal('draft'), v.literal('verified'), v.literal('submitted'))
 
 export const snapValidator = snapDetailsSchema.partial().extend({
   // Optional only for legacy snaps whose Account ownership cannot be inferred safely.

@@ -71,7 +71,7 @@ export const snapSessionStatuses = [
   'invalidated'
 ] as const satisfies ReadonlyArray<SnapSessionStatus>
 
-export const snapVerificationStatuses = ['draft', 'submitted'] as const satisfies ReadonlyArray<SnapVerificationStatus>
+export const snapVerificationStatuses = ['draft', 'verified', 'submitted'] as const satisfies ReadonlyArray<SnapVerificationStatus>
 
 export const verificationEntryStatuses =
   VERIFICATION_ENTRY_STATUS_VALUES satisfies ReadonlyArray<VerificationEntryStatus>
@@ -115,9 +115,14 @@ export const snapIpcMatchStatus: Record<
  * email, so `unsubmitted` covers every row without one yet.
  */
 export const snapVerificationStatus: Record<
-  'draft' | 'submitted' | 'unsubmitted',
+  SnapVerificationStatus | 'unsubmitted',
   { className: string; icon: IconName; label: string }
 > = {
+  verified: {
+    className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    icon: 'safe-shield',
+    label: 'Verified'
+  },
   draft: {
     className: 'border-taupe-500/30 bg-taupe-500/8 text-taupe-700 dark:text-taupe-300',
     icon: 'draft',
@@ -150,6 +155,11 @@ export const verificationEntryStatus: Record<
   VerificationEntryStatus,
   { className: string; icon: IconName; label: string }
 > = {
+  verified: {
+    className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+    icon: 'safe-shield',
+    label: 'Verified'
+  },
   draft: {
     className: 'border-taupe-500/30 bg-taupe-500/8 text-taupe-700 dark:text-taupe-300',
     icon: 'draft',

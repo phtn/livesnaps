@@ -3,10 +3,45 @@ import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { type AdminConvexEnvironment, AdminRequestError, withAdminConvex, withAdminConvexWrite } from './admin-convex'
 import { requestedAccountId } from './workspace-routes'
+import type { PhotoReviewDecision } from '@/lib/verifications/photo-review'
+import { SNAP_SLOTS } from '@/lib/r2/snap-images'
 
 export type AdminVerificationRouteEnvironment = AdminConvexEnvironment
 
 const VERIFICATION_ENTRY_LIST_LIMIT = 250
+
+export function handleAdminPhotoReview(request: Request, environment: AdminVerificationRouteEnvironment = {}) {
+  if (request.method === 'GET') {
+    return withAdminConvex(request, environment, client => {
+      const id = new URL(request.url).searchParams.get('id')
+      if (!id) throw new AdminRequestError('A verification entry ID is required.')
+      return client.query(api.verificationEntries.q.getPhotoReview, { id: id as Id<'verificationEntries'> })
+    }, 'Unable to load verification photos.')
+  }
+  return withAdminConvexWrite(request, environment, async client => {
+    const body = await readJsonBody(request)
+    if (!body || typeof body.id !== 'string' || typeof body.snapshot !== 'string' ||
+      typeof body.expectedRevision !== 'number' || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0 ||
+      (body.currentPhotoKey !== undefined && typeof body.currentPhotoKey !== 'string') ||
+      !Array.isArray(body.decisions) || body.decisions.length > SNAP_SLOTS.length) {
+      throw new AdminRequestError('A valid photo review is required.')
+    }
+    const decisions: PhotoReviewDecision[] = body.decisions.map((item: unknown) => {
+      if (!item || typeof item !== 'object' || !('photoKey' in item) || typeof item.photoKey !== 'string' ||
+        !('status' in item) || (item.status !== 'verified' && item.status !== 'skipped')) {
+        throw new AdminRequestError('Each photo needs a valid review decision.')
+      }
+      return { photoKey: item.photoKey, status: item.status }
+    })
+    return client.mutation(api.verificationEntries.m.savePhotoReview, {
+      id: body.id as Id<'verificationEntries'>,
+      expectedRevision: body.expectedRevision,
+      snapshot: body.snapshot,
+      currentPhotoKey: body.currentPhotoKey as string | undefined,
+      decisions
+    })
+  }, 'Unable to save verification progress.')
+}
 
 export function handleAdminVerificationEntryList(
   request: Request,

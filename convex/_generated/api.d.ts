@@ -25,6 +25,7 @@ import type * as http from "../http.js";
 import type * as lib_any from "../lib/any.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_email from "../lib/email.js";
+import type * as lib_fonts_liberationSans from "../lib/fonts/liberationSans.js";
 import type * as lib_r2 from "../lib/r2.js";
 import type * as lib_submissionAccess from "../lib/submissionAccess.js";
 import type * as lib_workspaceAccess from "../lib/workspaceAccess.js";
@@ -55,6 +56,7 @@ import type * as verificationEntries_helpers from "../verificationEntries/helper
 import type * as verificationEntries_m from "../verificationEntries/m.js";
 import type * as verificationEntries_pdf from "../verificationEntries/pdf.js";
 import type * as verificationEntries_q from "../verificationEntries/q.js";
+import type * as verificationEntries_stampedPhotos from "../verificationEntries/stampedPhotos.js";
 import type * as verificationEntries_uploads from "../verificationEntries/uploads.js";
 import type * as vision_logs_d from "../vision_logs/d.js";
 import type * as vision_logs_m from "../vision_logs/m.js";
@@ -84,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "lib/any": typeof lib_any;
   "lib/auth": typeof lib_auth;
   "lib/email": typeof lib_email;
+  "lib/fonts/liberationSans": typeof lib_fonts_liberationSans;
   "lib/r2": typeof lib_r2;
   "lib/submissionAccess": typeof lib_submissionAccess;
   "lib/workspaceAccess": typeof lib_workspaceAccess;
@@ -114,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "verificationEntries/m": typeof verificationEntries_m;
   "verificationEntries/pdf": typeof verificationEntries_pdf;
   "verificationEntries/q": typeof verificationEntries_q;
+  "verificationEntries/stampedPhotos": typeof verificationEntries_stampedPhotos;
   "verificationEntries/uploads": typeof verificationEntries_uploads;
   "vision_logs/d": typeof vision_logs_d;
   "vision_logs/m": typeof vision_logs_m;

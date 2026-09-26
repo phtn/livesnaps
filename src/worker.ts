@@ -16,6 +16,7 @@ import {
   handleAdminSnapUpdate
 } from './server/admin-snap-routes'
 import {
+  handleAdminPhotoReview,
   handleAdminVerificationEntryActivate,
   handleAdminVerificationEntryAttachmentRemove,
   handleAdminVerificationEntryAttachmentUpload,
@@ -89,6 +90,7 @@ const ADMIN_ACCOUNT_LOGO_PATH = '/api/admin/account/logo'
 const ADMIN_VERIFICATION_ENTRIES_PATH = '/api/admin/verification-entries'
 const ADMIN_VERIFICATION_ENTRY_SEND_PATH = '/api/admin/verification-entries/send'
 const ADMIN_VERIFICATION_ENTRY_ACTIVE_PATH = '/api/admin/verification-entries/active'
+const ADMIN_PHOTO_REVIEW_PATH = '/api/admin/verification-entries/photo-review'
 const ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH = '/api/admin/verification-entries/attachments'
 const ADMIN_VERIFICATION_ENTRY_ATTACHMENT_REMOVE_PATH = '/api/admin/verification-entries/attachments/remove'
 const SNAP_SUBMISSION_PHOTO_PATH = /^\/api\/snaps\/([^/]+)\/photos\/(\d+)$/
@@ -250,6 +252,10 @@ export default {
 
     if (pathname === ADMIN_VERIFICATION_ENTRY_ACTIVE_PATH) {
       return handleAdminVerificationEntryActivate(request, { convexUrl })
+    }
+
+    if (pathname === ADMIN_PHOTO_REVIEW_PATH) {
+      return handleAdminPhotoReview(request, { convexUrl })
     }
 
     if (pathname === ADMIN_VERIFICATION_ENTRY_ATTACHMENTS_PATH) {

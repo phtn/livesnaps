@@ -1,5 +1,6 @@
 import { ConvexError, v } from 'convex/values'
-import { isSnapUploadId } from '../../src/lib/r2/snap-images'
+import { isSnapUploadId, SNAP_SLOTS } from '../../src/lib/r2/snap-images'
+import { canReviewPhotos, photoReviewSnapshot } from '../../src/lib/verifications/photo-review'
 import { MAX_PLATE_NUMBER_LENGTH, normalizePlateNumber } from '../../src/lib/snaps/vehicle-details'
 import {
   DEFAULT_VERIFICATION_ATTACHMENTS,
@@ -11,9 +12,9 @@ import type { Doc, Id } from '../_generated/dataModel'
 import type { ActionCtx, MutationCtx } from '../_generated/server'
 import { action, env, mutation } from '../_generated/server'
 import { getResendFromAddress } from '../lib/email'
-import { toBase64 as bytesToBase64, getR2ObjectBytes, isR2Configured } from '../lib/r2'
+import { toBase64 as bytesToBase64, isR2Configured } from '../lib/r2'
 import { requireSnapAccess, requireVerificationEntryAccess } from '../lib/submissionAccess'
-import { createVerificationEntrySchema, type VerificationUpload, verificationEntryDocumentSchema } from './d'
+import { createVerificationEntrySchema, photoReviewDecisionSchema, type VerificationUpload, verificationEntryDocumentSchema } from './d'
 import { ATTACHMENT_UPLOAD_TTL_MS } from './uploads'
 
 const FIREBASE_UID_MAX_LENGTH = 128
@@ -60,6 +61,60 @@ const MAX_UPLOAD_NAME_LENGTH = 160
 
 const activeStatus = (entry: VerificationEntryDoc) =>
   entry.status === 'draft' ? ('active' as const) : entry.status
+
+/** Save one explicit review checkpoint. Opening or discarding the viewer never writes. */
+export const savePhotoReview = mutation({
+  args: {
+    id: v.id('verificationEntries'),
+    expectedRevision: v.number(),
+    snapshot: v.string(),
+    currentPhotoKey: v.optional(v.string()),
+    decisions: v.array(photoReviewDecisionSchema)
+  },
+  returns: verificationEntryDocumentSchema,
+  handler: async (ctx, args) => {
+    const entry = await ctx.db.get('verificationEntries', args.id)
+    if (!entry) throw new ConvexError('Entry not found.')
+    const { identity, snap } = await requireVerificationEntryAccess(ctx, entry, 'member')
+    if (!canReviewPhotos(entry.status)) throw new ConvexError('This entry can no longer be verified.')
+    if (snap.location_session?.status !== 'completed') throw new ConvexError('Only completed captures can be verified.')
+    if (args.expectedRevision !== (entry.photoReview?.revision ?? 0)) {
+      throw new ConvexError('Another verifier saved progress. Reopen verification to load the latest progress.')
+    }
+    const photos = snap.metadata.photos
+    const keys = new Set(photos.map(photo => photo.r2_key))
+    if (photos.length === 0 || photos.length > SNAP_SLOTS.length || keys.size !== photos.length) {
+      throw new ConvexError('This capture does not have a valid set of photos to verify.')
+    }
+    if (args.snapshot !== photoReviewSnapshot(photos)) {
+      throw new ConvexError('Capture details changed. Reopen verification to review the latest photos.')
+    }
+    if (args.decisions.length > photos.length || new Set(args.decisions.map(item => item.photoKey)).size !== args.decisions.length ||
+      args.decisions.some(item => !keys.has(item.photoKey)) || (args.currentPhotoKey !== undefined && !keys.has(args.currentPhotoKey))) {
+      throw new ConvexError('Review decisions must refer to unique photos in this capture.')
+    }
+    const now = Date.now()
+    const complete = photos.every(photo => args.decisions.some(item => item.photoKey === photo.r2_key && item.status === 'verified'))
+    const prior = entry.photoReview?.snapshot === args.snapshot ? entry.photoReview : undefined
+    await ctx.db.patch('verificationEntries', entry._id, {
+      status: complete ? 'verified' : 'active',
+      updatedAt: now,
+      photoReview: {
+        revision: (entry.photoReview?.revision ?? 0) + 1,
+        snapshot: args.snapshot,
+        ...(args.currentPhotoKey ? { currentPhotoKey: args.currentPhotoKey } : {}),
+        decisions: args.decisions.map(item => {
+          const saved = prior?.decisions.find(decision => decision.photoKey === item.photoKey && decision.status === item.status)
+          return saved ?? { ...item, reviewedAt: now, reviewedBy: identity.tokenIdentifier }
+        }),
+        savedAt: now,
+        ...(complete ? { completedAt: prior?.completedAt ?? now } : {})
+      }
+    })
+    await ctx.db.patch('snaps', snap._id, { verification_status: complete ? 'verified' : 'draft', updated_at: now })
+    return (await ctx.db.get('verificationEntries', entry._id))!
+  }
+})
 
 /** Falls back to a stable name: a filename is what the recipient sees. */
 const normalizeUploadName = (value: string): string => {
@@ -502,31 +557,19 @@ export const sendEmail = action({
       } else if (!isR2Configured()) {
         attachmentErrors.push('R2 is not configured for this deployment, so photos cannot be attached')
       } else {
-        // Each photo is read straight out of R2 and attached as the real
-        // `.webp` bytes. A slot that fails to read is named rather than
-        // swallowed, so a partial send is visible instead of looking complete.
-        const plateSlug: string = entry.plateNumber.replace(/\s+/g, '_')
-
+        // Email only stamped derivatives; the original R2 evidence is never overwritten.
         for (const photo of snaps.metadata.photos) {
           try {
-            const label: string = photo.label.trim().replace(/\s+/g, '-').toLowerCase() || `slot-${photo.slot}`
-            const bytes: ArrayBuffer = await getR2ObjectBytes(photo.r2_key)
-            const content: string = bytesToBase64(bytes)
-
-            if (!content) {
-              attachmentErrors.push(`photo slot ${photo.slot}: empty content`)
-              continue
-            }
-
-            emailAttachments.push({
-              filename: `${photo.slot}-${label}-${plateSlug}.webp`,
-              content,
-              contentType: photo.content_type
-            })
+            const stamped: { content: string; byteLength: number; filename: string; contentType: 'image/jpeg' } = await ctx.runAction(
+              internal.verificationEntries.stampedPhotos.renderPhoto,
+              { uploadId: entry.uploadId, photoKey: photo.r2_key }
+            )
+            if (!stamped.content) throw new Error('Stamp renderer returned an empty photo.')
+            emailAttachments.push({ filename: stamped.filename, content: stamped.content, contentType: stamped.contentType })
             photoAttachmentCount += 1
-            attachedBytes += content.length
+            attachedBytes += stamped.content.length
           } catch (error: unknown) {
-            const message: string = error instanceof Error ? error.message : String(error)
+            const message = error instanceof Error ? error.message : String(error)
             attachmentErrors.push(`photo slot ${photo.slot}: ${message}`)
           }
         }
@@ -614,7 +657,7 @@ export const sendEmail = action({
         )
       }
 
-      if (finalAttachments.includes('photos') && photoAttachmentCount === 0) {
+      if (finalAttachments.includes('photos') && (!snaps || photoAttachmentCount === 0 || photoAttachmentCount !== snaps.metadata.photos.length)) {
         throw new ConvexError(`Failed to prepare photos attachment: ${attachmentErrors.join('; ') || 'unknown'}`)
       }
       if (finalAttachments.includes('full report') && !hasReportAttachment) {

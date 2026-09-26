@@ -1,4 +1,4 @@
-export const VERIFICATION_ENTRY_STATUS_VALUES = ['draft', 'active', 'submitted', 'cancelled', 'failed'] as const
+export const VERIFICATION_ENTRY_STATUS_VALUES = ['draft', 'active', 'verified', 'submitted', 'cancelled', 'failed'] as const
 
 export type VerificationEntryStatus = (typeof VERIFICATION_ENTRY_STATUS_VALUES)[number]
 

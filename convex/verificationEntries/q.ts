@@ -1,15 +1,28 @@
 import { paginationOptsValidator, paginationResultValidator } from 'convex/server'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
 import type { Doc } from '../_generated/dataModel'
 import { type QueryCtx, query } from '../_generated/server'
 import { workspaceAccess } from '../lib/workspaceAccess'
-import { snapHandlerSchema } from '../snaps/d'
+import { snapDocumentSchema, snapHandlerSchema } from '../snaps/d'
+import { requireVerificationEntryAccess } from '../lib/submissionAccess'
 import { verificationEntryDocumentSchema } from './d'
 
 const normalizeLimit = (limit?: number) =>
   Math.min(Math.max(Math.floor(Number.isFinite(limit) ? (limit ?? 25) : 100), 1), 250)
 const listArgs = { accountId: v.optional(v.id('accounts')), limit: v.optional(v.number()) }
 const queueItemSchema = verificationEntryDocumentSchema.extend({ handler: v.optional(snapHandlerSchema) })
+
+/** Read fresh progress and capture evidence together, independent of the table's loaded page. */
+export const getPhotoReview = query({
+  args: { id: v.id('verificationEntries') },
+  returns: v.object({ entry: verificationEntryDocumentSchema, snap: snapDocumentSchema }),
+  handler: async (ctx, { id }) => {
+    const entry = await ctx.db.get('verificationEntries', id)
+    if (!entry) throw new ConvexError('Entry not found.')
+    const { snap } = await requireVerificationEntryAccess(ctx, entry, 'member')
+    return { entry, snap }
+  }
+})
 
 async function validEntries(ctx: QueryCtx, entries: Doc<'verificationEntries'>[]) {
   const results = await Promise.all(

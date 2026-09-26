@@ -1,0 +1,155 @@
+import { useEffect, useState } from 'octane'
+import { Dialog } from '@octanejs/base-ui/dialog'
+import { Icon } from '@/lib/icons'
+import { fetchPhotoReview, savePhotoReview, type PhotoReviewData } from '@/lib/verifications/admin-writes'
+import { canReviewPhotos, photoReviewSnapshot, type PhotoReviewDecision } from '@/lib/verifications/photo-review'
+import { onSuccess } from '@/lib/toast'
+import { useBackDismiss } from '@/hooks/use-back-dismiss'
+import VerificationPhotoStep from './verification-photo-step.btsx'
+
+module
+  const buttonClass = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-4 text-sm font-medium hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:pointer-events-none disabled:opacity-40'
+  const popupClass = 'fixed inset-0 z-50 flex h-dvh w-screen flex-col overflow-hidden bg-zinc-950 text-white outline-none'
+
+component VerificationSession
+  props { data, onClose, onSaved }: { data: PhotoReviewData; onClose: () => void; onSaved: () => void }
+  setup
+    const photos = [...data.snap.metadata.photos].sort((a, b) => a.slot - b.slot)
+    const snapshot = photoReviewSnapshot(photos)
+    const saved = data.entry.photoReview?.snapshot === snapshot ? data.entry.photoReview : undefined
+    const [decisions, setDecisions, getDecisions] = useState<PhotoReviewDecision[]>(() => saved?.decisions.map(({ photoKey, status }) => ({ photoKey, status })) ?? [])
+    const [index, setIndex] = useState(() => Math.max(0, photos.findIndex(photo => photo.r2_key === saved?.currentPhotoKey)))
+    const [summary, setSummary] = useState(false)
+    const [exitOpen, setExitOpen] = useState(false)
+    const [saving, setSaving, getSaving] = useState(false)
+    const [error, setError] = useState('')
+    const activePhoto = photos[index]
+    const decision = decisions.find(item => item.photoKey === activePhoto?.r2_key)?.status
+    const verifiedCount = decisions.filter(item => item.status === 'verified').length
+    const skippedCount = decisions.filter(item => item.status === 'skipped').length
+    const complete = photos.length > 0 && verifiedCount === photos.length
+    const reviewable = canReviewPhotos(data.entry.status) && data.snap.location_session?.status === 'completed'
+    const canSave = reviewable && photos.length > 0 && !saving
+    const requestExit = () => { if (!getSaving()) setExitOpen(true) }
+    useBackDismiss(!exitOpen, requestExit)
+    const decide = (status: PhotoReviewDecision['status']) => {
+      if (!activePhoto || getSaving()) return
+      setDecisions(current => [...current.filter(item => item.photoKey !== activePhoto.r2_key), { photoKey: activePhoto.r2_key, status }])
+    }
+    const next = () => {
+      if (index < photos.length - 1) setIndex(index + 1)
+      else setSummary(true)
+    }
+    const skip = () => { decide('skipped'); next() }
+    const save = async () => {
+      if (!canSave || getSaving()) return
+      setSaving(true)
+      setError('')
+      try {
+        const entry = await savePhotoReview({
+          id: data.entry._id,
+          expectedRevision: data.entry.photoReview?.revision ?? 0,
+          snapshot,
+          currentPhotoKey: activePhoto?.r2_key,
+          decisions: getDecisions()
+        })
+        onSuccess(entry.status === 'verified' ? 'All photos verified.' : 'Verification progress saved.')
+        onSaved()
+        onClose()
+      } catch (cause) {
+        setError(cause instanceof Error ? cause.message : 'Unable to save verification progress.')
+        setExitOpen(false)
+      } finally {
+        setSaving(false)
+      }
+    }
+    // Refresh/closing the browser should not silently throw away this session.
+    useEffect(() => {
+      const beforeUnload = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }
+      window.addEventListener('beforeunload', beforeUnload)
+      return () => window.removeEventListener('beforeunload', beforeUnload)
+    }, [])
+
+  Dialog.Root(open={true} onOpenChange={(open) => { if (!open) requestExit() }})
+    Dialog.Portal
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/80')
+      Dialog.Popup(className={popupClass})
+        header(className='flex shrink-0 items-center gap-3 border-b border-white/10 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:px-6')
+          div(className='grid size-10 shrink-0 place-items-center rounded-xl border border-emerald-300/20 bg-emerald-300/10 text-emerald-200')
+            Icon(name='safe-shield' className='size-5')
+          div(className='min-w-0 flex-1')
+            Dialog.Title(className='truncate text-base font-semibold') Verify photos · #{data.entry.plateNumber}
+            Dialog.Description(className='mt-1 text-xs text-white/45') #{data.entry.applicant} · #{verifiedCount} of #{photos.length} verified
+          button(type='button' className={buttonClass} disabled={!canSave} onClick={() => void save()}) #{saving ? 'Saving…' : 'Save & exit'}
+          button(type='button' className={buttonClass} disabled={saving} onClick={requestExit} aria-label='Exit verification')
+            Icon(name='close-small' className='size-4')
+        div(role='progressbar' aria-label='Photos verified' aria-valuemin={0} aria-valuemax={photos.length || 1} aria-valuenow={verifiedCount} className='h-1 shrink-0 bg-white/10')
+          div(className='h-full bg-emerald-300 transition-[width] duration-300 motion-reduce:transition-none' style={{ width: `${photos.length ? verifiedCount / photos.length * 100 : 0}%` }})
+        if error
+          p(role='alert' className='shrink-0 border-b border-red-300/20 bg-red-950/40 px-6 py-3 text-sm text-red-200') #{error}
+        if data.entry.photoReview && !saved
+          p(role='status' className='shrink-0 bg-amber-950/30 px-6 py-3 text-xs text-amber-200') The capture evidence changed since the last save. Review these photos again.
+        if !reviewable || photos.length === 0
+          div(className='grid min-h-0 flex-1 place-content-center justify-items-center gap-4 p-8 text-center')
+            p #{photos.length === 0 ? 'There are no photos to verify.' : 'This entry is no longer available for photo verification.'}
+            button(type='button' className={buttonClass} onClick={onClose}) Close
+        elseif summary
+          div(className='min-h-0 flex-1 overflow-y-auto px-6 py-8 sm:py-12')
+            div(className='mx-auto max-w-xl')
+              p(className='text-xs uppercase tracking-[0.2em] text-emerald-300') Review summary
+              h2(className='mt-3 text-3xl font-semibold') #{complete ? 'Every photo checked.' : 'Save your progress.'}
+              p(className='mt-3 text-sm leading-relaxed text-white/55') #{complete ? 'Save to mark this entry as Verified.' : `${verifiedCount} verified · ${skippedCount} skipped · ${photos.length - verifiedCount - skippedCount} remaining. Skipped photos can be reviewed later; the entry stays Active.`}
+              ul(className='mt-8 divide-y divide-white/10 rounded-xl border border-white/10 px-4')
+                each photo, photoIndex in photos key photo.r2_key
+                  li(className='flex items-center justify-between gap-4 py-4')
+                    div
+                      p(className='text-sm font-medium capitalize') #{photo.label}
+                      p(className='mt-1 text-xs capitalize text-white/45') #{decisions.find(item => item.photoKey === photo.r2_key)?.status ?? 'Not reviewed'}
+                    button(type='button' className={buttonClass} aria-label={`Review ${photo.label}`} disabled={saving} onClick={() => { setIndex(photoIndex); setSummary(false) }}) Review
+              div(className='mt-6 flex flex-wrap justify-end gap-3')
+                button(type='button' className={buttonClass} disabled={saving} onClick={requestExit}) Exit
+                button(type='button' className={`${buttonClass} bg-emerald-300 text-emerald-950 hover:bg-emerald-200`} disabled={!canSave} onClick={() => void save()}) #{saving ? 'Saving…' : complete ? 'Finish verification' : 'Save & exit'}
+        else
+          div(className='flex min-h-0 flex-1 flex-col' inert={saving})
+            each photo in activePhoto ? [activePhoto] : [] key photo.r2_key
+              VerificationPhotoStep(photo={photo} decision={decision} index={index} count={photos.length} sessionAddress={data.snap.location_session?.address.full_address} onVerify={() => decide('verified')} onSkip={skip} onNext={next} onPrevious={() => setIndex(Math.max(0, index - 1))})
+        Dialog.Root(open={exitOpen} onOpenChange={(open) => { if (!getSaving()) setExitOpen(open) }})
+          Dialog.Portal
+            Dialog.Backdrop(className='fixed inset-0 z-[60] bg-black/75 backdrop-blur-sm')
+            Dialog.Popup(className='fixed left-1/2 top-1/2 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-white/15 bg-zinc-900 p-6 text-white shadow-2xl outline-none')
+              Dialog.Title(className='text-xl font-semibold') Save your progress?
+              Dialog.Description(className='mt-3 text-sm leading-relaxed text-white/55') Save to resume later. Discard removes only the changes from this session; previously saved progress is kept.
+              div(className='mt-6 flex flex-wrap gap-2')
+                button(type='button' className={buttonClass} disabled={saving} onClick={() => setExitOpen(false)}) Keep reviewing
+                button(type='button' className={`${buttonClass} text-red-200`} disabled={saving} onClick={onClose}) Discard
+                button(type='button' className={`${buttonClass} bg-emerald-300 text-emerald-950 hover:bg-emerald-200`} disabled={!canSave} onClick={() => void save()}) #{saving ? 'Saving…' : 'Save & exit'}
+
+props { entryId, onClose, onSaved }: { entryId: string; onClose: () => void; onSaved: () => void }
+setup
+  const [data, setData] = useState<PhotoReviewData | null>(null)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    void fetchPhotoReview(entryId, controller.signal).then(result => {
+      if (!controller.signal.aborted) { setData(result); setError('') }
+    }).catch(cause => {
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Unable to load verification photos.')
+    })
+    return () => controller.abort()
+  }, [entryId, attempt])
+
+if data
+  VerificationSession(data={data} onClose={onClose} onSaved={onSaved})
+else
+  Dialog.Root(open={true} onOpenChange={(open) => { if (!open) onClose() }})
+    Dialog.Portal
+      Dialog.Backdrop(className='fixed inset-0 z-50 bg-black/80')
+      Dialog.Popup(className={`${popupClass} items-center justify-center gap-4 p-8`})
+        Dialog.Title(className='text-xl font-semibold') Photo verification
+        Dialog.Description(className='text-sm text-white/55') #{error || 'Loading photos and capture details…'}
+        if error
+          button(type='button' className={buttonClass} onClick={() => { setError(''); setAttempt(value => value + 1) }}) Retry
+        else
+          Icon(name='spinner-ring' className='size-7 text-emerald-300')
+        button(type='button' className={buttonClass} onClick={onClose}) Close

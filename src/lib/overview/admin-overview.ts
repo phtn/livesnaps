@@ -24,7 +24,7 @@ const TONE_STOPPED = 'bg-chart-idle'
 const TONE_FAILED = 'bg-chart-critical'
 
 const SNAP_STATUSES = ['pending', 'active', 'abandoned', 'completed', 'cancelled', 'invalidated'] as const
-const ENTRY_STATUSES = ['draft', 'active', 'submitted', 'cancelled', 'failed'] as const
+const ENTRY_STATUSES = ['draft', 'active', 'verified', 'submitted', 'cancelled', 'failed'] as const
 
 export interface CaptureReadings {
   /** Daily capture counts, oldest first. */
@@ -90,6 +90,7 @@ export function readVerifications(entries: readonly VerificationEntryRow[], now 
     failed: counts.failed,
     segments: toSegments([
       { key: 'submitted', label: 'Submitted', value: counts.submitted, tone: TONE_RESOLVED },
+      { key: 'verified', label: 'Verified', value: counts.verified, tone: TONE_RESOLVED },
       { key: 'active', label: 'In flight', value: counts.active, tone: TONE_IN_FLIGHT },
       { key: 'draft', label: 'Draft', value: counts.draft, tone: TONE_ATTENTION },
       { key: 'cancelled', label: 'Cancelled', value: counts.cancelled, tone: TONE_STOPPED },

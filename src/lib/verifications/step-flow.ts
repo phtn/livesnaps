@@ -66,7 +66,7 @@ export interface AttachmentSource {
 
 // The report is generated rather than stored, so its weight is projected from
 // the shape of the snap: a fixed body plus one evidence block per photo. The
-// photos attachment, by contrast, is the bytes already sitting in R2.
+// photo estimate starts with the original bytes; stamping/re-encoding happens at send time.
 const REPORT_BASE_BYTES = 48_000
 const REPORT_PER_PHOTO_BYTES = 5_200
 
@@ -94,7 +94,7 @@ export const attachmentSize = (
 ): { label: string; isEstimate: boolean } =>
   source === null
     ? { label: '—', isEstimate: false }
-    : { label: formatBytes(attachmentBytes(option, source)), isEstimate: option === 'full report' }
+    : { label: formatBytes(attachmentBytes(option, source)), isEstimate: option === 'full report' || option === 'photos' }
 
 /** The running weight of what is selected, or `null` when nothing is. */
 export const attachmentTotalLabel = (

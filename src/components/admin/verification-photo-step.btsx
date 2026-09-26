@@ -1,0 +1,120 @@
+import { useState } from 'octane'
+import { Icon } from '@/lib/icons'
+import { getSnapImageUrl, isSnapObjectKey } from '@/lib/r2/snap-images'
+import type { SnapPhoto } from '../../../convex/snaps/d'
+import type { PhotoReviewDecision } from '@/lib/verifications/photo-review'
+
+module
+  const buttonClass = 'inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-white/15 px-4 text-sm font-medium transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 disabled:pointer-events-none disabled:opacity-35'
+  const formatTime = (time: number) => new Date(time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'long' })
+  const readable = (value: string) => value.replaceAll('_', ' ')
+
+props { photo, decision, index, count, sessionAddress, onVerify, onSkip, onNext, onPrevious }: { photo: SnapPhoto; decision?: PhotoReviewDecision['status']; index: number; count: number; sessionAddress?: string; onVerify: () => void; onSkip: () => void; onNext: () => void; onPrevious: () => void }
+setup
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>(() => isSnapObjectKey(photo.r2_key) ? 'loading' : 'error')
+  const [retry, setRetry] = useState(0)
+  const [rotation, setRotation] = useState(0)
+  const [zoomed, setZoomed] = useState(false)
+  const validKey = isSnapObjectKey(photo.r2_key)
+  const src = validKey ? `${getSnapImageUrl(photo.r2_key)}${retry ? `?retry=${retry}` : ''}` : ''
+  const location = photo.location
+  const integrity = photo.capture_integrity
+
+fragment
+  div(className='grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[minmax(0,1fr)_20rem] lg:overflow-hidden')
+    section(className='relative flex min-h-[38vh] flex-col bg-black lg:min-h-0' aria-label='Capture photo')
+      div(className='absolute left-4 top-4 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/65 px-3 py-1.5 text-xs backdrop-blur-md')
+        span(className='capitalize') #{photo.label}
+        span(className='text-white/40') #{index + 1} / #{count}
+      div(className='relative grid min-h-0 flex-1 place-items-center overflow-auto p-4 lg:p-8')
+        if validKey
+          img(
+            ~ src={src}
+            ~ alt={`${photo.label} capture, photo ${index + 1}`}
+            ~ onLoad={() => setLoadState('ready')}
+            ~ onError={() => setLoadState('error')}
+            ~ className='max-h-[50vh] max-w-full object-contain transition-transform duration-200 lg:max-h-[calc(100dvh-16rem)]'
+            ~ style={{ transform: `rotate(${rotation}deg) scale(${zoomed ? 2 : 1})`, visibility: loadState === 'ready' ? 'visible' : 'hidden' }}
+            ~ )
+        if loadState === 'loading'
+          div(role='status' className='absolute inset-0 grid place-content-center justify-items-center gap-3 text-sm text-white/50')
+            Icon(name='spinner-ring' className='size-7')
+            span Loading capture…
+        if loadState === 'error'
+          div(role='alert' className='absolute inset-0 grid place-content-center justify-items-center gap-3 p-8 text-center')
+            p(className='text-sm text-white/65') This photo could not be loaded. Retry or skip it for later.
+            if validKey
+              button(type='button' className={buttonClass} onClick={() => { setLoadState('loading'); setRetry(value => value + 1) }}) Retry photo
+        if decision === 'verified'
+          div(className='verification-stamp pointer-events-none absolute right-6 top-20 z-10 rounded-lg border-4 border-emerald-300 bg-emerald-950/75 px-5 py-2 text-xl font-black uppercase tracking-[0.18em] text-emerald-200 shadow-lg backdrop-blur-sm' role='status')
+            span Verified
+      div(className='flex shrink-0 items-center justify-center gap-2 p-3')
+        button(type='button' className={buttonClass} disabled={loadState !== 'ready'} aria-label='Rotate photo left' onClick={() => setRotation(value => value - 90)})
+          Icon(name='rotate-ccw' className='size-4')
+        button(type='button' className={buttonClass} disabled={loadState !== 'ready'} aria-pressed={zoomed} onClick={() => setZoomed(value => !value)}) #{zoomed ? 'Fit photo' : 'Zoom in'}
+        button(type='button' className={buttonClass} disabled={loadState !== 'ready'} aria-label='Rotate photo right' onClick={() => setRotation(value => value + 90)})
+          Icon(name='rotate-cw' className='size-4')
+    aside(className='border-t border-white/10 bg-zinc-900/70 p-5 lg:overflow-y-auto lg:border-l lg:border-t-0' aria-label='Capture details')
+      p(className='text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300') Capture evidence
+      h2(className='mt-2 text-xl font-medium capitalize') #{photo.label}
+      dl(className='mt-5 space-y-4 text-sm')
+        div
+          dt(className='text-xs text-white/45') Captured at
+          dd(className='mt-1') #{formatTime(photo.captured_at)}
+        div
+          dt(className='text-xs text-white/45') Photo GPS
+          dd(className='mt-1 font-mono text-xs') #{location ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}` : 'Not recorded for this photo'}
+        if location
+          fragment
+            div
+              dt(className='text-xs text-white/45') GPS accuracy
+              dd(className='mt-1') ±#{location.accuracy_meters.toFixed(1)} m
+            div
+              dt(className='text-xs text-white/45') GPS measured at
+              dd(className='mt-1') #{formatTime(location.captured_at)}
+            if location.altitude_meters !== null
+              div
+                dt(className='text-xs text-white/45') Altitude
+                dd(className='mt-1') #{location.altitude_meters.toFixed(1)} m
+        if sessionAddress
+          div
+            dt(className='text-xs text-white/45') Session address
+            dd(className='mt-1 text-white/75') #{sessionAddress}
+        div
+          dt(className='text-xs text-white/45') File
+          dd(className='mt-1 text-white/75') #{photo.content_type} · #{(photo.size / 1024).toFixed(0)} KB
+        if photo.capture_id
+          div
+            dt(className='text-xs text-white/45') Capture ID
+            dd(className='mt-1 break-all font-mono text-[11px] text-white/55') #{photo.capture_id}
+      div(className='mt-6 rounded-xl border border-white/10 bg-white/5 p-4')
+        h3(className='text-xs font-semibold text-white/70') Automated capture check
+        if integrity && integrity.status === 'completed'
+          fragment
+            p(className='mt-2 text-sm capitalize') #{readable(integrity.verdict)}
+            p(className='mt-1 text-xs text-white/50') #{Math.round(integrity.confidence * 100)}% confidence · #{readable(integrity.disposition)}
+            if integrity.signals.length > 0
+              ul(className='mt-3 space-y-1 text-xs text-amber-200/80')
+                each signal in integrity.signals key signal
+                  li #{readable(signal)}
+        else
+          p(className='mt-2 text-xs text-white/50') Automated evidence is unavailable. Review the capture manually.
+  footer(className='flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-white/10 bg-zinc-950 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:px-6')
+    button(type='button' className={buttonClass} disabled={index === 0} onClick={onPrevious}) Previous
+    div(className='flex flex-wrap items-center gap-2')
+      button(type='button' className={buttonClass} onClick={onSkip}) Skip
+      button(type='button' className={`${buttonClass} border-emerald-300/40 bg-emerald-300/10 text-emerald-200`} disabled={loadState !== 'ready' || decision === 'verified'} onClick={onVerify})
+        Icon(name='safe-shield' className='size-4')
+        span #{decision === 'verified' ? 'Verified' : 'Mark as verified'}
+      button(type='button' className={`${buttonClass} bg-white text-zinc-950 hover:bg-white/90`} disabled={decision !== 'verified'} onClick={onNext}) #{index === count - 1 ? 'Review summary' : 'Next photo'}
+
+style
+  .verification-stamp { transform: rotate(-12deg); animation: verification-stamp-in 420ms cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes verification-stamp-in {
+    0% { opacity: 0; transform: scale(1.8) rotate(-24deg); filter: blur(4px); }
+    65% { opacity: 1; transform: scale(.94) rotate(-10deg); filter: blur(0); }
+    100% { opacity: 1; transform: scale(1) rotate(-12deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .verification-stamp { animation: none; }
+  }
